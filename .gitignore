@@ -1,0 +1,11 @@
+cat > .gitignore << 'EOF'
+*.db
+*.sqlite
+*.sqlite3
+__pycache__/
+*.pyc
+.venv/
+venv/
+.streamlit/secrets.toml
+.vscode/
+EOF
