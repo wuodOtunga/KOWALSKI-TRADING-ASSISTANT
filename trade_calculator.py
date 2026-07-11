@@ -9,6 +9,8 @@ class TradeSetup:
     account_balance : int
     risk_percent : int
     lot_size : float
+    symbol : str
+    direction : str
 
 INSTRUMENT_SPECS = {
     "NQ" : {"type" : "futures", "contract_size" : 20},
@@ -36,9 +38,9 @@ def main():
 
     print(calculate_position_size(trade))
 
-def calculate_profit_loss(trade: TradeSetup, symbol, direction):
-    contract_size = INSTRUMENT_SPECS[symbol]["contract_size"]
-    multiplier = MULTIPLIER[direction]
+def calculate_profit_loss(trade: TradeSetup):
+    contract_size = INSTRUMENT_SPECS[trade.symbol]["contract_size"]
+    multiplier = MULTIPLIER[trade.direction]
 
     dollar_amount = (trade.exit_price - trade.entry_price) * multiplier * trade.lot_size * contract_size
     dollar_percent = (dollar_amount / trade.account_balance) * 100
@@ -49,7 +51,7 @@ def calculate_profit_loss(trade: TradeSetup, symbol, direction):
         "RESULT" : verdict,
         "DOLLAR_AMOUNT" : round(dollar_amount, 2),
         "DOLLAR_PERCENT" : round(dollar_percent, 2),
-        "DIRECTION" : direction
+        "DIRECTION" : trade.direction
     }
 
 def get_trade_direction():
@@ -62,7 +64,7 @@ def get_trade_direction():
         else:
             continue
 
-def calculate_risk_reward_ratio(trade):
+def calculate_risk_reward_ratio(trade: TradeSetup):
     contract_size = INSTRUMENT_SPECS[trade.symbol]["contract_size"]
         
     profit_distance = abs(trade.take_profit - trade.entry_price)
@@ -78,11 +80,11 @@ def calculate_risk_reward_ratio(trade):
         "REWARD_AMOUNT" : round(profit_amount, 2)
     }
 
-def calculate_position_size(trade: TradeSetup, symbol):
+def calculate_position_size(trade: TradeSetup):
     #RETURNS LOT SIZE GIVEN INPUTS.
     #INPUTS INCLUDE: ENTRY_PRICE, STOP_LOSS, DIRECTION, INSTRUMENT/SYMBOL
     #CORE FORMULA: RISK_AMOUNT/(ENTRY_PRICE - STOP_LOSS) * CONTRACT_SIZE
-    contract_size = INSTRUMENT_SPECS[symbol]["contract_size"]
+    contract_size = INSTRUMENT_SPECS[trade.symbol]["contract_size"]
     risk_distance = abs(trade.entry_price - trade.stop_loss)
     risk_amount = trade.account_balance * (trade.risk_percent/100)
 
@@ -129,7 +131,17 @@ def get_user_input(symbol, direction):
     else:
         lot_size = get_valid_float("LOT SIZE: ")
 
-    return TradeSetup(entry_price, exit_price, stop_loss, take_profit, account_balance, risk_percent, lot_size)
+    return TradeSetup(
+        entry_price = entry_price,
+        exit_price = exit_price,
+        stop_loss = stop_loss,
+        take_profit = take_profit,
+        account_balance = account_balance,
+        risk_percent = risk_percent,
+        lot_size = lot_size,
+        symbol = symbol,
+        direction = direction
+    )
 
 def get_instrument_symbol():
     valid_instruments = ["NQ", "ES", "XAUUSD", "XAGUSD"]
