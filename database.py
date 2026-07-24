@@ -30,19 +30,18 @@ class Database:
 #WHAT CAN GO WRONG IN THIS SCENARIO? FIND OUT.
 #RESEARCH THE BUILT-IN CLASSES OF ERRORS IN SQLITE3 AND WHAT THEY MEAN.
 #ADD CUSTOM EXECPTIONS TO THE CODE FOR SECOND COMMIT.
-#FIX THE ISSUES OF MATCHING THE PARAMETER VALUES IN THIS FUNCTION
-#TO MATCH THE DATACLASS AND SCHEMA TABLE.
+
     def save_trade(self, trade: Trade) -> int:
         """SAVE TRADE TO DATABASE"""
         """RETURNS LASTROWID REPRESENTING TRADEID"""
 
         self.cursor.execute("INSERT INTO trades (entry_price, exit_price, take_profit, stop_loss, position_size," \
-        "asset, direction, date, dollar_amount, profit_loss, rr_ratio, overall_trade_grade, \
-        model_id, account_id, management_id, entry_execution_id, parameter_ids) VALUES" \
+        "date, model_id, account_id, management_id, entry_execution_id, asset, direction, dollar_amount, profit_loss, rr_ratio,\
+        overall_trade_grade, parameter_ids) VALUES"
         "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-        (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size, trade.asset, trade.direction, trade.date,
-         trade.dollar_amount, trade.profit_loss, trade.rr_ratio, trade.overall_trade_grade, trade.model_id, trade.account_id,
-         trade.management_id, trade.entry_execution_id, trade.parameter_ids))
+        (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size, trade.date, trade.model_id,
+         trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
+         trade.profit_loss, trade.rr_ratio, trade.overall_trade_grade, trade.parameter_ids))
         self.conn.commit()
         return self.cursor.lastrowid
     
