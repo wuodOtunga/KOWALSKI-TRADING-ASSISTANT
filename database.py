@@ -21,6 +21,7 @@ class Database:
         """RUNS SCHEMA STATEMENTS FROM SCHEMA.SQL"""
         """MAKES SURE TABLES EXISTS"""
 
+        self.cursor = self.conn.cursor()
         with open("schema.sql") as f:
             self.cursor.executescript(f.read())
         self.conn.commit()
@@ -31,10 +32,13 @@ class Database:
 #RESEARCH THE BUILT-IN CLASSES OF ERRORS IN SQLITE3 AND WHAT THEY MEAN.
 #ADD CUSTOM EXECPTIONS TO THE CODE FOR SECOND COMMIT.
 
+#CODE SMELL: CREATED CURSOR ONCE THEN USED EVERYWHERE.
+#FIX, CREATE CURSOR LOCALLY IN EVERY METHOD.
     def save_trade(self, trade: Trade) -> int:
         """SAVE TRADE TO DATABASE"""
         """RETURNS LASTROWID REPRESENTING TRADEID"""
 
+        self.cursor = self.conn.cursor()
         self.cursor.execute("INSERT INTO trades (entry_price, exit_price, take_profit, stop_loss, position_size," \
         "date, model_id, account_id, management_id, entry_execution_id, asset, direction, dollar_amount, profit_loss, rr_ratio,\
         overall_trade_grade, parameter_ids) VALUES"
@@ -54,6 +58,7 @@ class Database:
         """GET TRADE DETAILS BY ID FROM DATABASE"""
         """RETURN TRADE ROW DETAILS FROM TRADES TABLE"""
         
+        self.cursor = self.conn.cursor()
         self.cursor.execute("SELECT * FROM trades WHERE trade_id = ?", (trade_id,))
         row = self.cursor.fetchone()
         if row is None:
@@ -61,13 +66,10 @@ class Database:
         
         return Trade(*row)
     
-#WHAT DOES IT MEAN TO UPDATE A TRADE? WHAT TRADE DETAILS GET UPDATED?
-#OVERRAL_TRADE_GRADE, CHARTS, TRADE_NOTES.
-#THIS METHOD ONLY UPDATES TRADE_GRADE BECAUSE IT GETS FILLED IN LAST.
-#HAVE METHODS THAT UPDATE CHARTS AND TRADE_NOTES.
     def update_trade_grade(self, trade_id: int, overall_trade_grade: str) -> None:
         """UPDATES OVERALL_TRADE_GRADE TO DATABASE"""
 
+        self.cursor = self.conn.cursor()
         self.cursor.execute("UPDATE trades SET overall_trade_grade = ? WHERE trade_id = ?", (overall_trade_grade, trade_id))
         self.conn.commit()
 
@@ -84,18 +86,21 @@ class Database:
             raise ValueError(f"CAN'T UPDATE COLUMN NAME {column}.")
         
         sql = f"UPDATE trades SET {column} = ? WHERE trade_id = ?"
+        self.cursor = self.conn.cursor()
         self.cursor.execute(sql, (value, trade_id))
         self.conn.commit()
 
     def delete_trade(self, trade_id: int) -> None:
         """DELETE TRADE ROW DETAILS FROM DATABASE"""
 
+        self.cursor = self.conn.cursor()
         self.cursor.execute("DELETE FROM trades WHERE trade_id = ?", (trade_id,))
         self.conn.commit()
 
     def add_chart(self, trade_id: int, charts: TradeCharts) -> int:
         """ATTACH TRADE CHART TO DATABASE"""
 
+        self.cursor = self.conn.cursor()
         self.cursor.execute("INSERT INTO charts (trade_id, filepath, timeframe) VALUES (?, ?, ?)",
                             (trade_id, charts.filepath, charts.timeframe))
         self.conn.commit()
@@ -106,18 +111,18 @@ class Database:
         """TRADE NOTES INCLUDE EMOTIONS, MISTAKES, THOUGHTS"""
         """ARGS: trade_id IDENTIFIER, TRADENOTE OBJECT"""
 
+        self.cursor = self.conn.cursor()
         self.cursor.execute("INSERT INTO trade_notes (trade_id, emotions, mistakes, thoughts) VALUES" \
         "(?, ?, ?, ?)", (trade_id, trade_notes.emotions, trade_notes.mistakes, trade_notes.thoughts))
         self.conn.commit()
         return self.cursor.lastrowid
 
-#WHEN WE USE CURSOR.EXECUTE() TO GET ONE INT FROM DATABASE,
-#HOW DOES RETURN MECHANICS WORK, DO WE STORE IT IN A VARIABLE???
     def get_entry_execution_points(self, entry_execution_id: int) -> int:
         """GET ENTRY EXECUTION POINTS FROM DATABASE"""
         """ARGS: ENTRY_EXECUTION_ID FROM TRADE OBJECT"""
         """RETURNS AN INT AS NUMBER OF POINTS SCORED BY TRADE"""
 
+        self.cursor = self.conn.cursor()
         self.cursor.execute("SELECT points FROM entry_execution WHERE entry_execution_id = ?", (entry_execution_id,))
         row = self.cursor.fetchone()
         if row is None:
@@ -130,6 +135,7 @@ class Database:
         """ARGS: MANAGEMENT_ID FROM TRADE OBJECT"""
         """RETURNS AN INT AS NUMBER OF POINTS SCORED BY TRADE"""
         
+        self.cursor = self.conn.cursor()
         self.cursor.execute("SELECT points FROM trade_management WHERE management_id = ?", (management_id,))
         row = self.cursor.fetchone()
         if row is None:
@@ -149,6 +155,7 @@ class Database:
         """ARGS: TRADE_ID ROW IDENTIFIER"""
         """RETURNS INT AS THE NUMBER OF PARAMETER POINTS FOR THE TRADE."""
 
+        self.cursor = self.conn.cursor()
         self.cursor.execute("SELECT COUNT(*) FROM trade_parameters WHERE trade_id = ?", (trade_id,))
         row = self.cursor.fetchone()
         
@@ -159,6 +166,7 @@ class Database:
         """ARGS: ACCOUNT OBJECT."""
         """RETURNS INT AS THE ACCOUNT ID FOR THAT ACCOUNT."""
 
+        self.cursor = self.conn.cursor()
         self.cursor.execute("INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES" \
         "(?, ?, ?, ?, ?)", (account.account_name, account.account_type, account.broker, account.starting_balance, account.is_active))
         self.conn.commit()
