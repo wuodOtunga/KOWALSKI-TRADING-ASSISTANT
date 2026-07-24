@@ -1,6 +1,6 @@
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE "trades" (
+CREATE TABLE IF NOT EXISTS "trades" (
     "trade_id" INTEGER,
     "entry_price" NUMERIC NOT NULL,
     "exit_price" NUMERIC NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE "trades" (
 
 --STATIC REFERENCE TABLE
 --STORED ONCE NEVER TOUCHED AGAIN
-CREATE TABLE "models" (
+CREATE TABLE IF NOT EXISTS "models" (
     "model_id" INTEGER,
     "model_name" TEXT NOT NULL,
     "description" TEXT,
@@ -45,7 +45,7 @@ INSERT INTO "models" ("model_name", "description") VALUES
 
 --STATIC REFERENCE LOOKUP TABLE
 --STORED ONCE NEVER TOUCHED AGAIN
-CREATE TABLE "entry_execution" (
+CREATE TABLE IF NOT EXISTS "entry_execution" (
     "entry_execution_id" INTEGER,
     "archetype" TEXT NOT NULL,
     "description" TEXT,
@@ -63,7 +63,7 @@ INSERT INTO "entry_execution" ("archetype", "description", "points", "grade") VA
 
 --STATIC REFERENCE LOOKUP TABLE
 --STORED ONCE NEVER TOUCHED AGAIN
-CREATE TABLE "trade_management" (
+CREATE TABLE IF NOT EXISTS "trade_management" (
     "management_id" INTEGER,
     "archetype" TEXT NOT NULL UNIQUE,
     "description" TEXT,
@@ -79,7 +79,7 @@ INSERT INTO "trade_management" ("archetype", "description", "points", "grade") V
 ('MICROMANAGER', 'SUCCUMBED TO FEAR OR GREED. ACTIVELY MANAGED AND INTERFERED WITH THE LIMIT ORDERS. BROKE 1 HOUR RULE', 2, 'D'),
 ('THE SABOTEUR','COMPLETELY ABANDONED THE PLAN. DELETED THE TRADE BEFORE TP/SL OR EVEN REVERSED THE POSITION. PSYCHOLOGICAL BREAKDOWN', 1, 'F');
 
-CREATE TABLE "accounts" (
+CREATE TABLE IF NOT EXISTS "accounts" (
     "account_id" INTEGER,
     "account_name" TEXT NOT NULL,
     "account_type" TEXT NOT NULL CHECK("account_type" IN ('FUNDED CHALLENGE', 'FUNDED LIVE', 'PERSONAL LIVE')),
@@ -90,7 +90,7 @@ CREATE TABLE "accounts" (
 );
 
 --STATIC REFERENCE LOOKUP TABLE
-CREATE TABLE "parameters" (
+CREATE TABLE IF NOT EXISTS "parameters" (
     "parameter_id" INTEGER,
     "parameter_name" TEXT NOT NULL,
     PRIMARY KEY("parameter_id")
@@ -107,7 +107,7 @@ INSERT INTO "parameters" ("parameter_name") VALUES
 ('EXECUTION GRADE > B. PRE TRADE + AVG(ENTRY EXECUTION AND TRADE MANAGEMENT).');
 
 --JUNCTION TABLE SHOWING RELATIONSHIP BETWEEN TRADES AND PARAMETERS
-CREATE TABLE "trade_parameters" (
+CREATE TABLE IF NOT EXISTS "trade_parameters" (
     "trade_id" INTEGER,
     "parameter_id" INTEGER,
     PRIMARY KEY ("trade_id", "parameter_id"),
@@ -115,7 +115,7 @@ CREATE TABLE "trade_parameters" (
     FOREIGN KEY("parameter_id") REFERENCES "parameters"("parameter_id")
 );
 
-CREATE TABLE "trade_notes" (
+CREATE TABLE IF NOT EXISTS "trade_notes" (
     "trade_id" INTEGER,
     "emotions" TEXT NOT NULL,
     "mistakes" TEXT NOT NULL,
@@ -124,7 +124,7 @@ CREATE TABLE "trade_notes" (
     FOREIGN KEY("trade_id") REFERENCES "trades"("trade_id")
 );
 
-CREATE TABLE "charts" (
+CREATE TABLE IF NOT EXISTS "charts" (
     "chart_id" INTEGER,
     "trade_id" INTEGER,
     "filepath" TEXT NOT NULL,
