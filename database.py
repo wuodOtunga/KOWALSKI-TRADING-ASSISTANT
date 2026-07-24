@@ -1,36 +1,39 @@
 import sqlite3
+import os
 from models import Trade, TradeCharts, TradeNotes, Accounts
 
 class Database:
     """CLASS TO MANAGE DATABASE OPERATIONS"""
     """HANDLES ALL THE SQL AND SQLITE3 MECHANICS."""
 
-    def __init__(self, db_path="trades.db") -> None:
+    SCHEMA_PATH = os.path.join(os.path.dirname("/home/userninjahacker256/KOWALSKI", "schema.sql"))
+    DB_PATH = os.path.join(os.path.dirname("/home/userninjahacker256/KOWALSKI", "trades.db"))
+
+    def __init__(self, DB_PATH) -> None:
         """OPENS THE CONNECTION AND CREATES THE CURSOR"""
         """CONNECTS TO THE DATABASE FILE"""
 
-        self.db_path = db_path
+        self.db_path = DB_PATH
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
         self.cursor.execute("PRAGMA foreign_keys = ON")
         self.initialize_database()
 
-#A CODE SMELL TO DO WITH THE FILE RELATIVE PATH.
-#WHAT IF DATABASE IS FROM A DIFFERENT WORKING DIRECTORY.
+#RESEARCH ON OS.PATH MECHANICS, RELATIVE/ABSOLUTE PATH
+#PATTERN TO WORK WITH FILEPATHS IN OS PYTHON MODULE
     def initialize_database(self) -> None:
         """RUNS SCHEMA STATEMENTS FROM SCHEMA.SQL"""
         """MAKES SURE TABLES EXISTS"""
 
         self.cursor = self.conn.cursor()
-        with open("schema.sql") as f:
+        with open(self.SCHEMA_PATH) as f:
             self.cursor.executescript(f.read())
         self.conn.commit()
 
-#CRUD OPERATIONS.
 #HOW DO WE DO INPUT VALIDATION FOR METHODS LIKE THIS WITH SQL AND PYTHON SYNTAX TOGETHER.
 #WHAT CAN GO WRONG IN THIS SCENARIO? FIND OUT.
 #RESEARCH THE BUILT-IN CLASSES OF ERRORS IN SQLITE3 AND WHAT THEY MEAN.
-#ADD CUSTOM EXECPTIONS TO THE CODE FOR SECOND COMMIT.
+#ADD CUSTOM EXECPTIONS TO THE CODE FOR SECOND COMMIT. 
 
 #CODE SMELL: CREATED CURSOR ONCE THEN USED EVERYWHERE.
 #FIX, CREATE CURSOR LOCALLY IN EVERY METHOD.
@@ -171,7 +174,10 @@ class Database:
         "(?, ?, ?, ?, ?)", (account.account_name, account.account_type, account.broker, account.starting_balance, account.is_active))
         self.conn.commit()
         return self.cursor.lastrowid
-    
+
+#RESEARCH THE MECHANICS OF CLOSE() METHOD
+#OPEN FILE LOCKS/STREAMLIT PROCESS FOR EVERY RERUN
+#REAL THREAD CONCURRENCY IN SQLITE3 MECHANICS.
     def close_db_connection(self):
         self.conn.close()
     
