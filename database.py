@@ -9,14 +9,14 @@ class Database:
     """CLASS TO MANAGE DATABASE OPERATIONS"""
     """HANDLES ALL THE SQL AND SQLITE3 MECHANICS."""
 
-    SCHEMA_PATH = os.path.join(os.path.dirname("/home/userninjahacker256/KOWALSKI", "schema.sql"))
-    DB_PATH = os.path.join(os.path.dirname("/home/userninjahacker256/KOWALSKI", "trades.db"))
+    SCHEMA_PATH = os.path.join(os.path.dirname(__file__, "schema.sql"))
+    DB_PATH = os.path.join(os.path.dirname(__file__, "trades.db"))
 
-    def __init__(self, DB_PATH) -> None:
+    def __init__(self, db_path=DB_PATH) -> None:
         """OPENS THE CONNECTION AND CREATES THE CURSOR"""
         """CONNECTS TO THE DATABASE FILE"""
 
-        self.db_path = DB_PATH
+        self.db_path = db_path
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
         self.cursor.execute("PRAGMA foreign_keys = ON")
@@ -219,7 +219,7 @@ class Database:
         self.cursor = self.conn.cursor()
         self.cursor.execute("INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES" \
         "(?, ?, ?, ?, ?)", (account.account_name, account.account_type, account.broker, account.starting_balance, account.is_active))
-        
+
         self.conn.commit()
         return self.cursor.lastrowid
 
