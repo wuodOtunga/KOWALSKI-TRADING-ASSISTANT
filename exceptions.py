@@ -32,29 +32,28 @@
 
 class DatabaseError(Exception):
     """BASE CLASS FOR DATABASE EXCEPTIONS"""
-    pass
 
 class ConstraintViolationError(DatabaseError):
     """EXCEPTION CLASS FOR TABLE/COLUMN CONSTRAINTS VIOLATIONS"""
-    pass
 
 class Invalid_Column_Name_Error(DatabaseError):
     """EXCEPTION CLASS FOR INVALID COLUMN NAME"""
-    pass
 
 class TradeNotFoundError(DatabaseError):
     """EXCEPTION CLASS FOR INVALID TRADEID IDENTIFIER"""
-    pass
 
-class DuplicateParameterError(DatabaseError):
-    """EXCEPTION CLASS FOR DUPLICATE ENTRY FOR TRADE PARAMETERS"""
-    pass
-
-class AccountNotFoundError(DatabaseError):
+class Invalid_Account_Error(DatabaseError):
     """EXCEPTION CLASS FOR INVALID ACCOUNTID IDENTIFIER"""
-    pass
 
 class Invalid_Identifier_Error(DatabaseError):
     """EXCEPTION CLASS FOR INVALID IDENTIFIERS"""
     """IDENTIFIERS INCLUDE CHARTID, MANAGEMENTID, MODELID, ENTRY_EXECUTIONID"""
-    pass
+
+class Invalid_Grade_Error(DatabaseError):
+    """EXCEPTION CLASS FOR AN INVALID GRADE"""
+
+class Invalid_Asset_Error(DatabaseError):
+    """EXCEPTION CLASS FOR AN INVALID ASSET"""
+
+class Invalid_Direction_Error(DatabaseError):
+    "EXCEPTION CLASS FOR AN INVALID DIRECTION STRING."
