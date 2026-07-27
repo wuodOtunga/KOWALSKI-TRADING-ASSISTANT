@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS "trades" (
 --STORED ONCE NEVER TOUCHED AGAIN
 CREATE TABLE IF NOT EXISTS "models" (
     "model_id" INTEGER,
-    "model_name" TEXT NOT NULL,
+    "model_name" TEXT NOT NULL UNIQUE,
     "description" TEXT,
     PRIMARY KEY("model_id")
 );
@@ -47,7 +47,7 @@ INSERT INTO "models" ("model_name", "description") VALUES
 --STORED ONCE NEVER TOUCHED AGAIN
 CREATE TABLE IF NOT EXISTS "entry_execution" (
     "entry_execution_id" INTEGER,
-    "archetype" TEXT NOT NULL,
+    "archetype" TEXT NOT NULL UNIQUE,
     "description" TEXT,
     "points" INTEGER NOT NULL CHECK("points" BETWEEN 1 AND 5),
     "grade" TEXT NOT NULL CHECK("grade" IN ("A+", "B", "C", "D", "F")),
@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS "accounts" (
 --STATIC REFERENCE LOOKUP TABLE
 CREATE TABLE IF NOT EXISTS "parameters" (
     "parameter_id" INTEGER,
-    "parameter_name" TEXT NOT NULL,
+    "parameter_name" TEXT NOT NULL UNIQUE,
     PRIMARY KEY("parameter_id")
 );
 
