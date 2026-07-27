@@ -2,7 +2,7 @@ import os
 import sqlite3
 
 import exceptions as t
-from models import Accounts, Trade, TradeCharts, TradeNotes
+from models import Account, Trade, TradeChart, TradeNotes
 
 
 class Database:
@@ -113,7 +113,7 @@ class Database:
         
         self.conn.commit()
 
-    def add_chart(self, trade_id: int, charts: TradeCharts) -> int:
+    def add_chart(self, trade_id: int, charts: TradeChart) -> int:
         """ATTACH TRADE CHART TO DATABASE"""
 
         cursor = self.conn.cursor()
@@ -201,7 +201,7 @@ class Database:
         
         return row[0]
 
-    def create_trading_account(self, account: Accounts) -> int:
+    def create_trading_account(self, account: Account) -> int:
         """STORE TRADING ACCOUNT DETAILS TO DATABASE"""
         """ARGS: ACCOUNT OBJECT."""
         """RETURNS INT AS THE ACCOUNT ID FOR THAT ACCOUNT."""
