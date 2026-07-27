@@ -9,8 +9,8 @@ class Database:
     """CLASS TO MANAGE DATABASE OPERATIONS"""
     """HANDLES ALL THE SQL AND SQLITE3 MECHANICS."""
 
-    SCHEMA_PATH = os.path.join(os.path.dirname(__file__, "schema.sql"))
-    DB_PATH = os.path.join(os.path.dirname(__file__, "trades.db"))
+    SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
+    DB_PATH = os.path.join(os.path.dirname(__file__), "trades.db")
 
     def __init__(self, db_path=DB_PATH) -> None:
         """OPENS THE CONNECTION AND CREATES THE CURSOR"""
@@ -30,10 +30,11 @@ class Database:
         with open(self.SCHEMA_PATH) as f:
             cursor.executescript(f.read())
         self.conn.commit()
- 
+
     def save_trade(self, trade: Trade) -> int:
         """SAVE TRADE TO DATABASE"""
         """RETURNS LASTROWID REPRESENTING TRADEID"""
+
         if trade.asset not in ["XAUUSD", "XAGUSD", "NQ", "ES"]:
             raise t.Invalid_Asset_Error
         if trade.direction not in ["long", "short"]:
@@ -52,7 +53,7 @@ class Database:
         except sqlite3.IntegrityError as e:
             self.conn.rollback()
             raise t.ConstraintViolationError(f"FOREIGN KEY VIOLATION DETECTED. {e}") from e
-        
+                
         self.conn.commit()
         return cursor.lastrowid
     
@@ -167,9 +168,6 @@ class Database:
         
         return row[0]
 
-#FETCHONE RETURNS NONE IF TRADE_ID ISN'T FOUND.
-#IF TRADE_ID EXISTS BUT HAS 0 PARAMETERS, WE GET BACK 0, SO CHECK FOR NONE
-
     def add_trade_parameters(self, trade_id: int, parameter_id: int) -> None:
         """POPULATES THE TRADE_PARAMETERS JUNCTION TABLE."""
         """ARGS: TRADE_ID, PARAMETER_ID: JOINT PRIMARY KEY"""
@@ -217,5 +215,9 @@ class Database:
 #REAL THREAD CONCURRENCY IN SQLITE3 MECHANICS.
     def close_db_connection(self):
         self.conn.close()
+
+#if __name__ == "__main__":
+#    main()
+
     
         
