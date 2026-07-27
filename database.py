@@ -18,6 +18,7 @@ class Database:
 
         self.db_path = db_path
         self.conn = sqlite3.connect(self.db_path)
+        self.conn.row_factory = sqlite3.Row
         cursor = self.conn.cursor()
         cursor.execute("PRAGMA foreign_keys = ON")
         self.initialize_database()
@@ -67,7 +68,7 @@ class Database:
         if row is None:
             raise t.TradeNotFoundError(f"TRADEID {trade_id} NOT FOUND.")
         
-        return Trade(*row)
+        return Trade(**dict(row))
     
     def update_trade_grade(self, trade_id: int, overall_trade_grade: str) -> None:
         """UPDATES OVERALL_TRADE_GRADE TO DATABASE"""
@@ -153,7 +154,7 @@ class Database:
         if row is None:
             raise t.Invalid_Identifier_Error(f"ENTRY EXECUTION ID {entry_execution_id} NOT FOUND.")
         
-        return row[0]
+        return row["points"]
 
     def get_trade_management_points(self, management_id: int) -> int:
         """GET MANAGEMENT POINTS FROM DATABASE"""
@@ -166,7 +167,7 @@ class Database:
         if row is None:
             raise t.Invalid_Identifier_Error(f"MANAGEMENT ID {management_id} NOT FOUND.")
         
-        return row[0]
+        return row["points"]
 
     def add_trade_parameters(self, trade_id: int, parameter_id: int) -> None:
         """POPULATES THE TRADE_PARAMETERS JUNCTION TABLE."""
