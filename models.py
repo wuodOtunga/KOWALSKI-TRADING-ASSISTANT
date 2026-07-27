@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import list
 
 
 #THIS CLASS MANAGES TRADE DATA.
