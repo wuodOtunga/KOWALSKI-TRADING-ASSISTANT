@@ -46,11 +46,11 @@ class Database:
         try:
             cursor.execute("INSERT INTO trades (entry_price, exit_price, take_profit, stop_loss, position_size," \
             "date, model_id, account_id, management_id, entry_execution_id, asset, direction, dollar_amount, profit_loss, rr_ratio,\
-            overall_trade_grade, parameter_ids) VALUES"
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+            overall_trade_grade) VALUES"
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
             (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size, trade.date, trade.model_id,
             trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
-            trade.profit_loss, trade.rr_ratio, trade.overall_trade_grade, trade.parameter_ids))
+            trade.profit_loss, trade.rr_ratio, trade.overall_trade_grade))
         except sqlite3.IntegrityError as e:
             self.conn.rollback()
             raise t.ConstraintViolationError(f"FOREIGN KEY VIOLATION DETECTED. {e}") from e
