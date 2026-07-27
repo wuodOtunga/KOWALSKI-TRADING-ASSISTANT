@@ -127,7 +127,7 @@ class Database:
         self.conn.commit()
         return cursor.lastrowid
         
-    def add_trade_notes(self, trade_id: int, trade_notes: TradeNotes) -> int:
+    def add_trade_notes(self, trade_id: int, trade_notes: TradeNotes) -> None:
         """ATTACH TRADE NOTES TO DATABASE"""
         """TRADE NOTES INCLUDE EMOTIONS, MISTAKES, THOUGHTS"""
         """ARGS: trade_id IDENTIFIER, TRADENOTE OBJECT"""
@@ -141,7 +141,6 @@ class Database:
             raise t.ConstraintViolationError(f"INVALID TRADE_ID: {trade_id}, {e}") from e
         
         self.conn.commit()
-        return cursor.lastrowid
 
     def get_entry_execution_points(self, entry_execution_id: int) -> int:
         """GET ENTRY EXECUTION POINTS FROM DATABASE"""
@@ -181,7 +180,6 @@ class Database:
             raise t.ConstraintViolationError(f"CAN'T LINK {trade_id} TO {parameter_id} : {e}") from e
         
         self.conn.commit()
-        return cursor.lastrowid
     
 #ERROR FIX 1: SELECT(*) RETURNS 0 WHETHER THE TRADE DOESN'T EXIST
 #OR TRADE EXISTS BUT WE HAVE 0 PARAMETERS FOR THE TRADE.
