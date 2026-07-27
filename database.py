@@ -18,8 +18,8 @@ class Database:
 
         self.db_path = db_path
         self.conn = sqlite3.connect(self.db_path)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute("PRAGMA foreign_keys = ON")
+        cursor = self.conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON")
         self.initialize_database()
 
     def initialize_database(self) -> None:
