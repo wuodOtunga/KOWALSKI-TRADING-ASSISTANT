@@ -182,7 +182,12 @@ class Database:
         
         self.conn.commit()
         return cursor.lastrowid
-
+    
+#ERROR FIX 1: SELECT(*) RETURNS 0 WHETHER THE TRADE DOESN'T EXIST
+#OR TRADE EXISTS BUT WE HAVE 0 PARAMETERS FOR THE TRADE.
+#NONE CHECK FOR FETCHONE() DOESN'T DO ANYTHING SINCE NONE CAN'T BE RETURNED
+#SO HOW DO YOU DIFFERENTIATE BETWEEN 0 FOR TRADE NOT EXISTS
+#AND 0 FOR TRADE EXISTS BUT HAS 0 PARAMETERS ATTACHED TO IT.
     def get_parameters_points(self, trade_id: int) -> int:
         """FIND HOW MANY PARAMETER POINTS THE TRADE HAS"""
         """ARGS: TRADE_ID ROW IDENTIFIER"""
@@ -217,8 +222,6 @@ class Database:
     def close_db_connection(self):
         self.conn.close()
 
-#if __name__ == "__main__":
-#    main()
 
     
         
