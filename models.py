@@ -1,10 +1,14 @@
 from dataclasses import dataclass
 
+#DESIGN FIX #1: model_id, account_id, management_id, entry_execution_id
+#HAVE INT TYPES. IN SCHEMA.SQL, THE 4 TABLE COLUMNS DON'T HAVE
+#NOT NULL CONSTRAINTS, THIS IS A TYPE INCONSISTENCY.
+#IS A TRADE CREATED ALL AT ONCE OR GRADUALLY DURING JOURNALING WORKFLOW.
 
-#THIS CLASS MANAGES TRADE DATA.
-#COLUMN ORDER NEEDS TO EXACTLY MATCH THE DATACLASS DEFINITION ORDER
+#The column names returned by SQL must match the dataclass field names.
 @dataclass
 class Trade:
+    """THIS CLASS MANAGES TRADE DATA"""
     trade_id : int
     entry_price : float
     exit_price : float
@@ -23,9 +27,9 @@ class Trade:
     rr_ratio : int
     overall_trade_grade : str | None = None
 
-#THIS CLASS MANAGES TRADING ACCOUNTS DATA.
 @dataclass
-class Accounts:
+class Account:
+    """THIS CLASS MANAGES TRADING ACCOUNTS DATA"""
     account_id : int
     account_name : str
     account_type : str
@@ -33,18 +37,18 @@ class Accounts:
     starting_balance : int
     is_active : bool
 
-#THIS CLASS MANAGES TRADING CHARTS DATA.
 @dataclass
-class TradeCharts:
+class TradeChart:
+    "THIS CLASS MANAGES TRADING CHARTS DATA"
     chart_id : int
     trade_id : int
     filepath : str
     timeframe : str
 
-#THIS CLASS MANAGES TRADING NOTES DATA.
-#TRADING NOTES INCLUDE EMOTIONS, MISTAKES, THOUGHTS.
 @dataclass
 class TradeNotes:
+    """THIS CLASS MANAGES TRADING NOTES DATA."""
+    """TRADING NOTES INCLUDE EMOTIONS, MISTAKES, THOUGHTS."""
     trade_id : int
     emotions : str
     mistakes : str
