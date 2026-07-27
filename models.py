@@ -23,7 +23,6 @@ class Trade:
     profit_loss : float
     rr_ratio : int
     overall_trade_grade : str | None = None
-    parameter_ids : list[int]
 
 #THIS CLASS MANAGES TRADING ACCOUNTS DATA.
 @dataclass
