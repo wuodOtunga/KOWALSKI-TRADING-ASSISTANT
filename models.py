@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import list
+
 
 #THIS CLASS MANAGES TRADE DATA.
 #COLUMN ORDER NEEDS TO EXACTLY MATCH THE DATACLASS DEFINITION ORDER
@@ -21,8 +22,8 @@ class Trade:
     dollar_amount : float
     profit_loss : float
     rr_ratio : int
-    overall_trade_grade : Optional[str] = None
-    parameter_ids : List[int]
+    overall_trade_grade : str | None = None
+    parameter_ids : list[int]
 
 #THIS CLASS MANAGES TRADING ACCOUNTS DATA.
 @dataclass
