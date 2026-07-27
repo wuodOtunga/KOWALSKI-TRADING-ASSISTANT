@@ -37,9 +37,9 @@ class Database:
         """RETURNS LASTROWID REPRESENTING TRADEID"""
 
         if trade.asset not in ["XAUUSD", "XAGUSD", "NQ", "ES"]:
-            raise t.Invalid_Asset_Error
+            raise t.Invalid_Asset_Error(f"INVALID ASSET DETECTED {trade.asset}")
         if trade.direction not in ["long", "short"]:
-            raise t.Invalid_Direction_Error
+            raise t.Invalid_Direction_Error(f"INVALID DIRECTION DETECTED {trade.direction}")
 
         cursor = self.conn.cursor()
 
