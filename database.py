@@ -48,12 +48,12 @@ class Database:
             "date, model_id, account_id, management_id, entry_execution_id, asset, direction, dollar_amount, profit_loss, rr_ratio,\
             overall_trade_grade) VALUES"
             "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-            (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size, trade.date, trade.model_id,
+            (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size, trade.date.isoformat(), trade.model_id,
             trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
             trade.profit_loss, trade.rr_ratio, trade.overall_trade_grade))
         except sqlite3.IntegrityError as e:
             self.conn.rollback()
-            raise t.ConstraintViolationError(f"FOREIGN KEY VIOLATION DETECTED. {e}") from e
+            raise t.Constraint_Violation_Error(f"FOREIGN KEY VIOLATION DETECTED. {e}") from e
                 
         self.conn.commit()
         return cursor.lastrowid
@@ -66,7 +66,7 @@ class Database:
         cursor.execute("SELECT * FROM trades WHERE trade_id = ?", (trade_id,))
         row = cursor.fetchone()
         if row is None:
-            raise t.TradeNotFoundError(f"TRADEID {trade_id} NOT FOUND.")
+            raise t.Trade_Not_Found_Error(f"TRADEID {trade_id} NOT FOUND.")
         
         return Trade(**dict(row))
     
@@ -79,7 +79,7 @@ class Database:
         cursor.execute("UPDATE trades SET overall_trade_grade = ? WHERE trade_id = ?", (overall_trade_grade, trade_id))
         if cursor.rowcount == 0:
             self.conn.rollback()
-            raise t.TradeNotFoundError
+            raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} NOT FOUND.")
         
         self.conn.commit()
 
@@ -98,7 +98,7 @@ class Database:
         cursor.execute(sql, (value, trade_id))
         if cursor.rowcount == 0:
             self.conn.rollback()
-            raise t.TradeNotFoundError(f"NO ROW MATCHES THE {trade_id}.")
+            raise t.Trade_Not_Found_Error(f"NO ROW MATCHES THE {trade_id}.")
         
         self.conn.commit()
 
@@ -109,7 +109,7 @@ class Database:
         cursor.execute("DELETE FROM trades WHERE trade_id = ?", (trade_id,))
         if cursor.rowcount == 0:
             self.conn.rollback()
-            raise t.TradeNotFoundError(f"NO ROW MATCHES THE {trade_id}")
+            raise t.Trade_Not_Found_Error(f"NO ROW MATCHES THE {trade_id}")
         
         self.conn.commit()
 
@@ -122,7 +122,7 @@ class Database:
                             (trade_id, charts.filepath, charts.timeframe))
         except sqlite3.IntegrityError as e:
             self.conn.rollback()
-            raise t.ConstraintViolationError(f"INVALID TRADE_ID: {trade_id}, {e}") from e
+            raise t.Constraint_Violation_Error(f"INVALID TRADE_ID: {trade_id}, {e}") from e
         
         self.conn.commit()
         return cursor.lastrowid
@@ -177,7 +177,7 @@ class Database:
             cursor.execute("INSERT INTO trade_parameters (trade_id, parameter_id) VALUES (?, ?)", (trade_id, parameter_id))
         except sqlite3.IntegrityError as e:
             self.conn.rollback()
-            raise t.ConstraintViolationError(f"CAN'T LINK {trade_id} TO {parameter_id} : {e}") from e
+            raise t.Constraint_Violation_Error(f"CAN'T LINK {trade_id} TO {parameter_id} : {e}") from e
         
         self.conn.commit()
     
@@ -195,7 +195,7 @@ class Database:
         cursor.execute("SELECT COUNT(*) FROM trade_parameters WHERE trade_id = ?", (trade_id,))
         row = cursor.fetchone()
         if row is None:
-            raise t.TradeNotFoundError(f"TRADE_ID {trade_id} NOT FOUND.")
+            raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} NOT FOUND.")
         
         return row[0]
 
