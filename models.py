@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 #DESIGN FIX #1: model_id, account_id, management_id, entry_execution_id
 #HAVE INT TYPES. IN SCHEMA.SQL, THE 4 TABLE COLUMNS DON'T HAVE
@@ -15,7 +16,9 @@ class Trade:
     take_profit : float
     stop_loss : float
     position_size : float
-    date : str
+    entry_time : datetime
+    exit_time : datetime
+    date : datetime
     model_id : int
     account_id : int
     management_id : int
