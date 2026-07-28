@@ -33,13 +33,13 @@
 class DatabaseError(Exception):
     """BASE CLASS FOR DATABASE EXCEPTIONS"""
 
-class ConstraintViolationError(DatabaseError):
+class Constraint_Violation_Error(DatabaseError):
     """EXCEPTION CLASS FOR TABLE/COLUMN CONSTRAINTS VIOLATIONS"""
 
 class Invalid_Column_Name_Error(DatabaseError):
     """EXCEPTION CLASS FOR INVALID COLUMN NAME"""
 
-class TradeNotFoundError(DatabaseError):
+class Trade_Not_Found_Error(DatabaseError):
     """EXCEPTION CLASS FOR INVALID TRADEID IDENTIFIER"""
 
 class Invalid_Account_Error(DatabaseError):
