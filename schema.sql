@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS "trades" (
     "take_profit" NUMERIC NOT NULL,
     "stop_loss" NUMERIC NOT NULL,
     "position_size" REAL NOT NULL,
+    "entry_time" TEXT NOT NULL,
+    "exit_time" TEXT NOT NULL,
     "date" NUMERIC NOT NULL,
     "model_id" INTEGER NOT NULL,
     "account_id" INTEGER NOT NULL,
