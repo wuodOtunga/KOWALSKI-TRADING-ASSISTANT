@@ -37,7 +37,7 @@ def main():
     for k, v in rr_ratio_metrics.items():
         print(f"THE {k} IS {v}.")
 
-    print(calculate_position_size(trade))
+    print(f"POTENTIAL POSITION SIZE: {calculate_position_size(trade)}")
 
 def calculate_profit_loss(trade: TradeSetup):
     contract_size = INSTRUMENT_SPECS[trade.symbol]["contract_size"]
@@ -67,19 +67,25 @@ def get_trade_direction():
 
 def calculate_risk_reward_ratio(trade: TradeSetup):
     contract_size = INSTRUMENT_SPECS[trade.symbol]["contract_size"]
-        
-    profit_distance = abs(trade.take_profit - trade.entry_price)
+
+    if trade.take_profit == trade.exit_price:
+        profit_distance = abs(trade.take_profit - trade.entry_price)
+    else:
+        profit_distance = abs(trade.exit_price - trade.entry_price)
+    
     risk_distance = abs(trade.stop_loss - trade.entry_price)
 
     risk_amount = risk_distance * trade.lot_size * contract_size
     profit_amount = profit_distance * trade.lot_size * contract_size
 
     rr_ratio = round(profit_distance / risk_distance, 2)
+
     return {
         "RR_RATIO" : rr_ratio,
         "RISK_AMOUNT" : round(risk_amount, 2),
         "REWARD_AMOUNT" : round(profit_amount, 2)
     }
+
 
 def calculate_position_size(trade: TradeSetup):
     #RETURNS LOT SIZE GIVEN INPUTS.
