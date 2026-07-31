@@ -33,8 +33,8 @@ def main():
     for k, v in results.items():
         print(f"THE {k} IS {v}.")
 
-    rr_ratio_metrics = calculate_risk_reward_ratio(trade)
-    for k, v in rr_ratio_metrics.items():
+    rr_multiple_metrics = calculate_risk_reward_multiple(trade)
+    for k, v in rr_multiple_metrics.items():
         print(f"THE {k} IS {v}.")
 
     print(f"POTENTIAL POSITION SIZE: {calculate_position_size(trade)}")
@@ -65,7 +65,7 @@ def get_trade_direction():
         else:
             continue
 
-def calculate_risk_reward_ratio(trade: TradeSetup):
+def calculate_risk_reward_multiple(trade: TradeSetup):
     contract_size = INSTRUMENT_SPECS[trade.symbol]["contract_size"]
 
     if trade.take_profit == trade.exit_price:
@@ -78,10 +78,10 @@ def calculate_risk_reward_ratio(trade: TradeSetup):
     risk_amount = risk_distance * trade.lot_size * contract_size
     profit_amount = profit_distance * trade.lot_size * contract_size
 
-    rr_ratio = round(profit_distance / risk_distance, 2)
+    rr_multiple = round(profit_distance / risk_distance, 2)
 
     return {
-        "RR_RATIO" : rr_ratio,
+        "RR_MULTIPLE" : rr_multiple,
         "RISK_AMOUNT" : round(risk_amount, 2),
         "REWARD_AMOUNT" : round(profit_amount, 2)
     }
