@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS "trades" (
     "position_size" REAL NOT NULL,
     "entry_time" TEXT NOT NULL,
     "exit_time" TEXT NOT NULL,
-    "date" NUMERIC NOT NULL,
+    "date" TEXT NOT NULL,
     "model_id" INTEGER NOT NULL,
     "account_id" INTEGER NOT NULL,
     "management_id" INTEGER NOT NULL,
