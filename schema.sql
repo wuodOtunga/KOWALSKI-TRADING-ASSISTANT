@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS "trades" (
 
     "dollar_amount" NUMERIC,  --calculated from trading_calculator.py
     "profit_loss" NUMERIC,    --calculated from trading_calculator.py
-    "rr_ratio" NUMERIC,       --calculated from trading_calculator.py
+    "rr_multiple" NUMERIC,       --calculated from trading_calculator.py
     "overall_trade_grade" TEXT CHECK("overall_trade_grade" IN ('A+', 'B', 'C', 'D', 'F') OR "overall_trade_grade" IS NULL),
     
     PRIMARY KEY("trade_id"),
