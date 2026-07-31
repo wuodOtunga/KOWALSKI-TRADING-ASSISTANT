@@ -27,7 +27,7 @@ class Trade:
     direction : str
     dollar_amount : float
     profit_loss : float
-    rr_ratio : int
+    rr_multiple : int
     overall_trade_grade : str | None = None
 
 @dataclass
