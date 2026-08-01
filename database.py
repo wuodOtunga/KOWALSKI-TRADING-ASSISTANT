@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from datetime import datetime
 
 import exceptions as t
 from models import Account, Trade, TradeChart, TradeNotes
@@ -32,6 +33,11 @@ class Database:
             cursor.executescript(f.read())
         self.conn.commit()
 
+#Foreign-key error translation is too broad
+#REFINE TO IDENTIFY WHICH ERROR HAPPENED.
+#foreign-key violation, UNIQUE constraint violation
+#CHECK constraint violatioN, NOT NULL violation
+#PRIMARY KEY violation
     def save_trade(self, trade: Trade) -> int:
         """SAVE TRADE TO DATABASE"""
         """RETURNS LASTROWID REPRESENTING TRADEID"""
@@ -44,13 +50,14 @@ class Database:
         cursor = self.conn.cursor()
 
         try:
-            cursor.execute("INSERT INTO trades (entry_price, exit_price, take_profit, stop_loss, position_size," \
+            cursor.execute("INSERT INTO trades (entry_price, exit_price, take_profit, stop_loss, position_size, entry_time, exit_time" \
             "date, model_id, account_id, management_id, entry_execution_id, asset, direction, dollar_amount, profit_loss, rr_ratio,\
             overall_trade_grade) VALUES"
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-            (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size, trade.date.isoformat(), trade.model_id,
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+            (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size, 
+             trade.entry_time.strftime("%I:%M %p"), trade.exit_time.strftime("%I:%M %p"), trade.date.isoformat(), trade.model_id,
             trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
-            trade.profit_loss, trade.rr_ratio, trade.overall_trade_grade))
+            trade.profit_loss, trade.rr_multiple, trade.overall_trade_grade))
         except sqlite3.IntegrityError as e:
             self.conn.rollback()
             raise t.Constraint_Violation_Error(f"FOREIGN KEY VIOLATION DETECTED. {e}") from e
@@ -67,8 +74,15 @@ class Database:
         row = cursor.fetchone()
         if row is None:
             raise t.Trade_Not_Found_Error(f"TRADEID {trade_id} NOT FOUND.")
-        
-        return Trade(**dict(row))
+
+#WE ARE IGNORING THE NOQA: DTZ007 BECAUSE WE DON'T NEED TIMEZONE INFO.
+#NAIVE DATETIME OBJECTS ARE FINE FOR NOW, MIGHT CHANGE LATER IF WE NEED
+#FUNCTIONALITY FOR TIMEZONES.
+        row_dict = dict(row)
+        row_dict["entry_time"] = datetime.strptime(row_dict["entry_time"], "%I:%M %p").time()  # noqa: DTZ007
+        row_dict["exit_time"] = datetime.strptime(row_dict["exit_time"], "%I:%M %p").time()  # noqa: DTZ007
+        row_dict["date"] = datetime.fromisoformat(row_dict["date"])
+        return Trade(**row_dict)
     
     def update_trade_grade(self, trade_id: int, overall_trade_grade: str) -> None:
         """UPDATES OVERALL_TRADE_GRADE TO DATABASE"""
