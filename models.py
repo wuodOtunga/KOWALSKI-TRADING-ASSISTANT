@@ -1,10 +1,13 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, date, time, timedelta
 
 #DESIGN FIX #1: model_id, account_id, management_id, entry_execution_id
 #HAVE INT TYPES. IN SCHEMA.SQL, THE 4 TABLE COLUMNS DON'T HAVE
 #NOT NULL CONSTRAINTS, THIS IS A TYPE INCONSISTENCY.
 #IS A TRADE CREATED ALL AT ONCE OR GRADUALLY DURING JOURNALING WORKFLOW.
+
+#ERROR FIX #1: ENTRY_TIME, EXIT_TIME, DATE AS DATETIME IS WRONG.
+#ABOVE ERROR ISSUE HAS BEEN FIXED.
 
 #The column names returned by SQL must match the dataclass field names.
 @dataclass
@@ -16,9 +19,9 @@ class Trade:
     take_profit : float
     stop_loss : float
     position_size : float
-    entry_time : datetime
-    exit_time : datetime
-    date : datetime
+    entry_time : time
+    exit_time : time
+    date : date
     model_id : int
     account_id : int
     management_id : int
