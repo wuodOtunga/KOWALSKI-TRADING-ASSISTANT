@@ -1,7 +1,30 @@
+from datetime import date, time
+
 import exceptions as t
 from database import Database
 from models import Account, Trade, TradeChart, TradeNotes  # noqa: F401
 
+trade1 = Trade(
+    trade_id= 1,
+    entry_price= 4023.90,
+    exit_price= 4030.40,
+    take_profit= 4045.00,
+    stop_loss= 4017.58,
+    position_size= 0.04,
+    entry_time= time(10, 30),
+    exit_time= time(12, 45),
+    date= date(2026, 8, 1),
+    model_id= 4,
+    account_id= 1,
+    management_id= 1,
+    entry_execution_id= 1,
+    asset= "XAUUSD",
+    direction= "long",
+    dollar_amount= 26.0,
+    profit_loss= 26.0,
+    rr_multiple= 1,
+    overall_trade_grade= "C"
+)
 
 class Journal:
 
@@ -11,10 +34,33 @@ class Journal:
 #INPUTS: TRADE OBJECT.
 #OUTPUTS: RETURN VALIDATED TRADE OBJECT.
 #RESPONSIBILITY: MAKE SURE THE TRADE DATA IS ERROR FREE.
-#ERRORS: TYPE INCONSISTENCY. IRREGULAR VALUES.
-#NO CALL TO DATABASE METHODS.
-    def _validate_trade_data(self):
-        pass
+#ERRORS: TYPE VALIDATION, STRUCTURAL VALIDATION: REQUIRED FIELDS EXIST,
+#BUSINESS RULES VALIDATION.
+#ISSUE #1: ADD VALIDATION FOR ENTRY_TIME, EXIT_TIME, DURATION FIELDS.
+    def _validate_trade_data(self, trade: Trade) -> Trade:
+        if trade.entry_price == trade.take_profit or trade.entry_price == trade.stop_loss:
+            raise t.Trade_Validation_Error("ENTRY_PRICE CAN'T EQUAL TAKE_PROFIT OR STOP_LOSS")
+        
+        float_values = [trade.entry_price, trade.exit_price, trade.take_profit, trade.position_size,
+                        trade.dollar_amount, trade.profit_loss]
+        
+        for value in float_values:
+            if not isinstance(value, float):
+                raise t.Trade_Validation_Error(f"INVALID FLOAT VALUE. {value} MUST BE A FLOAT.")
+
+        int_values = [trade.model_id, trade.management_id, trade.entry_execution_id, trade.rr_multiple]
+
+        for value in int_values:
+            if not isinstance(value, int) or value <= 0:
+                raise t.Trade_Validation_Error(f"INVALID INT VALUE. {value} MUST BE AN INTEGER AND GREATER THAN 0.")
+
+        time_values = [trade.entry_time, trade.exit_time]
+
+        for value in time_values:
+            if not isinstance(value, time):
+                raise t.Trade_Validation_Error(f"INVALID TIME VALUE: {value}")
+            
+        return trade
 
 #INPUTS: TRADE OBJECT.
 #OUTPUTS: RETURNS TRADEID.
@@ -22,8 +68,10 @@ class Journal:
 #ERRORS: CONSTRAINT VIOLATION ERROR
 #CALLS SAVE_TRADE METHOD IN DATABASE CLASS.
     def record_trade(self, trade: Trade):
-        pass
-
+        valid_trade = self._validate_trade_data(trade)
+        trade_id = self.db.save_trade(valid_trade)
+        return trade_id
+        
 #INPUTS: CHART OBJECT, TRADE_ID
 #OUTPUTS: RETURNS A CHARTID. RESEARCH WHY WE NEED TO RETURN A CHARTID.
 #RESPONSIBILITY: ADD CHARTS TO THE CHARTS TABLE
