@@ -33,7 +33,7 @@ class JournalingError(Exception):
     """BASE CLASS FOR JOURNAL EXCEPTIONS"""
 
 class Trade_Validation_Error(JournalingError):
-    "EXCEPTION CLASS FOR VALIADTION ERROR"
+    "EXCEPTION CLASS FOR VALIDATION ERROR"
 
 class DatabaseError(Exception):
     """BASE CLASS FOR DATABASE EXCEPTIONS"""
