@@ -79,6 +79,17 @@ class Journal:
             if condition:
                 raise t.Trade_Validation_Error(message)
 
+    def _validate_time_logic(self, trade: Trade) -> None:
+        """RESPONSIBLE FOR TIME LOGIC VALIDATION."""
+
+        time_values = [trade.entry_time, trade.exit_time]
+
+        #DATETIME.TIME VALUES YOU CAN'T HAVE ZERO CHECKS.
+        #SINCE THERE IS NO SUPPORT FOR >= 0 OR POSITIVITY BASICALLY.
+        for value in time_values:
+            if not isinstance(value, time):
+                raise t.Trade_Validation_Error(f"INVALID TIME INPUT. {value} MUST BE TIME OBJECT.")
+
     def _validate_trade_data(self, trade: Trade) -> Trade:
         #STRUCTURAL/TYPE CHECKS SHOULD HAPPEN BEFORE BUSINESS RULE LOGIC VALIDATION.
         #VALIDATE THE SHAPE OF THE DATA BEFORE YOU VALIDATE IT'S MEANING.
@@ -101,13 +112,6 @@ class Journal:
         for value in int_values:
             if not isinstance(value, int) or value <= 0:
                 raise t.Trade_Validation_Error(f"INVALID INT VALUE. {value} MUST BE AN INTEGER AND > 0.")
-
-        #DATETIME.TIME VALUES YOU CAN'T HAVE ZERO CHECKS
-        #SINCE THERE IS NO SUPPORT FOR >= 0 OR POSITIVITY BASICALLY
-        time_values = [trade.entry_time, trade.exit_time]
-        for value in time_values:
-            if not isinstance(value, time):
-                raise t.Trade_Validation_Error(f"INVALID TIME VALUE: {value}")
         
         if not isinstance(trade.date, date):
             raise t.Trade_Validation_Error(f"DATE SHOULD BE A DATE VALUE NOT {trade.date}.")
