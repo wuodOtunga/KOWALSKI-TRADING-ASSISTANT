@@ -90,36 +90,60 @@ class Journal:
             if not isinstance(value, time):
                 raise t.Trade_Validation_Error(f"INVALID TIME INPUT. {value} MUST BE TIME OBJECT.")
 
-    def _validate_float_values(self, **fields: float) -> None:
+    def _check_positive_float_values(self, **fields: float) -> None:
         """RESPONSIBLE FOR FLOAT TYPE VALIDATION"""
-        """FLOAT VALUES: ENTRY_PRICE, EXIT_PRICE, TAKE_PROFIT, STOP LOSS,
-        POSITION_SIZE, DOLLAR_AMOUNT, PROFIT_LOSS, RR_MULTIPLE"""
+        """FLOAT VALUES: ENTRY_PRICE, EXIT_PRICE, TAKE_PROFIT, STOP LOSS, POSITION_SIZE"""
 
         for name, value in fields.items():
-            if not isinstance(value, float):
-                raise t.Trade_Validation_Error(f"INVALID FLOAT VALUE. {name.upper()} MUST BE A FLOAT VALUE. GOT {value}.")
+            if not isinstance(value, float) or value <= 0:
+                raise t.Trade_Validation_Error(f"{name.upper()} MUST BE A FLOAT VALUE EXCEEDING 0. GOT {value}.")
 
-    def _validate_int_values(self, **fields: int) -> None:
+    def _check_int_values(self, **fields: int) -> None:
         """RESPONSIBLE FOR INT TYPE VALIDATION."""
         """INT VALUES: MODEL_ID, MANAGEMENT_ID, ENTRY_EXECUTION_ID."""
 
         for name, value in fields.items():
-            if not isinstance(value, int):
-                raise t.Trade_Validation_Error(f"INVALID INT VALUE. {name.upper()} MUST BE AN INT VALUE. GOT {value}.")
+            if not isinstance(value, int) or value <= 0:
+                raise t.Trade_Validation_Error(f"{name.upper()} MUST BE AN INT VALUE EXCEEDING 0. GOT {value}.")
 
-    def _check_zero_values(self, **fields: float) -> None:
-        """RESPONSIBLE FOR ZERO CHECK VALIDATION."""
-        """NON ZERO VALUES: ENTRY_PRICE, EXIT_PRICE, TAKE_PROFIT, STOP_LOSS,
-        POSITION_SIZE, MODEL_ID, MANAGEMENT_ID, ENTRY_EXECUTION_ID"""
+    def _check_float_values(self, **fields: float) -> None:
+        """RESPONSIBLE FOR FLOAT TYPE VALIDATION THAT CAN BE ZERO OR NEGATIVE VALUES."""
+        """FLOAT VALUES: DOLLAR_AMOUNT, PROFIT_LOSS, RR_MULTIPLE"""
 
         for name, value in fields.items():
-            if value <= 0:
-                raise t.Trade_Validation_Error(f"INVALID VALUE INPUT. {name.upper()} MUST EXCEED ZERO. GOT {value}.")
+            if not isinstance(value, float):
+                raise t.Trade_Validation_Error(f"{name.upper()} MUST BE A FLOAT VALUE. GOT {value}.")
 
+    #STRUCTURAL/TYPE CHECKS SHOULD HAPPEN BEFORE BUSINESS RULE LOGIC VALIDATION.
+    #VALIDATE THE SHAPE OF THE DATA BEFORE YOU VALIDATE IT'S MEANING.
     def _validate_trade_data(self, trade: Trade) -> Trade:
-        #STRUCTURAL/TYPE CHECKS SHOULD HAPPEN BEFORE BUSINESS RULE LOGIC VALIDATION.
-        #VALIDATE THE SHAPE OF THE DATA BEFORE YOU VALIDATE IT'S MEANING.
-        
+        """RESPONSIBLE FOR TRADE FIELDS VALIDATION ORCHESTRATION."""
+
+        self._check_positive_float_values(
+            entry_price= trade.entry_price,
+            exit_price= trade.exit_price,
+            take_profit= trade.take_profit,
+            stop_loss= trade.stop_loss,
+            position_size= trade.position_size,
+        )
+
+        self._check_int_values(
+            model_id= trade.model_id,
+            management_id= trade.management_id,
+            entry_execution_id= trade.entry_execution_id
+        )
+
+        self._check_float_values(
+            dollar_amount= trade.dollar_amount,
+            profit_loss= trade.profit_loss,
+            rr_multiple= trade.rr_multiple
+        )
+
+        self._validate_time_logic(
+            entry_time= trade.entry_time,
+            exit_time= trade.exit_time
+        )
+
         if not isinstance(trade.date, date):
             raise t.Trade_Validation_Error(f"DATE SHOULD BE A DATE VALUE NOT {trade.date}.")
         
