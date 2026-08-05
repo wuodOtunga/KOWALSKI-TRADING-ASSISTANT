@@ -79,16 +79,14 @@ class Journal:
             if condition:
                 raise t.Trade_Validation_Error(message)
 
-    def _validate_time_logic(self, trade: Trade) -> None:
+    def _validate_time_logic(self, **fields: time) -> None:
         """RESPONSIBLE FOR TIME LOGIC VALIDATION."""
-
-        time_values = [trade.entry_time, trade.exit_time]
 
         #DATETIME.TIME VALUES YOU CAN'T HAVE ZERO CHECKS.
         #SINCE THERE IS NO SUPPORT FOR >= 0 OR POSITIVITY BASICALLY.
-        for value in time_values:
+        for name, value in fields.items():
             if not isinstance(value, time):
-                raise t.Trade_Validation_Error(f"INVALID TIME INPUT. {value} MUST BE TIME OBJECT.")
+                raise t.Trade_Validation_Error(f"{name.upper()} MUST BE TIME OBJECT. GOT {value}.")
 
     def _check_positive_float_values(self, **fields: float) -> None:
         """RESPONSIBLE FOR FLOAT TYPE VALIDATION"""
