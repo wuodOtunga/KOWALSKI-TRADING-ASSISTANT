@@ -99,15 +99,17 @@ class Journal:
             if not isinstance(value, float):
                 raise t.Trade_Validation_Error(f"INVALID FLOAT VALUE. {name.upper()} MUST BE A FLOAT VALUE. GOT {value}.")
 
+    def _validate_int_values(self, **fields: int) -> None:
+        """RESPONSIBLE FOR INT TYPE VALIDATION."""
+        """INT VALUES: MODEL_ID, MANAGEMENT_ID, ENTRY_EXECUTION_ID."""
+
+        for name, value in fields.items():
+            if not isinstance(value, int):
+                raise t.Trade_Validation_Error(f"INVALID INT VALUE. {name.upper()} MUST BE AN INT VALUE. GOT {value}.")
+
     def _validate_trade_data(self, trade: Trade) -> Trade:
         #STRUCTURAL/TYPE CHECKS SHOULD HAPPEN BEFORE BUSINESS RULE LOGIC VALIDATION.
         #VALIDATE THE SHAPE OF THE DATA BEFORE YOU VALIDATE IT'S MEANING.
-        
-        int_values = [trade.model_id, trade.management_id, trade.entry_execution_id]
-        
-        for value in int_values:
-            if not isinstance(value, int) or value <= 0:
-                raise t.Trade_Validation_Error(f"INVALID INT VALUE. {value} MUST BE AN INTEGER AND > 0.")
         
         if not isinstance(trade.date, date):
             raise t.Trade_Validation_Error(f"DATE SHOULD BE A DATE VALUE NOT {trade.date}.")
