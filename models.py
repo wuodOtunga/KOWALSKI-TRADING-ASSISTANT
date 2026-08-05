@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import date, time
+from enum import Enum
 
 #DESIGN FIX #1: model_id, account_id, management_id, entry_execution_id
 #HAVE INT TYPES. IN SCHEMA.SQL, THE 4 TABLE COLUMNS DON'T HAVE
@@ -10,6 +11,11 @@ from datetime import date, time
 #ABOVE ERROR ISSUE HAS BEEN FIXED.
 
 #The column names returned by SQL must match the dataclass field names.
+class TradeDirection(str, Enum):
+    """THIS CLASS REPRESENTS DIRECTION AS A TYPE"""
+    LONG = "long"
+    SHORT = "short"
+    
 @dataclass
 class Trade:
     """THIS CLASS MANAGES TRADE DATA"""
@@ -27,7 +33,7 @@ class Trade:
     management_id : int
     entry_execution_id : int
     asset : str
-    direction : str
+    direction : TradeDirection
     dollar_amount : float
     profit_loss : float
     rr_multiple : float
@@ -59,3 +65,4 @@ class TradeNotes:
     emotions : str
     mistakes : str
     thoughts : str
+
