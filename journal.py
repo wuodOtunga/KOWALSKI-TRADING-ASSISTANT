@@ -107,6 +107,15 @@ class Journal:
             if not isinstance(value, int):
                 raise t.Trade_Validation_Error(f"INVALID INT VALUE. {name.upper()} MUST BE AN INT VALUE. GOT {value}.")
 
+    def _check_zero_values(self, **fields: float) -> None:
+        """RESPONSIBLE FOR ZERO CHECK VALIDATION."""
+        """NON ZERO VALUES: ENTRY_PRICE, EXIT_PRICE, TAKE_PROFIT, STOP_LOSS,
+        POSITION_SIZE, MODEL_ID, MANAGEMENT_ID, ENTRY_EXECUTION_ID"""
+
+        for name, value in fields.items():
+            if value <= 0:
+                raise t.Trade_Validation_Error(f"INVALID VALUE INPUT. {name.upper()} MUST EXCEED ZERO. GOT {value}.")
+
     def _validate_trade_data(self, trade: Trade) -> Trade:
         #STRUCTURAL/TYPE CHECKS SHOULD HAPPEN BEFORE BUSINESS RULE LOGIC VALIDATION.
         #VALIDATE THE SHAPE OF THE DATA BEFORE YOU VALIDATE IT'S MEANING.
