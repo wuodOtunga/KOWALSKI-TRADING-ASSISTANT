@@ -2,7 +2,7 @@ from datetime import date, time
 
 import exceptions as t
 from database import Database
-from models import Account, Trade, TradeChart, TradeNotes  # noqa: F401
+from models import Account, Trade, TradeChart, TradeDirection, TradeNotes  # noqa: F401
 
 trade1 = Trade(
     trade_id= 1,
@@ -56,10 +56,33 @@ class Journal:
 #SHORT: ENTRY_PRICE CAN'T BE GREATER THAN STOP_LOSS.
 #SHORT: TAKE_PROFIT CAN'T BE GREATER THAN ENTRY_PRICE.
 
+    def _validate_price_logic(self, trade: Trade) -> None:
+        """RESPONSIBLE FOR CROSS FIELD VALIDATION."""
+
+        islong = trade.direction == TradeDirection.LONG
+
+        #DECLARATIVE RULE TABLE: RULES AS DATA: CROSS FIELD VALIDATION RULES.
+        rules = [
+            (trade.entry_time >= trade.exit_time, "ENTRY TIME CAN'T EXCEED OR BE EQUAL TO EXIT TIME."),
+            (islong and trade.exit_price > trade.take_profit, "LONG EXIT PRICE CAN'T EXCEED TAKE PROFIT."),
+            (islong and trade.entry_price > trade.take_profit, "LONG ENTRY PRICE EXCEED TAKE PROFIT."),
+            (islong and trade.stop_loss > trade.exit_price, "LONG STOP LOSS CAN'T EXCEED EXIT PRICE."),
+            (islong and trade.stop_loss > trade.entry_price, "LONG STOP LOSS CAN'T EXCEED ENTRY PRICE."),
+            (not islong and trade.exit_price > trade.stop_loss, "SHORT EXIT PRICE CAN'T EXCEED STOP LOSS."),
+            (not islong and trade.entry_price > trade.stop_loss, "SHORT ENTRY PRICE CAN'T EXCEED STOP LOSS."),
+            (not islong and trade.take_profit > trade.entry_price, "SHORT TAKE PROFIT CAN'T EXCEED ENTRY PRICE."),
+            (not islong and trade.take_profit > trade.exit_price, "SHORT TAKE PROFIT CAN'T EXCEED EXIT PRICE."),
+            (trade.entry_price in (trade.take_profit, trade.stop_loss), "ENTRY PRICE CAN'T EQUAL TAKE PROFIT OR STOP LOSS."),
+        ]
+
+        for condition, message in rules:
+            if condition:
+                raise t.Trade_Validation_Error(message)
+
     def _validate_trade_data(self, trade: Trade) -> Trade:
         #STRUCTURAL/TYPE CHECKS SHOULD HAPPEN BEFORE BUSINESS RULE LOGIC VALIDATION.
         #VALIDATE THE SHAPE OF THE DATA BEFORE YOU VALIDATE IT'S MEANING.
-        
+
         #FLOAT_VALUES CAN BE POSITIVE, NEGATIVE OR ZERO HENCE NO ZERO CHECK.
         float_values = [trade.dollar_amount, trade.profit_loss, trade.rr_multiple]
         for value in float_values:
@@ -89,26 +112,6 @@ class Journal:
         if not isinstance(trade.date, date):
             raise t.Trade_Validation_Error(f"DATE SHOULD BE A DATE VALUE NOT {trade.date}.")
         
-        if trade.entry_price == trade.take_profit or trade.entry_price == trade.stop_loss:
-            raise t.Trade_Validation_Error("ENTRY_PRICE CAN'T EQUAL TAKE_PROFIT OR STOP_LOSS")
-
-        if trade.entry_time >= trade.exit_time:
-            raise t.Trade_Validation_Error(f"ENTRY TIME {trade.entry_time} CAN'T BE EQUAL TO OR GREATER THAN EXIT TIME {trade.exit_time}.")
-
-        #POINT TO KNOW: OPERATOR PRECEDENCE: ALWAYS PARANTHESIZE COMPOUND BOOLEAN EXPRESSIONS EXPLICITLY
-        #EVEN IF YOU ARE SURE OF PRECEDENCE BECAUSE AND BINDS TIGHTER THAN OR.
-        if trade.direction == "long" and (trade.exit_price > trade.take_profit or trade.stop_loss > trade.exit_price):
-            raise t.Trade_Validation_Error("EXIT PRICE IS OUT OF RANGE BETWEEN TAKE PROFIT AND STOP LOSS.")
-
-        if trade.direction == "short" and (trade.take_profit > trade.exit_price or trade.exit_price > trade.stop_loss):
-            raise t.Trade_Validation_Error("EXIT PRICE IS OUT OF RANGE BETWEEN TAKE PROFIT AND STOP LOSS.")
-
-        if trade.direction == "long" and (trade.entry_price > trade.take_profit or trade.stop_loss > trade.entry_price):
-            raise t.Trade_Validation_Error("ENTRY PRICE IS OUT OF RANGE BETWEEN TAKE PROFIT AND STOP LOSS.")
-
-        if trade.direction == "short" and (trade.entry_price > trade.stop_loss or trade.take_profit > trade.entry_price):
-            raise t.Trade_Validation_Error("ENTRY PRICE IS OUT OF RANGE BETWEEN TAKE PROFIT AND STOP LOSS.")
-
         return trade
 
 #INPUTS: TRADE OBJECT.
