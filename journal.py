@@ -34,32 +34,81 @@ class Journal:
 #INPUTS: TRADE OBJECT.
 #OUTPUTS: RETURN VALIDATED TRADE OBJECT.
 #RESPONSIBILITY: MAKE SURE THE TRADE DATA IS ERROR FREE.
-#ERRORS: TYPE VALIDATION, STRUCTURAL VALIDATION: REQUIRED FIELDS EXIST,
+#ERRORS: TYPE VALIDATION, STRUCTURAL VALIDATION: REQUIRED FIELDS EXIST -> ENFORCED BY TRADE DATACLASS.
 #BUSINESS RULES VALIDATION.
-#ISSUE #1: ADD VALIDATION FOR ENTRY_TIME, EXIT_TIME, DURATION FIELDS.
+
+#CROSS-FIELD VALIDATION.
+#ENTRY_TIME CAN'T BE GREATER THAN EXIT_TIME.
+#ENTRY_TIME CAN'T BE EQUAL TO EXIT_TIME.
+#ENTRY_PRICE CAN'T EQUAL TAKE_PROFIT/STOP_LOSS.
+
+#DIRECTION BASED RELATIONSHIPS.
+#RELATIONSHIP BETWEEN ENTRY_PRICE, EXIT_PRICE AND (TAKE_PROFIT, STOP_LOSS)
+#RELATIONSHIP BETWEEN EXIT_PRICE AND (TAKE_PROFIT, STOP_LOSS)
+#LONG: EXIT_PRICE CAN'T BE GREATER THAN TAKE_PROFIT.
+#LONG: STOP_LOSS CAN'T BE GREATER THAN EXIT_PRICE.
+#SHORT: TAKE_PROFIT CAN'T BE GREATER THAN EXIT_PRICE.
+#SHORT: EXIT_PRICE CAN'T BE GREATER THAN STOP_LOSS.
+
+#RELATIONSHIP BETWEEN ENTRY_PRICE AND (TAKE_PROFIT, STOP_LOSS)
+#LONG: ENTRY_PRICE CAN'T BE GREATER THAN TAKE_PROFIT.
+#LONG: STOP_LOSS CAN'T BE GREATER THAN ENTRY_PRICE.
+#SHORT: ENTRY_PRICE CAN'T BE GREATER THAN STOP_LOSS.
+#SHORT: TAKE_PROFIT CAN'T BE GREATER THAN ENTRY_PRICE.
+
     def _validate_trade_data(self, trade: Trade) -> Trade:
-        if trade.entry_price == trade.take_profit or trade.entry_price == trade.stop_loss:
-            raise t.Trade_Validation_Error("ENTRY_PRICE CAN'T EQUAL TAKE_PROFIT OR STOP_LOSS")
+        #STRUCTURAL/TYPE CHECKS SHOULD HAPPEN BEFORE BUSINESS RULE LOGIC VALIDATION.
+        #VALIDATE THE SHAPE OF THE DATA BEFORE YOU VALIDATE IT'S MEANING.
         
-        float_values = [trade.entry_price, trade.exit_price, trade.take_profit, trade.position_size,
-                        trade.dollar_amount, trade.profit_loss]
-        
+        #FLOAT_VALUES CAN BE POSITIVE, NEGATIVE OR ZERO HENCE NO ZERO CHECK.
+        float_values = [trade.dollar_amount, trade.profit_loss, trade.rr_multiple]
         for value in float_values:
             if not isinstance(value, float):
                 raise t.Trade_Validation_Error(f"INVALID FLOAT VALUE. {value} MUST BE A FLOAT.")
-
-        int_values = [trade.model_id, trade.management_id, trade.entry_execution_id, trade.rr_multiple]
-
+                
+        positive_float_values = [trade.entry_price, trade.exit_price, trade.take_profit, 
+                                trade.stop_loss, trade.position_size]
+                
+        for value in positive_float_values:
+            if not isinstance(value, float) or value <= 0:
+                raise t.Trade_Validation_Error(f"INVALID FLOAT VALUE. {value} MUST BE A FLOAT AND > 0.")
+        
+        int_values = [trade.model_id, trade.management_id, trade.entry_execution_id]
+        
         for value in int_values:
             if not isinstance(value, int) or value <= 0:
-                raise t.Trade_Validation_Error(f"INVALID INT VALUE. {value} MUST BE AN INTEGER AND GREATER THAN 0.")
+                raise t.Trade_Validation_Error(f"INVALID INT VALUE. {value} MUST BE AN INTEGER AND > 0.")
 
+        #DATETIME.TIME VALUES YOU CAN'T HAVE ZERO CHECKS
+        #SINCE THERE IS NO SUPPORT FOR >= 0 OR POSITIVITY BASICALLY
         time_values = [trade.entry_time, trade.exit_time]
-
         for value in time_values:
             if not isinstance(value, time):
                 raise t.Trade_Validation_Error(f"INVALID TIME VALUE: {value}")
-            
+        
+        if not isinstance(trade.date, date):
+            raise t.Trade_Validation_Error(f"DATE SHOULD BE A DATE VALUE NOT {trade.date}.")
+        
+        if trade.entry_price == trade.take_profit or trade.entry_price == trade.stop_loss:
+            raise t.Trade_Validation_Error("ENTRY_PRICE CAN'T EQUAL TAKE_PROFIT OR STOP_LOSS")
+
+        if trade.entry_time >= trade.exit_time:
+            raise t.Trade_Validation_Error(f"ENTRY TIME {trade.entry_time} CAN'T BE EQUAL TO OR GREATER THAN EXIT TIME {trade.exit_time}.")
+
+        #POINT TO KNOW: OPERATOR PRECEDENCE: ALWAYS PARANTHESIZE COMPOUND BOOLEAN EXPRESSIONS EXPLICITLY
+        #EVEN IF YOU ARE SURE OF PRECEDENCE BECAUSE AND BINDS TIGHTER THAN OR.
+        if trade.direction == "long" and (trade.exit_price > trade.take_profit or trade.stop_loss > trade.exit_price):
+            raise t.Trade_Validation_Error("EXIT PRICE IS OUT OF RANGE BETWEEN TAKE PROFIT AND STOP LOSS.")
+
+        if trade.direction == "short" and (trade.take_profit > trade.exit_price or trade.exit_price > trade.stop_loss):
+            raise t.Trade_Validation_Error("EXIT PRICE IS OUT OF RANGE BETWEEN TAKE PROFIT AND STOP LOSS.")
+
+        if trade.direction == "long" and (trade.entry_price > trade.take_profit or trade.stop_loss > trade.entry_price):
+            raise t.Trade_Validation_Error("ENTRY PRICE IS OUT OF RANGE BETWEEN TAKE PROFIT AND STOP LOSS.")
+
+        if trade.direction == "short" and (trade.entry_price > trade.stop_loss or trade.take_profit > trade.entry_price):
+            raise t.Trade_Validation_Error("ENTRY PRICE IS OUT OF RANGE BETWEEN TAKE PROFIT AND STOP LOSS.")
+
         return trade
 
 #INPUTS: TRADE OBJECT.
