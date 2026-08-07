@@ -15,6 +15,21 @@ class TradeDirection(str, Enum):
     """THIS CLASS REPRESENTS DIRECTION AS A TYPE"""
     LONG = "long"
     SHORT = "short"
+
+class TradeAsset(str, Enum):
+    """THIS CLASS REPRESENTS ASSET AS A TYPE"""
+    XAUUSD = "XAUUSD"
+    XAGUSD = "XAGUSD"
+    NQ = "NQ"
+    ES = "ES"
+
+#FIGURE HOW TO TYPE A+ INTO THE ENUM
+class TradeGrade(str, Enum):
+    """THIS CLASS REPRESENTS GRADE AS A TYPE"""
+    B = "B"
+    C = "C"
+    D = "D"
+    F = "F"
     
 @dataclass
 class Trade:
@@ -32,12 +47,12 @@ class Trade:
     account_id : int
     management_id : int
     entry_execution_id : int
-    asset : str
+    asset : TradeAsset
     direction : TradeDirection
     dollar_amount : float
-    profit_loss : float
+    result : float
     rr_multiple : float
-    overall_trade_grade : str | None = None
+    overall_trade_grade : TradeGrade | None = None
 
 @dataclass
 class Account:
