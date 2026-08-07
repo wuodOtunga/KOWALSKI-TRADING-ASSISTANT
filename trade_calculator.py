@@ -1,4 +1,7 @@
 from dataclasses import dataclass
+from datetime import date, datetime, time
+
+import exceptions as t
 
 
 @dataclass
@@ -12,6 +15,10 @@ class TradeSetup:
     lot_size : float
     symbol : str
     direction : str
+    entry_time : time
+    exit_time : time
+    date : date
+    duration : float
 
 INSTRUMENT_SPECS = {
     "NQ" : {"type" : "futures", "contract_size" : 20},
@@ -158,6 +165,27 @@ def get_instrument_symbol():
             return symbol
         else:
             continue
+
+def calculate_trade_duration(trade: TradeSetup):
+
+    datetime_values = [
+        #(field_name, value, expected_type)
+        ("entry_time", trade.entry_time, time),
+        ("exit_time", trade.exit_time, time),
+        ("date", trade.date, date),
+    ]
+
+    for name, value, expected_type in datetime_values:
+        if not isinstance(value, expected_type):
+            raise t.Trade_Validation_Error(f"INVALID DATETIME VALUE. GOT {name}.")
+        
+    entry_dt = datetime.combine(trade.date, trade.entry_time)
+    exit_dt = datetime.combine(trade.date, trade.exit_time)
+
+    if exit_dt < entry_dt:
+        raise t.Trade_Validation_Error("EXIT TIME CAN'T BE LESS THAN ENTRY TIME.")
+
+    return exit_dt - entry_dt
 
 if __name__ == "__main__":
     main()
