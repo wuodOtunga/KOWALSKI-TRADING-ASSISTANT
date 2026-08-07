@@ -1,5 +1,6 @@
 PRAGMA foreign_keys = ON;
 
+--ADD DURATION, RESULT TO THE CALCULATED/DERIVED COLUMNS.
 CREATE TABLE IF NOT EXISTS "trades" (
     "trade_id" INTEGER,
     "entry_price" NUMERIC NOT NULL,
@@ -19,7 +20,8 @@ CREATE TABLE IF NOT EXISTS "trades" (
     "direction" TEXT NOT NULL CHECK("direction" IN ('long', 'short')),
 
     "dollar_amount" NUMERIC,  --calculated from trading_calculator.py
-    "profit_loss" NUMERIC,    --calculated from trading_calculator.py
+    "duration" NUMERIC, --calculated from trading_calculator.py
+    "result" NUMERIC,    --calculated from trading_calculator.py
     "rr_multiple" NUMERIC,       --calculated from trading_calculator.py
     "overall_trade_grade" TEXT CHECK("overall_trade_grade" IN ('A+', 'B', 'C', 'D', 'F') OR "overall_trade_grade" IS NULL),
     
