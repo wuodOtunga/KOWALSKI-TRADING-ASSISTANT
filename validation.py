@@ -27,6 +27,11 @@ from models import Trade, TradeDirection
 #LONG: STOP_LOSS CAN'T BE GREATER THAN ENTRY_PRICE.
 #SHORT: ENTRY_PRICE CAN'T BE GREATER THAN STOP_LOSS.
 #SHORT: TAKE_PROFIT CAN'T BE GREATER THAN ENTRY_PRICE.
+def validate_trade_data(trade: Trade) -> Trade:
+    type_validation(trade)
+    validate_price_logic(trade)
+
+    return Trade
 
 def type_validation(trade: Trade) -> None:
     """RESPONSIBLE FOR DATA TYPE VALIDATION FOR ALL TRADE FIELDS"""
@@ -66,6 +71,7 @@ def validate_price_logic(trade: Trade) -> None:
     islong = trade.direction == TradeDirection.LONG
     
     #DECLARATIVE RULE TABLE: RULES AS DATA: CROSS FIELD VALIDATION RULES.
+    
     rules = [
         (trade.entry_time >= trade.exit_time, "ENTRY TIME CAN'T EXCEED OR BE EQUAL TO EXIT TIME."),
         (islong and trade.exit_price > trade.take_profit, "LONG EXIT PRICE CAN'T EXCEED TAKE PROFIT."),
