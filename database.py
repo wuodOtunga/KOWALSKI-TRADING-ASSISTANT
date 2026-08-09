@@ -5,6 +5,46 @@ from datetime import datetime
 import exceptions as t
 from models import Account, Trade, TradeChart, TradeNotes
 
+#DECLARATIVE TABLE DATA FOR SEED DATA IDEMPOTENCY FOR STATIC LOOKUP TABLES.
+models = [
+    ('BREAD AND BUTTER MODEL', None),
+    ('ONE SHOT ONE KILL', None),
+    ('2022 FVG MODEL', None),
+    ('NO MODEL USED', None),
+]
+
+entry_execution = [
+    ('THE ALGORITHM', 'EXECUTED THE PLAN WITH MACHINE LIKE PRECISION. USED A LIMIT ORDER AT THE CISD/IFVG LEVEL THEN WAITED PATIENTLY.', 5, 'A+'),
+    ('IMPATIENT BUT DISCIPLINED', 'KNEW THE LEVEL BUT FEARED MISSING THE MOVE. USED A MARKETORDER CLOSE TO EXACT LEVEL DUE TO IMPATIENCE', 4, 'B'),
+    ('SLOPPY ANALYST', 'ENTERED THE RIGHT ZONE BUT THE WRONG PRICE. MISSED OPTIMAL PRICE DUE TO TECHNICAL ISSUES', 3, 'C'),
+    ('THE GAMBLER', 'ABANDONED THE PLAN DUE TO EMOTION. ENTERED WITH A MARKETORDER DUE TO FOMO OR REVENGE TRADING.', 2, 'D'),
+    ('THE REBEL', 'TRADED AGAINST THE MODEL ENTIRELY. TRADE ENTRY DOESNT CORRESPOND TO ANY MODEL OR LEVEL. GHOST TRADE', 1, 'F'),
+]
+
+trade_management = [
+    ('THE ZEN MASTER', 'SET THE ORDER AND PHYSICALLY WALKED AWAY. NO CHART WATCHING. 1 HOUR CHECK IN RULE WAS FOLLOWED PERFECTLY', 5, 'A+'),
+    ('THE RESILIENT', 'FELT STRONG URGE TO CHECK AND MICROMANAGE. OPENED CHART BRIEFLY BUT QUICKLY CLOSED WITHOUT TOUCHING ORDERS', 4, 'B'),
+    ('TORTURED ARTIST', 'WATCHED CHART ENTIRE TIME FEELING STRESS AND FEAR. DEBATED CLOSING ORDERS BUT DID NOT. MENTALLY EXAUSTING TRADE', 3, 'C'),
+    ('MICROMANAGER', 'SUCCUMBED TO FEAR OR GREED. ACTIVELY MANAGED AND INTERFERED WITH THE LIMIT ORDERS. BROKE 1 HOUR RULE', 2, 'D'),
+    ('THE SABOTEUR','COMPLETELY ABANDONED THE PLAN. DELETED THE TRADE BEFORE TP/SL OR EVEN REVERSED THE POSITION. PSYCHOLOGICAL BREAKDOWN', 1, 'F'),
+]
+
+parameter_values = [
+    ('LIQUIDITY RAID ON BUYSTOPS/SELLSTOPS ABOVE OR BELOW MARKET PRICE.',),
+    ('DISPLACEMENT TO THE OPPOSITE DIRECTION.',),
+    ('CISD CLOSE AND/OR MARKET STRUCTURE SHIFT.',),
+    ('TRADE SETUP MUST OCCUR WITHIN 7 AM TO 12 NOON NEW YORK SESSION.',),
+    ('SETUP DIRECTION MUST ALIGN WITH HIGHER TIMEFRAME BIAS.',),
+    ('SELL ABOVE MIDNIGHT OPENING PRICE, BUY BELOW MIDNIGHT OPENING PRICE.',),
+    ('SELL AT A PREMIUM, BUY AT A DISCOUNT.',),
+    ('EXECUTION GRADE > B. PRE TRADE + AVG(ENTRY EXECUTION AND TRADE MANAGEMENT).',),
+]
+
+accounts = [
+    ('GFT 5K FUNDED ACCOUNT', 'FUNDED CHALLENGE', None, 5000, 1),
+    ('GFT 10K PAY LATER CHALLENGE', 'FUNDED CHALLENGE', None, 10000, 1),
+    ('FBS LIVE ACCOUNT', 'PERSONAL LIVE', 'FBS BROKER,', 1000, 0),
+]
 
 class Database:
     """CLASS TO MANAGE DATABASE OPERATIONS"""
@@ -31,6 +71,27 @@ class Database:
         cursor = self.conn.cursor()
         with open(self.SCHEMA_PATH) as f:
             cursor.executescript(f.read())
+
+        cursor.execute("SELECT COUNT(*) FROM models")
+        if cursor.fetchone()[0] == 0:
+            cursor.executemany("INSERT INTO models (model_name, description) VALUES (?, ?)", models)
+
+        cursor.execute("SELECT COUNT(*) FROM entry_execution")
+        if cursor.fetchone()[0] == 0:
+            cursor.executemany("INSERT INTO entry_execution (archetype, description, points, grade) VALUES (?, ?, ?, ?)", entry_execution)
+
+        cursor.execute("SELECT COUNT(*) FROM trade_management")
+        if cursor.fetchone()[0] == 0:
+            cursor.executemany("INSERT INTO trade_management (archetype, description, points, grade) VALUES (?, ?, ?, ?)", trade_management)
+
+        cursor.execute("SELECT COUNT(*) FROM parameters")
+        if cursor.fetchone()[0] == 0:
+            cursor.executemany("INSERT INTO parameters (parameter_name) VALUES (?)", parameter_values)
+
+        cursor.execute("SELECT COUNT(*) FROM accounts")
+        if cursor.fetchone()[0] == 0:
+            cursor.executemany("INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES (?, ?, ?, ?, ?)", accounts)
+
         self.conn.commit()
 
 #Foreign-key error translation is too broad
