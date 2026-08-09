@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, time
+from datetime import date, time, timedelta
 from enum import Enum
 
 #DESIGN FIX #1: model_id, account_id, management_id, entry_execution_id
@@ -30,6 +30,11 @@ class TradeGrade(str, Enum):
     C = "C"
     D = "D"
     F = "F"
+
+class TradeResult(str, Enum):
+    """THIS CLASS REPRESENTS RESULT AS A TYPE"""
+    PROFIT = "PROFIT"
+    LOSS = "LOSS"
     
 @dataclass
 class Trade:
@@ -49,9 +54,10 @@ class Trade:
     entry_execution_id : int
     asset : TradeAsset
     direction : TradeDirection
-    dollar_amount : float
-    result : float
-    rr_multiple : float
+    dollar_amount : float | None
+    duration : timedelta | None
+    result : TradeResult | None
+    rr_multiple : float | None
     overall_trade_grade : TradeGrade | None = None
 
 @dataclass
