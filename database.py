@@ -42,26 +42,28 @@ class Database:
         """SAVE TRADE TO DATABASE"""
         """RETURNS LASTROWID REPRESENTING TRADEID"""
 
+    #UPDATE THIS METHOD WITH THE NEW ENUM TYPES FROM MODELS.
         if trade.asset not in ["XAUUSD", "XAGUSD", "NQ", "ES"]:
             raise t.Invalid_Asset_Error(f"INVALID ASSET DETECTED {trade.asset}")
         if trade.direction not in ["long", "short"]:
             raise t.Invalid_Direction_Error(f"INVALID DIRECTION DETECTED {trade.direction}")
+        self.check_foreign_keys(trade)
 
         cursor = self.conn.cursor()
 
         try:
-            cursor.execute("INSERT INTO trades (entry_price, exit_price, take_profit, stop_loss, position_size, entry_time, exit_time" \
-            "date, model_id, account_id, management_id, entry_execution_id, asset, direction, dollar_amount, profit_loss, rr_ratio,\
+            cursor.execute("INSERT INTO trades (entry_price, exit_price, take_profit, stop_loss, position_size, entry_time, exit_time," \
+            "date, model_id, account_id, management_id, entry_execution_id, asset, direction, dollar_amount, duration, result, rr_multiple,\
             overall_trade_grade) VALUES"
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
             (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size, 
              trade.entry_time.strftime("%I:%M %p"), trade.exit_time.strftime("%I:%M %p"), trade.date.isoformat(), trade.model_id,
             trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
-            trade.profit_loss, trade.rr_multiple, trade.overall_trade_grade))
+            trade.duration.total_seconds(), trade.result, trade.rr_multiple, trade.overall_trade_grade))
         except sqlite3.IntegrityError as e:
             self.conn.rollback()
             raise t.Constraint_Violation_Error(f"FOREIGN KEY VIOLATION DETECTED. {e}") from e
-                
+            
         self.conn.commit()
         return cursor.lastrowid
     
@@ -152,7 +154,7 @@ class Database:
             "(?, ?, ?, ?)", (trade_id, trade_notes.emotions, trade_notes.mistakes, trade_notes.thoughts))
         except sqlite3.IntegrityError as e:
             self.conn.rollback()
-            raise t.ConstraintViolationError(f"INVALID TRADE_ID: {trade_id}, {e}") from e
+            raise t.Constraint_Violation_Error(f"INVALID TRADE_ID: {trade_id}, {e}") from e
         
         self.conn.commit()
 
@@ -227,6 +229,32 @@ class Database:
 
         self.conn.commit()
         return cursor.lastrowid
+
+    def check_foreign_keys(self, trade: Trade) -> None:
+        #CHECKS FOR EXISTENCE OF ACCOUNT_ID, MANAGEMENT_ID, ENTRY_EXECUTION_ID
+        #MODEL_ID
+        cursor = self.conn.cursor()
+
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id = ?)", (trade.account_id,))
+        exists = cursor.fetchone()[0]
+        if not exists:
+            raise t.Invalid_Identifier_Error(f"ACCOUNT WITH ID OF {trade.account_id} DOESN'T EXIST.")
+
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM models WHERE model_id = ?)", (trade.model_id,))
+        exists = cursor.fetchone()[0]
+        if not exists:
+            raise t.Invalid_Identifier_Error(f"MODEL WITH {trade.model_id} DOESN'T EXISTS.")
+
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM trade_management WHERE management_id = ?)", (trade.management_id,))
+        exists = cursor.fetchone()[0]
+        if not exists:
+            raise t.Invalid_Identifier_Error(f"{trade.management_id} DOESN'T MATCH ANY MANAGEMENT ARCHETYPE.")
+
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM entry_execution WHERE entry_execution_id = ?)", (trade.entry_execution_id,))
+        exists = cursor.fetchone()[0]
+        if not exists:
+            raise t.Invalid_Identifier_Error(f"{trade.entry_execution_id} DOESN'T MATCH ANY ARCHETYPE.")
+        
 
 #RESEARCH THE MECHANICS OF CLOSE() METHOD
 #OPEN FILE LOCKS/STREAMLIT PROCESS FOR EVERY RERUN
