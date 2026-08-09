@@ -1,8 +1,12 @@
+#THIS IS JOURNAL.PY
+
 from datetime import date, time
 
 import exceptions as t
+import trade_calculator as y
 from database import Database
-from models import Account, Trade, TradeChart, TradeDirection, TradeNotes  # noqa: F401
+from models import Trade, TradeChart, TradeNotes, TradeResult
+from validation import validate_trade_data
 
 trade1 = Trade(
     trade_id= 1,
@@ -20,36 +24,99 @@ trade1 = Trade(
     entry_execution_id= 1,
     asset= "XAUUSD",
     direction= "long",
-    dollar_amount= 26.0,
-    profit_loss= 26.0,
-    rr_multiple= 1,
+    dollar_amount= None,
+    duration= None,  #check correctness.
+    result= None,
+    rr_multiple= None,
     overall_trade_grade= "C"
 )
+
+trade2 = y.TradeSetup(
+    entry_price= 4023.90,
+    exit_price= 4030.40,
+    stop_loss= 4017.58,
+    take_profit= 4045.00,
+    account_balance= 5000,
+    risk_percent= 1,
+    lot_size= 0.04,
+    symbol= "XAUUSD",
+    direction= "long",
+    entry_time= time(6, 14),
+    exit_time= time(9, 16),
+    date= date(2026, 7, 28),
+    duration= None
+)
+def main():
+    db = Database()
+    journal = Journal(db)
+    journal.record_trade(trade1)
 
 class Journal:
 
     def __init__(self, db: Database):
         self.db = db
  
+    def record_trade(self, trade: Trade) -> Trade:
+        """RECORDS A TRADE IN THE JOURNAL"""
 
-#INPUTS: TRADE OBJECT.
-#OUTPUTS: RETURNS TRADEID.
-#RESPONSIBILITY: SAVES A TRADE ENTRY TO TRADES TABLE IN DATABASE.
-#ERRORS: CONSTRAINT VIOLATION ERROR
-#CALLS SAVE_TRADE METHOD IN DATABASE CLASS.
-    def record_trade(self, trade: Trade):
-        valid_trade = self._validate_trade_data(trade)
-        trade_id = self.db.save_trade(valid_trade)
-        return trade_id
+        #1: ASSEMBLE/DERIVE TRADE DATA CALLER DOESN'T HAVE.
+        trade = self._compute_derived_fields(trade)
+        #2: VALIDATE THE TRADE DATA.
+        valid_trade = validate_trade_data(trade)
+
+        #3: PERSIST TO THE DATABASE & #4: TRANSLATE THE ERRORS.
+        #ISSUE #2: WHAT CAN GO WRONG WHEN CALLING THE DATABASE METHOD?
+        #CONSTRAINT_VIOLATION_ERROR("FOREIGN KEY VIOLATION DETECTED.") AS A DB ERROR.
+        try:
+            trade_id = self.db.save_trade(valid_trade)
+        except t.Constraint_Violation_Error as e:
+            raise t.Trade_Recording_Error(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}")
+        except t.Invalid_Identifier_Error as e:
+            raise t.Trade_Recording_Error(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}")
+
+        trade.trade_id = trade_id
+
+        #5: RETURN SOMETHING MEANINGFUL.
+        return "SUCCESS", trade
+
+#DOLLAR_AMOUNT, RESULT, RR_MULTIPLE, DURATION ARE DERIVED.
+    def _compute_derived_fields(self, trade: Trade) -> Trade:
+        """COMPUTES DERIVED FIELDS USING THE CALCULATOR MODULE."""
+
+        results = y.calculate_profit_loss(trade2)
+        dollar_amount = results["DOLLAR_AMOUNT"]
+        trade.dollar_amount = dollar_amount
+        result = results["RESULT"]
+        if result == "PROFIT":
+            result = TradeResult.PROFIT
+        elif result == "LOSS":
+            result = TradeResult.LOSS
+
+        trade.result = result
         
-#INPUTS: CHART OBJECT, TRADE_ID
-#OUTPUTS: RETURNS A CHARTID. RESEARCH WHY WE NEED TO RETURN A CHARTID.
-#RESPONSIBILITY: ADD CHARTS TO THE CHARTS TABLE
-#ERRORS: CONSTRAINT VIOLATION ERROR. UNDERSTAND WHAT THIS MEANS FIRST.
-#HOW DO WE KNOW THAT THE CHARTS HAVE BEEN ADDED?
-#CALLS ADD_CHART METHOD IN DATABASE CLASS
-    def attach_charts(self, trade_id: int, chart: TradeChart):
-        pass
+        values = y.calculate_risk_reward_multiple(trade2)
+        rr_multiple = values["RR_MULTIPLE"]
+        trade.rr_multiple = rr_multiple
+        duration = y.calculate_trade_duration(trade2)
+        trade.duration = duration
+
+        return trade
+    
+#ASSEMBLE/DERIVE DATA AND VALIDATE DATA GETS HANDLED BY STREAMLIT.
+#STREAMLIT OWNS THE COLLECTION OF CHARTS DATA LOGIC.
+#ATTACH CHART RECEIVES A VALID, FULLY CONSTRUCTED CHARTS DATA. 
+    def attach_charts(self, trade_id: int, charts: TradeChart):
+
+        #3: PERSIST TO DATABASE AND TRANSLATE FAILURES.
+        try:
+            chart_id = self.db.add_chart(trade_id, charts)
+        except t.Constraint_Violation_Error as e:
+            raise t.Chart_Upload_Error(f"TRADE_ID PROVIDED {trade_id} DOESN'T EXIST: {e}")
+
+        charts.chart_id = chart_id
+
+        #4: RETURN SOMETHING MEANINGFUL.
+        return charts
 
 #INPUTS: TRADE_ID
 #OUTPUTS: ENTRY_EXECUTION, TRADE_MANAGEMENT, TRADE_PARAMETERS, MODEL USED
@@ -119,3 +186,5 @@ class Journal:
 #CALLS UPDATE_TRADE_GRADE, UPDATE_TRADE_FIELD.
     def amend_journal_entry(self, trade_id: int, trade_changes):
         pass
+
+main()
