@@ -5,7 +5,7 @@ from datetime import date, time
 import exceptions as t
 import trade_calculator as y
 from database import Database
-from models import Trade, TradeChart, TradeNotes, TradeResult
+from models import Account, JournalEntry, Trade, TradeChart, TradeNotes, TradeResult
 from validation import validate_trade_data
 
 trade1 = Trade(
@@ -61,6 +61,8 @@ class Journal:
 
         #1: ASSEMBLE/DERIVE TRADE DATA CALLER DOESN'T HAVE.
         trade = self._compute_derived_fields(trade)
+        trade_grade = self.grade_trade(trade)
+        trade.overall_trade_grade = trade_grade
         #2: VALIDATE THE TRADE DATA.
         valid_trade = validate_trade_data(trade)
 
@@ -191,13 +193,19 @@ class Journal:
 
         return trade_notes
 
-#INPUTS: TRADE_ID.
-#OUTPUTS: A TRADE OBJECT FROM THE TRADES TABLE.
-#RESPONSIBILITY: SHOW THE TRADE DATA OF A PARTICULAR TRADE.
-#ERRORS: TRADE_NOT_FOUND_ERROR FOR MISSING TRADE.
-#CALLS GET_BY_ID METHOD IN DATABASE CLASS.
-    def get_trade(self, trade_id: int):
-        pass
+#THIN WRAPPER METHOD, ONLY SERVES TO TRANSLATES ERRORS.
+#DO I NEED TO VALIDATE THAT THE RETURNED TRADE HAS CORRECT TYPES?
+#DON'T CATCH VALIDATION ERROR IN EXCEPT BLOCK SINCE DOESN'T NEED TRANSLATION
+#OR ADDITIONAL INFO. LET IT PROPAGATE UP INTO STREAMLIT MODULE.
+    def get_trade(self, trade_id: int) -> Trade:
+
+        try:
+            trade = self.db.get_by_id(trade_id)
+            valid_trade = validate_trade_data(trade)
+        except t.Trade_Not_Found_Error as e:
+            raise t.Invalid_TradeID_Error(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
+
+        return valid_trade
 
 #JOURNAL ENTRY DEFINITION: TRADES DATA FROM TRADES TABLE,
 #TRADE NOTES, CHARTS, TRADE_PARAMETERS PRESENT AND ABSENT,
@@ -212,16 +220,47 @@ class Journal:
     def get_journal_entry(self, trade_id: int):
         pass
 
-#ENTIRE TRADE DEFINITION: SAME AS ABOVE.
-#INPUTS: TRADE OBJECT, TRADE_NOTE OBJECT, CHART OBJECT,
-#TRADE PARAMETERS DATA, MANAGEMENT/ENTRY_EXECUTION DATA, ETC
-#OUTPUT: SUCCESS/FAILURE MESSAGE TO SHOW SUCCESS OR FAILURE.
-#RESPONSIBILITY: CREATE A FULL JOURNAL ENTRY THAT CONTAINS ALL THE
-#TRADE DATA STATS TO BE JOURNALED AT ONCE.
-#ERRORS: ALL METHODS CALLED BY THIS FUNCTION, ALL THEIR ERRORS APPLY TOO
-#TBD: SPECIFIC DEFINITION OF THE ERRORS IS TO BE DETERMINED. 
-    def record_journal_entry(self, trade: Trade, chart: TradeChart, trade_notes: TradeNotes):
-        pass
+#TARGET TABLES: TRADES, ACCOUNTS, TRADE_PARAMETERS, TRADE_NOTES, CHARTS.
+#INPUTS: DATACLASS OBJECTS AND A LIST OF PARAMETER IDS.
+#DATACLASS OBJECTS INCLUDE: TRADE, ACCOUNT, TRADE_NOTE, TRADE_CHARTS.
+#LIST OF PARAMETER IDS IS PROVIDED BY THE CALLER.
+#OUTPUT: ENTIRE JOURNAL ENTRY. JOURNALENTRY DATACLASS.
+#CAN A DATACLASS CONTAIN OTHER DATACLASSES AS VALUE TYPES?
+    def record_journal_entry(self, journal_entry: JournalEntry) -> JournalEntry:
+        """SAVE AN ENTIRE JOURNAL ENTRY TO DATABASE AT ONCE."""
+
+        #STEP 1:ASSEMBLE/DERIVE DATA CALLER DOESN'T HAVE.
+        #TRADE HAS DERIVED FIELDS, OTHER OBJECTS COME FULLY FORMED FROM CALLER.
+        trade = self._compute_derived_fields(journal_entry.trade)
+        trade_grade = self.grade_trade(trade)
+        journal_entry.trade.overall_trade_grade = trade_grade
+
+        #STEP 2: VALIDATE THE DATA.
+        valid_trade = validate_trade_data(trade)
+
+        #STEP 3: PERSIST TO DB. STEP 4:TRANSLATE ERRORS.
+        #NOTICE WE ARE CATCHING THE BROAD DATABASE ERROR.
+        #BECAUSE IT COVERS ALL THE SUB CLASSES OF ERRORS RAISED BY INDIVIDUAL METHHOD RUNS.
+        try:
+            trade_id = self.db.save_trade(valid_trade)
+            journal_entry.trade.trade_id = trade_id
+            account_id = self.db.create_trading_account(journal_entry.account)
+            journal_entry.trade.account_id = account_id
+            chart_id = self.db.add_chart(journal_entry.trade.trade_id, journal_entry.charts)
+            journal_entry.charts.chart_id = chart_id
+            self.db.add_trade_notes(journal_entry.trade.trade_id, journal_entry.trade_notes)
+
+            for parameter_id in journal_entry.parameter_ids:
+                self.db.add_trade_parameters(journal_entry.trade.trade_id, parameter_id)
+
+            self.db.conn.commit()
+        except t.DatabaseError as e:
+            self.db.conn.rollback()
+            raise t.Journal_Entry_Error(f"JOURNAL ENTRY NOT SAVED DUE TO DATABASE ERRORS: {e}") from e
+
+        #STEP 5: RETURN SOMETHING MEANINGFUL.
+        return journal_entry
+
 
 #QUESTION TO PONDER: WHAT DOES AMEND JOURNALE ENTRY MEAN?
 #I discovered something was wrong or incomplete. Change it.
