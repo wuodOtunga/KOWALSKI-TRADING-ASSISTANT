@@ -70,9 +70,9 @@ class Journal:
         try:
             trade_id = self.db.save_trade(valid_trade)
         except t.Constraint_Violation_Error as e:
-            raise t.Trade_Recording_Error(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}")
+            raise t.Trade_Recording_Error(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}") from e
         except t.Invalid_Identifier_Error as e:
-            raise t.Trade_Recording_Error(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}")
+            raise t.Trade_Recording_Error(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}") from e
 
         trade.trade_id = trade_id
 
@@ -111,30 +111,63 @@ class Journal:
         try:
             chart_id = self.db.add_chart(trade_id, charts)
         except t.Constraint_Violation_Error as e:
-            raise t.Chart_Upload_Error(f"TRADE_ID PROVIDED {trade_id} DOESN'T EXIST: {e}")
+            raise t.Chart_Upload_Error(f"TRADE_ID PROVIDED {trade_id} DOESN'T EXIST: {e}") from e
 
         charts.chart_id = chart_id
 
         #4: RETURN SOMETHING MEANINGFUL.
         return charts
 
-#INPUTS: TRADE_ID
-#OUTPUTS: ENTRY_EXECUTION, TRADE_MANAGEMENT, TRADE_PARAMETERS, MODEL USED
-#RESPONSIBILITY: EVALUATES THE POINTS ATTACHED TO A TRADE.
-#ERRORS: INVALID_IDENTIFIER_ERROR, TRADE_NOT_FOUND_ERROR.
-#CALLS GET_ENTRY_EXECUTION_POINTS, GET_TRADE_MANAGEMENT_POINTS
-#AND GET_PARAMETER_POINTS METHODS IN DATABASE CLASS  
-    def evaluate_trade(self, trade_id: int):
-        pass
+#DID YOU SPECIFY WHICH PROVIDED ID IS INVALID.
+#DOES from e OFFER CONTEXT ON WHICH ID DOESN'T EXIST?
+#DOES THE TRADE OBJECT GET TO THIS METHOD AS CLEAN DATA?
+#THERE IS NO VALIDATION/ASSEMBLE/DERIVE TO BE DONE HERE.  
+    def evaluate_trade(self, trade: Trade) -> int:
 
-#INPUTS: ENTRY_EXECUTION POINTS, TRADE_MANAGEMENT POINTS,
-#TRADE_PARAMETERS, TRADE_ID
-#OUTPUTS: GRADE AS A STR VALUE.
-#RESPONSIBILITY: RETURN THE GRADE OF A TRADE.
-#ERRORS: CONSTRAINT VIOLATION ERROR, INVALID IDENTIFIER ERROR.
-#CALLS EVALUATE_TRADE() METHOD IN JOURNAL CLASS
-    def grade_trade(self):
-        pass
+        #3: GET POINTS DATA FROM RELEVANT TABLES USING IDENTIFIERS.
+        #4: TRANSLATE THE ERRORS.
+        try:
+            entry_score = self.db.get_entry_execution_points(trade.entry_execution_id)
+            management_score = self.db.get_trade_management_points(trade.management_id)
+            parameters_score = self.db.get_parameters_points(trade.trade_id)
+        except t.Invalid_Identifier_Error as e:
+            raise t.Grading_Error(f"PROVIDED IDs ARE INVALID: {e}") from e
+        except t.Trade_Not_Found_Error as e:
+            raise t.Grading_Error(f"TRADE_ID {trade.trade_id} IS INVALID: {e}") from e
+        
+        #5. RETURN SOMETHING MEANINGFUL.
+        return entry_score, management_score, parameters_score
+
+#HOW DOES TUPLE UNPACKING WORKING.
+    def grade_trade(self, trade: Trade):
+
+        #CALCULATE TRADE_POINTS.
+        #TRADE_POINTS == POINTS SCORED ON MODEL CHECKLIST.
+        entry_score, management_score, parameters_score = self.evaluate_trade(trade)
+        trade_execution_average = (entry_score + management_score)/2
+        if trade_execution_average >= 4:
+            trade_points = parameters_score + 1
+        else:
+            trade_points = parameters_score
+
+        #GRADING OF TRADE BASED ON TRADE_POINTS.
+        #(POINTS, GRADE) -> (8, A+), (6/7, A), (5, B), (4, C), (3, D) (<3, F)
+        grading_system = [(8, "A+"), (7, "A"), (6, "A"), (5, "B"), (4, "C"), (3, "D"), (2, "F"), (1, "F"), (0, "F")]
+        for points, grade in grading_system:
+            if trade_points == points:
+                trade_grade = grade
+
+        #UPDATE THE GRADE OF THE TRADE FROM NONE TO TRADE_GRADE
+        try:
+            self.db.update_trade_grade(trade.trade_id, trade_grade)
+        except t.Invalid_Grade_Error as e:
+            raise t.Grading_Error(f"{trade_grade} IS INVALID. SHOULD BE BETWEEN (A+ - F), {e}") from e
+        except t.Trade_Not_Found_Error as e:
+            raise t.Grading_Error(f"{trade.trade_id} IS INVALID. PROVIDE VALID TRADE_ID, {e}") from e
+
+        #RETURN SOMETHING MEANINGFUL.
+        #RETURN GRADE FOR ANYONE WHO NEEDS IT.
+        return trade_grade
 
 #INPUTS: TRADE_NOTE OBJECT, TRADE_ID.
 #OUTPUTS: NOTHING. HOW DO WE KNOW THAT THE NOTES HAVE BEEN ADDED?
