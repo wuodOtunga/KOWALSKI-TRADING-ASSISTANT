@@ -38,7 +38,13 @@ class Trade_Validation_Error(JournalingError):
     "EXCEPTION CLASS FOR VALIDATION ERROR"
 
 class Trade_Recording_Error(JournalingError):
-    """EXCEPTION CLASS FOR FAILED DATABASE SAVES."""
+    """EXCEPTION CLASS FOR FAILED TRADE DATABASE SAVES."""
+
+class Chart_Upload_Error(JournalingError):
+    """EXCEPTION CLASS FOR FAILED CHART UPLOADS TO CHARTS TABLE."""
+
+class Grading_Error(JournalingError):
+    """EXCEPTION CLASS FOR HANDLING GRADING ERRORS."""
 
 class DatabaseError(Exception):
     """BASE CLASS FOR DATABASE EXCEPTIONS"""
