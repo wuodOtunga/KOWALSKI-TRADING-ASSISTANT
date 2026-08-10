@@ -5,7 +5,7 @@ from datetime import date, time
 import exceptions as t
 import trade_calculator as y
 from database import Database
-from models import Account, JournalEntry, Trade, TradeChart, TradeNotes, TradeResult
+from models import JournalEntry, Trade, TradeChart, TradeNotes, TradeResult
 from validation import validate_trade_data
 
 trade1 = Trade(
