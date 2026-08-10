@@ -2,13 +2,6 @@ from dataclasses import dataclass
 from datetime import date, time, timedelta
 from enum import Enum
 
-#DESIGN FIX #1: model_id, account_id, management_id, entry_execution_id
-#HAVE INT TYPES. IN SCHEMA.SQL, THE 4 TABLE COLUMNS DON'T HAVE
-#NOT NULL CONSTRAINTS, THIS IS A TYPE INCONSISTENCY.
-#IS A TRADE CREATED ALL AT ONCE OR GRADUALLY DURING JOURNALING WORKFLOW.
-
-#ERROR FIX #1: ENTRY_TIME, EXIT_TIME, DATE AS DATETIME IS WRONG.
-#ABOVE ERROR ISSUE HAS BEEN FIXED.
 
 #The column names returned by SQL must match the dataclass field names.
 class TradeDirection(str, Enum):
@@ -39,7 +32,7 @@ class TradeResult(str, Enum):
 @dataclass
 class Trade:
     """THIS CLASS MANAGES TRADE DATA"""
-    trade_id : int
+    trade_id : int | None
     entry_price : float
     exit_price : float
     take_profit : float
@@ -49,7 +42,7 @@ class Trade:
     exit_time : time
     date : date
     model_id : int
-    account_id : int
+    account_id : int | None
     management_id : int
     entry_execution_id : int
     asset : TradeAsset
@@ -73,7 +66,7 @@ class Account:
 @dataclass
 class TradeChart:
     "THIS CLASS MANAGES TRADING CHARTS DATA"
-    chart_id : int
+    chart_id : int | None
     trade_id : int
     filepath : str
     timeframe : str
@@ -87,3 +80,12 @@ class TradeNotes:
     mistakes : str
     thoughts : str
 
+#CAN A DATACLASS CONTAIN OTHER DATACLASSES AS VALUE TYPES?
+@dataclass
+class JournalEntry:
+    """THIS CLASS MANAGES ENTIRE JOURNAL ENTRY DATA"""
+    trade : Trade
+    account : Account
+    charts : TradeChart
+    trade_notes : TradeNotes
+    parameter_ids : list
