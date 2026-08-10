@@ -1,7 +1,7 @@
 from datetime import date, time, timedelta
 
 import exceptions as t
-from models import Trade, TradeDirection, TradeResult
+from models import Trade, TradeDirection, TradeGrade, TradeResult
 
 #INPUTS: TRADE OBJECT.
 #OUTPUTS: RETURN VALIDATED TRADE OBJECT.
@@ -56,6 +56,7 @@ def type_validation(trade: Trade) -> None:
         ("result", trade.result, TradeResult, False),   #CHECK THIS LATER.
         ("rr_multiple", trade.rr_multiple, float, False),
         ("duration", trade.duration, timedelta, False),
+        ("overall_trade_grade", trade.overall_trade_grade, TradeGrade, False),
     ]
 
     for name, value, expected_type, positive_check in valid_types:
