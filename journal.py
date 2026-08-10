@@ -139,7 +139,7 @@ class Journal:
         return entry_score, management_score, parameters_score
 
 #HOW DOES TUPLE UNPACKING WORKING.
-    def grade_trade(self, trade: Trade):
+    def grade_trade(self, trade: Trade) -> str:
 
         #CALCULATE TRADE_POINTS.
         #TRADE_POINTS == POINTS SCORED ON MODEL CHECKLIST.
@@ -169,13 +169,27 @@ class Journal:
         #RETURN GRADE FOR ANYONE WHO NEEDS IT.
         return trade_grade
 
-#INPUTS: TRADE_NOTE OBJECT, TRADE_ID.
-#OUTPUTS: NOTHING. HOW DO WE KNOW THAT THE NOTES HAVE BEEN ADDED?
-#RESPONSIBILITY: Add thoughts, mistakes, emotions, lessons, observations.
-#ERRORS: TRADE_NOT_FOUND_ERROR.
-#CALLS ADD_TRADE_NOTES METHOD IN DATABASE CLASS.
-    def add_reflection_notes(self, trade_id: int, trade_notes: TradeNotes):
-        pass
+#I WANT TO FORMALIZE WHAT TRADE NOTES MEANS FOR UNIFORMITY ACROSS TRADES.
+#TRADE NOTES INCLUDE: EMOTIONS, MISTAKES, LESSONS, NOTES.
+#NOTES INCLUDE: NOTES ON THE GRADE OF TRADE, NOTES ON MODEL USED,
+#NOTES ON ENTRY EXECUTION AND TRADE MANAGEMENT,
+#NOTES ON ENTRY AND EXIT RATIONALE,
+#NOTES ON TRADE PARAMETERS PRESENT AND ABSENT,
+#NOTES ON EMOTIONS, MISTAKES MADE, LESSONS LEARNT.
+#INSIDE STREAMLIT MODULE, VALIDATE THE ABOVE IS WHAT IS BEING RECORDED.
+    def add_reflection_notes(self, trade_id: int, trade_notes: TradeNotes) -> TradeNotes:
+
+        #TRADE_NOTES OBJECT IS SUPPLIED BY STREAMLIT MODULE. (CALLER)
+        #NO ASSEMBLY/DERIVING TRADE_NOTES OBJECT, ARRIVES AS CLEAN TRUSTED OBJECT.
+        #WHAT HAPPENS IF THIS METHOD ISN'T CALLED FROM THE STREAMLIT UI?
+        #SCHEMA.SQL HAS NOT NULL CONSTRAINTS THAT RAISE INTEGRITYERROR.
+        #DATABASE.PY CATCHES THE SQLITE ERRORS AND TRANSLATES. JOURNAL.PY ALSO TRANSLATES.
+        try:
+            self.db.add_trade_notes(trade_id, trade_notes)
+        except t.Constraint_Violation_Error as e:
+            raise t.Notes_Recording_Error(f"TRADE_ID {trade_id} IS INVALID, {e}") from e
+
+        return trade_notes
 
 #INPUTS: TRADE_ID.
 #OUTPUTS: A TRADE OBJECT FROM THE TRADES TABLE.
