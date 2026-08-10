@@ -206,7 +206,7 @@ class Database:
         
     def add_trade_notes(self, trade_id: int, trade_notes: TradeNotes) -> None:
         """ATTACH TRADE NOTES TO DATABASE"""
-        """TRADE NOTES INCLUDE EMOTIONS, MISTAKES, THOUGHTS"""
+        """TRADE NOTES INCLUDE EMOTIONS, MISTAKES, LESSONS"""
         """ARGS: trade_id IDENTIFIER, TRADENOTE OBJECT"""
 
         cursor = self.conn.cursor()
@@ -315,8 +315,17 @@ class Database:
         exists = cursor.fetchone()[0]
         if not exists:
             raise t.Invalid_Identifier_Error(f"{trade.entry_execution_id} DOESN'T MATCH ANY ARCHETYPE.")
-        
 
+#SAVE AN ENTIRE JOURNAL ENTRY TO THE DATABASE AT ONCE.
+#TARGET TABLES: TRADES, ACCOUNTS, TRADE_PARAMETERS, TRADE_NOTES, CHARTS.
+#INPUTS: DATACLASS OBJECTS AND TRADE_PARAMETERS VALUES.
+#DATACLASS OBJECTS INCLUDE: TRADE, ACCOUNT, TRADECHART, TRADENOTES.
+#OUTPUTS: 
+    def log_entire_trade(self):
+        pass
+
+    def get_entire_trade(self):
+        pass
 #RESEARCH THE MECHANICS OF CLOSE() METHOD
 #OPEN FILE LOCKS/STREAMLIT PROCESS FOR EVERY RERUN
 #REAL THREAD CONCURRENCY IN SQLITE3 MECHANICS.
