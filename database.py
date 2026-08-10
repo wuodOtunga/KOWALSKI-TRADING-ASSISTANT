@@ -258,7 +258,7 @@ class Database:
         
         self.conn.commit()
     
-#ERROR FIX 1: SELECT(*) RETURNS 0 WHETHER THE TRADE DOESN'T EXIST
+#ERROR FIX 1: SELECT  RETURNS 0 WHETHER THE TRADE DOESN'T EXIST
 #OR TRADE EXISTS BUT WE HAVE 0 PARAMETERS FOR THE TRADE.
 #NONE CHECK FOR FETCHONE() DOESN'T DO ANYTHING SINCE NONE CAN'T BE RETURNED
 #SO HOW DO YOU DIFFERENTIATE BETWEEN 0 FOR TRADE NOT EXISTS
@@ -269,12 +269,12 @@ class Database:
         """RETURNS INT AS THE NUMBER OF PARAMETER POINTS FOR THE TRADE."""
 
         cursor = self.conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM trade_parameters WHERE trade_id = ?", (trade_id,))
-        row = cursor.fetchone()
+        cursor.execute("SELECT * FROM trade_parameters WHERE trade_id = ?", (trade_id,))
+        row = cursor.fetchall()
         if row is None:
             raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} NOT FOUND.")
         
-        return row[0]
+        return len(row), row
 
     def create_trading_account(self, account: Account) -> int:
         """STORE TRADING ACCOUNT DETAILS TO DATABASE"""
@@ -316,11 +316,41 @@ class Database:
         if not exists:
             raise t.Invalid_Identifier_Error(f"{trade.entry_execution_id} DOESN'T MATCH ANY ARCHETYPE.")
 
+    def get_trading_account(self, trade: Trade) -> Account:
+
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM accounts WHERE account_id = ?", (trade.account_id,))
+        row = cursor.fetchone()
+        if row is None:
+            raise t.Invalid_Identifier_Error(f"{trade.account_id} DOESN'T MATCH ANY ACCOUNT.")
+
+        return Account(**row)
+
+    def get_trade_notes(self, trade_id: int) -> TradeNotes:
+
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM trade_notes WHERE trade_id = ?", (trade_id,))
+        row = cursor.fetchone()
+        if row is None:
+            raise t.Trade_Not_Found_Error(f"{trade_id} IS INVALID.")
+
+        return TradeNotes(**row)
+
+    def get_trade_charts(self, trade_id: int) -> TradeChart:
+
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM charts WHERE trade_id = ?", (trade_id,))
+        row = cursor.fetchone()
+        if row is None:
+            raise t.Trade_Not_Found_Error(f"{trade_id} IS INVALID.")
+
+        return TradeChart(**row)
+
 #SAVE AN ENTIRE JOURNAL ENTRY TO THE DATABASE AT ONCE.
 #TARGET TABLES: TRADES, ACCOUNTS, TRADE_PARAMETERS, TRADE_NOTES, CHARTS.
 #INPUTS: DATACLASS OBJECTS AND TRADE_PARAMETERS VALUES.
 #DATACLASS OBJECTS INCLUDE: TRADE, ACCOUNT, TRADECHART, TRADENOTES.
-#OUTPUTS: 
+#DO WE STILL NEED THIS METHOD NOW THAT WE HAVE A JOURNAL METHOD FOR IT?
     def log_entire_trade(self):
         pass
 
