@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS "trade_notes" (
     "trade_id" INTEGER,
     "emotions" TEXT NOT NULL,
     "mistakes" TEXT NOT NULL,
-    "thoughts" TEXT NOT NULL,
+    "lessons" TEXT NOT NULL,
     PRIMARY KEY("trade_id"),
     FOREIGN KEY("trade_id") REFERENCES "trades"("trade_id")
 );
