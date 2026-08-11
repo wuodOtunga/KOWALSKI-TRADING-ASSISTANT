@@ -1,5 +1,3 @@
-#THIS IS JOURNAL.PY
-
 from datetime import date, time
 
 import exceptions as t
@@ -71,15 +69,18 @@ class Journal:
         #CONSTRAINT_VIOLATION_ERROR("FOREIGN KEY VIOLATION DETECTED.") AS A DB ERROR.
         try:
             trade_id = self.db.save_trade(valid_trade)
+            self.db.commit()
         except t.Constraint_Violation_Error as e:
+            self.db.rollback()
             raise t.Trade_Recording_Error(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}") from e
         except t.Invalid_Identifier_Error as e:
+            self.db.rollback()
             raise t.Trade_Recording_Error(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}") from e
 
         trade.trade_id = trade_id
 
         #5: RETURN SOMETHING MEANINGFUL.
-        return "SUCCESS", trade
+        return trade
 
 #DOLLAR_AMOUNT, RESULT, RR_MULTIPLE, DURATION ARE DERIVED.
     def _compute_derived_fields(self, trade: Trade) -> Trade:
@@ -112,7 +113,9 @@ class Journal:
         #3: PERSIST TO DATABASE AND TRANSLATE FAILURES.
         try:
             chart_id = self.db.add_chart(trade_id, charts)
+            self.db.commit()
         except t.Constraint_Violation_Error as e:
+            self.db.rollback()
             raise t.Chart_Upload_Error(f"TRADE_ID PROVIDED {trade_id} DOESN'T EXIST: {e}") from e
 
         charts.chart_id = chart_id
@@ -131,12 +134,13 @@ class Journal:
         try:
             entry_score = self.db.get_entry_execution_points(trade.entry_execution_id)
             management_score = self.db.get_trade_management_points(trade.management_id)
-            parameters_score = self.db.get_parameters_points(trade.trade_id)
+            trade_parameters = self.db.get_trade_parameters(trade.trade_id)
         except t.Invalid_Identifier_Error as e:
             raise t.Grading_Error(f"PROVIDED IDs ARE INVALID: {e}") from e
         except t.Trade_Not_Found_Error as e:
             raise t.Grading_Error(f"TRADE_ID {trade.trade_id} IS INVALID: {e}") from e
-        
+
+        parameters_score = len(trade_parameters)
         #5. RETURN SOMETHING MEANINGFUL.
         return entry_score, management_score, parameters_score
 
@@ -145,7 +149,7 @@ class Journal:
 
         #CALCULATE TRADE_POINTS.
         #TRADE_POINTS == POINTS SCORED ON MODEL CHECKLIST.
-        entry_score, management_score, parameters_score = self.evaluate_trade(trade)
+        entry_score, management_score, parameters_score = self.evaluate_trade(*trade)
         trade_execution_average = (entry_score + management_score)/2
         if trade_execution_average >= 4:
             trade_points = parameters_score + 1
@@ -162,9 +166,12 @@ class Journal:
         #UPDATE THE GRADE OF THE TRADE FROM NONE TO TRADE_GRADE
         try:
             self.db.update_trade_grade(trade.trade_id, trade_grade)
+            self.db.commit()
         except t.Invalid_Grade_Error as e:
+            self.db.rollback()
             raise t.Grading_Error(f"{trade_grade} IS INVALID. SHOULD BE BETWEEN (A+ - F), {e}") from e
         except t.Trade_Not_Found_Error as e:
+            self.db.rollback()
             raise t.Grading_Error(f"{trade.trade_id} IS INVALID. PROVIDE VALID TRADE_ID, {e}") from e
 
         #RETURN SOMETHING MEANINGFUL.
@@ -188,7 +195,9 @@ class Journal:
         #DATABASE.PY CATCHES THE SQLITE ERRORS AND TRANSLATES. JOURNAL.PY ALSO TRANSLATES.
         try:
             self.db.add_trade_notes(trade_id, trade_notes)
+            self.db.commit()
         except t.Constraint_Violation_Error as e:
+            self.db.rollback()
             raise t.Notes_Recording_Error(f"TRADE_ID {trade_id} IS INVALID, {e}") from e
 
         return trade_notes
@@ -207,18 +216,30 @@ class Journal:
 
         return valid_trade
 
-#JOURNAL ENTRY DEFINITION: TRADES DATA FROM TRADES TABLE,
-#TRADE NOTES, CHARTS, TRADE_PARAMETERS PRESENT AND ABSENT,
-#ACCOUNT USED, TRADE MANAGEMENT/ENTRY_EXECUTION INFO STATS,
-#MODEL USED, GRADE.
-#INPUTS: TRADE_ID
-#OUTPUTS: TRADE OBJECT, TRADE_NOTE OBJECT, CHART OBJECT,
-#TRADE PARAMETERS DATA, MANAGEMENT/ENTRY_EXECUTION DATA ETC
-#RESPONSIBILITY: SHOW THE COMPLETE TRADE INFORMATION TO A USER.
-#ERRORS: ALL METHODS CALLED BY THIS FUNCTION, ALL THEIR ERRORS APPLY TOO
-#TBD: SPECIFIC DEFINITION OF THE ERRORS IS TO BE DETERMINED.
-    def get_journal_entry(self, trade_id: int):
-        pass
+#THE TRADER/USER WANTS TO SEE THE ENTIRE RECORDED JOURNAL ENTRY.
+#METHOD NEEDS TO GET DATA FROM: TRADES, ACCOUNTS, TRADE_PARAMETERS
+#TRADE NOTES, CHARTS TABLE.
+#METHOD NEEDS TO GET A LIST OF PARAMETERS IDS FOR THE TRADE. 
+    def get_journal_entry(self, trade_id: int) -> JournalEntry:
+        """READ AN ENTIRE JOURNAL ENTRY FROM DATABASE AT ONCE."""
+
+        try:
+            trade = self.db.get_by_id(trade_id)
+            valid_trade = validate_trade_data(trade)
+            account = self.db.get_trading_account(valid_trade)
+            trade_notes = self.db.get_trade_notes(trade_id)
+            trade_charts = self.db.get_trade_charts(trade_id)
+            parameter_ids = self.db.get_trade_parameters(trade_id)
+        except t.DatabaseError as e:
+            raise t.Journal_Entry_Error from e
+
+        return JournalEntry(
+            trade= trade,
+            account= account,
+            charts= trade_charts,
+            trade_notes= trade_notes,
+            parameter_ids= parameter_ids,
+        )
 
 #TARGET TABLES: TRADES, ACCOUNTS, TRADE_PARAMETERS, TRADE_NOTES, CHARTS.
 #INPUTS: DATACLASS OBJECTS AND A LIST OF PARAMETER IDS.
@@ -242,10 +263,10 @@ class Journal:
         #NOTICE WE ARE CATCHING THE BROAD DATABASE ERROR.
         #BECAUSE IT COVERS ALL THE SUB CLASSES OF ERRORS RAISED BY INDIVIDUAL METHHOD RUNS.
         try:
-            trade_id = self.db.save_trade(valid_trade)
-            journal_entry.trade.trade_id = trade_id
             account_id = self.db.create_trading_account(journal_entry.account)
             journal_entry.trade.account_id = account_id
+            trade_id = self.db.save_trade(valid_trade)
+            journal_entry.trade.trade_id = trade_id
             chart_id = self.db.add_chart(journal_entry.trade.trade_id, journal_entry.charts)
             journal_entry.charts.chart_id = chart_id
             self.db.add_trade_notes(journal_entry.trade.trade_id, journal_entry.trade_notes)
@@ -253,9 +274,9 @@ class Journal:
             for parameter_id in journal_entry.parameter_ids:
                 self.db.add_trade_parameters(journal_entry.trade.trade_id, parameter_id)
 
-            self.db.conn.commit()
+            self.db.commit()
         except t.DatabaseError as e:
-            self.db.conn.rollback()
+            self.db.rollback()
             raise t.Journal_Entry_Error(f"JOURNAL ENTRY NOT SAVED DUE TO DATABASE ERRORS: {e}") from e
 
         #STEP 5: RETURN SOMETHING MEANINGFUL.
