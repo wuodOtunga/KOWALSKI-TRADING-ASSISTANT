@@ -56,7 +56,7 @@ class Trade:
 @dataclass
 class Account:
     """THIS CLASS MANAGES TRADING ACCOUNTS DATA"""
-    account_id : int
+    account_id : int | None
     account_name : str
     account_type : str
     broker : str
@@ -88,4 +88,4 @@ class JournalEntry:
     account : Account
     charts : TradeChart
     trade_notes : TradeNotes
-    parameter_ids : list
+    parameter_ids : list[int]
