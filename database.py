@@ -4,47 +4,14 @@ from datetime import datetime
 
 import exceptions as t
 from models import Account, Trade, TradeChart, TradeNotes
+from seed_data import (
+    accounts,
+    entry_execution,
+    models,
+    parameter_values,
+    trade_management,
+)
 
-#DECLARATIVE TABLE DATA FOR SEED DATA IDEMPOTENCY FOR STATIC LOOKUP TABLES.
-models = [
-    ('BREAD AND BUTTER MODEL', None),
-    ('ONE SHOT ONE KILL', None),
-    ('2022 FVG MODEL', None),
-    ('NO MODEL USED', None),
-]
-
-entry_execution = [
-    ('THE ALGORITHM', 'EXECUTED THE PLAN WITH MACHINE LIKE PRECISION. USED A LIMIT ORDER AT THE CISD/IFVG LEVEL THEN WAITED PATIENTLY.', 5, 'A+'),
-    ('IMPATIENT BUT DISCIPLINED', 'KNEW THE LEVEL BUT FEARED MISSING THE MOVE. USED A MARKETORDER CLOSE TO EXACT LEVEL DUE TO IMPATIENCE', 4, 'B'),
-    ('SLOPPY ANALYST', 'ENTERED THE RIGHT ZONE BUT THE WRONG PRICE. MISSED OPTIMAL PRICE DUE TO TECHNICAL ISSUES', 3, 'C'),
-    ('THE GAMBLER', 'ABANDONED THE PLAN DUE TO EMOTION. ENTERED WITH A MARKETORDER DUE TO FOMO OR REVENGE TRADING.', 2, 'D'),
-    ('THE REBEL', 'TRADED AGAINST THE MODEL ENTIRELY. TRADE ENTRY DOESNT CORRESPOND TO ANY MODEL OR LEVEL. GHOST TRADE', 1, 'F'),
-]
-
-trade_management = [
-    ('THE ZEN MASTER', 'SET THE ORDER AND PHYSICALLY WALKED AWAY. NO CHART WATCHING. 1 HOUR CHECK IN RULE WAS FOLLOWED PERFECTLY', 5, 'A+'),
-    ('THE RESILIENT', 'FELT STRONG URGE TO CHECK AND MICROMANAGE. OPENED CHART BRIEFLY BUT QUICKLY CLOSED WITHOUT TOUCHING ORDERS', 4, 'B'),
-    ('TORTURED ARTIST', 'WATCHED CHART ENTIRE TIME FEELING STRESS AND FEAR. DEBATED CLOSING ORDERS BUT DID NOT. MENTALLY EXAUSTING TRADE', 3, 'C'),
-    ('MICROMANAGER', 'SUCCUMBED TO FEAR OR GREED. ACTIVELY MANAGED AND INTERFERED WITH THE LIMIT ORDERS. BROKE 1 HOUR RULE', 2, 'D'),
-    ('THE SABOTEUR','COMPLETELY ABANDONED THE PLAN. DELETED THE TRADE BEFORE TP/SL OR EVEN REVERSED THE POSITION. PSYCHOLOGICAL BREAKDOWN', 1, 'F'),
-]
-
-parameter_values = [
-    ('LIQUIDITY RAID ON BUYSTOPS/SELLSTOPS ABOVE OR BELOW MARKET PRICE.',),
-    ('DISPLACEMENT TO THE OPPOSITE DIRECTION.',),
-    ('CISD CLOSE AND/OR MARKET STRUCTURE SHIFT.',),
-    ('TRADE SETUP MUST OCCUR WITHIN 7 AM TO 12 NOON NEW YORK SESSION.',),
-    ('SETUP DIRECTION MUST ALIGN WITH HIGHER TIMEFRAME BIAS.',),
-    ('SELL ABOVE MIDNIGHT OPENING PRICE, BUY BELOW MIDNIGHT OPENING PRICE.',),
-    ('SELL AT A PREMIUM, BUY AT A DISCOUNT.',),
-    ('EXECUTION GRADE > B. PRE TRADE + AVG(ENTRY EXECUTION AND TRADE MANAGEMENT).',),
-]
-
-accounts = [
-    ('GFT 5K FUNDED ACCOUNT', 'FUNDED CHALLENGE', None, 5000, 1),
-    ('GFT 10K PAY LATER CHALLENGE', 'FUNDED CHALLENGE', None, 10000, 1),
-    ('FBS LIVE ACCOUNT', 'PERSONAL LIVE', 'FBS BROKER,', 1000, 0),
-]
 
 class Database:
     """CLASS TO MANAGE DATABASE OPERATIONS"""
@@ -92,7 +59,15 @@ class Database:
         if cursor.fetchone()[0] == 0:
             cursor.executemany("INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES (?, ?, ?, ?, ?)", accounts)
 
+        self.conn.commit()  
+
+    def commit(self):
+        """DATABASE COMMITS"""
         self.conn.commit()
+        
+    def rollback(self):
+        """DATABASE ROLLBACKS"""
+        self.conn.rollback()
 
 #Foreign-key error translation is too broad
 #REFINE TO IDENTIFY WHICH ERROR HAPPENED.
@@ -122,10 +97,8 @@ class Database:
             trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
             trade.duration.total_seconds(), trade.result, trade.rr_multiple, trade.overall_trade_grade))
         except sqlite3.IntegrityError as e:
-            self.conn.rollback()
             raise t.Constraint_Violation_Error(f"FOREIGN KEY VIOLATION DETECTED. {e}") from e
-            
-        self.conn.commit()
+        
         return cursor.lastrowid
     
     def get_by_id(self, trade_id: int) -> Trade:
@@ -155,10 +128,8 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute("UPDATE trades SET overall_trade_grade = ? WHERE trade_id = ?", (overall_trade_grade, trade_id))
         if cursor.rowcount == 0:
-            self.conn.rollback()
             raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} NOT FOUND.")
         
-        self.conn.commit()
 
 #A GENERAL UPDATE METHOD TO UPDATE MORE DYNAMIC TRADE FIELDS. 
     def update_trade_field(self, trade_id: int, column: str, value) -> None:
@@ -198,10 +169,8 @@ class Database:
             cursor.execute("INSERT INTO charts (trade_id, filepath, timeframe) VALUES (?, ?, ?)",
                             (trade_id, charts.filepath, charts.timeframe))
         except sqlite3.IntegrityError as e:
-            self.conn.rollback()
             raise t.Constraint_Violation_Error(f"INVALID TRADE_ID: {trade_id}, {e}") from e
         
-        self.conn.commit()
         return cursor.lastrowid
         
     def add_trade_notes(self, trade_id: int, trade_notes: TradeNotes) -> None:
@@ -214,10 +183,8 @@ class Database:
             cursor.execute("INSERT INTO trade_notes (trade_id, emotions, mistakes, thoughts) VALUES" \
             "(?, ?, ?, ?)", (trade_id, trade_notes.emotions, trade_notes.mistakes, trade_notes.thoughts))
         except sqlite3.IntegrityError as e:
-            self.conn.rollback()
             raise t.Constraint_Violation_Error(f"INVALID TRADE_ID: {trade_id}, {e}") from e
         
-        self.conn.commit()
 
     def get_entry_execution_points(self, entry_execution_id: int) -> int:
         """GET ENTRY EXECUTION POINTS FROM DATABASE"""
@@ -253,28 +220,27 @@ class Database:
         try:
             cursor.execute("INSERT INTO trade_parameters (trade_id, parameter_id) VALUES (?, ?)", (trade_id, parameter_id))
         except sqlite3.IntegrityError as e:
-            self.conn.rollback()
             raise t.Constraint_Violation_Error(f"CAN'T LINK {trade_id} TO {parameter_id} : {e}") from e
-        
-        self.conn.commit()
     
-#ERROR FIX 1: SELECT  RETURNS 0 WHETHER THE TRADE DOESN'T EXIST
-#OR TRADE EXISTS BUT WE HAVE 0 PARAMETERS FOR THE TRADE.
-#NONE CHECK FOR FETCHONE() DOESN'T DO ANYTHING SINCE NONE CAN'T BE RETURNED
-#SO HOW DO YOU DIFFERENTIATE BETWEEN 0 FOR TRADE NOT EXISTS
-#AND 0 FOR TRADE EXISTS BUT HAS 0 PARAMETERS ATTACHED TO IT.
-    def get_parameters_points(self, trade_id: int) -> int:
+    def get_trade_parameters(self, trade_id: int) -> list:
         """FIND HOW MANY PARAMETER POINTS THE TRADE HAS"""
         """ARGS: TRADE_ID ROW IDENTIFIER"""
         """RETURNS INT AS THE NUMBER OF PARAMETER POINTS FOR THE TRADE."""
 
         cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM trade_parameters WHERE trade_id = ?", (trade_id,))
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM trades WHERE trade_id = ?)", trade_id)
+        exists = cursor.fetchone()[0]
+        if not exists:
+            raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} IS INVALID.")
+        else:
+            cursor.execute("SELECT * FROM trade_parameters WHERE trade_id = ?", (trade_id,))
+
         row = cursor.fetchall()
-        if row is None:
-            raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} NOT FOUND.")
-        
-        return len(row), row
+        parameter_ids = []
+        for _, parameter_id in row:
+            parameter_ids.append(parameter_id)
+            
+        return parameter_ids
 
     def create_trading_account(self, account: Account) -> int:
         """STORE TRADING ACCOUNT DETAILS TO DATABASE"""
@@ -288,7 +254,6 @@ class Database:
         cursor.execute("INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES" \
         "(?, ?, ?, ?, ?)", (account.account_name, account.account_type, account.broker, account.starting_balance, account.is_active))
 
-        self.conn.commit()
         return cursor.lastrowid
 
     def check_foreign_keys(self, trade: Trade) -> None:
@@ -346,16 +311,6 @@ class Database:
 
         return TradeChart(**row)
 
-#SAVE AN ENTIRE JOURNAL ENTRY TO THE DATABASE AT ONCE.
-#TARGET TABLES: TRADES, ACCOUNTS, TRADE_PARAMETERS, TRADE_NOTES, CHARTS.
-#INPUTS: DATACLASS OBJECTS AND TRADE_PARAMETERS VALUES.
-#DATACLASS OBJECTS INCLUDE: TRADE, ACCOUNT, TRADECHART, TRADENOTES.
-#DO WE STILL NEED THIS METHOD NOW THAT WE HAVE A JOURNAL METHOD FOR IT?
-    def log_entire_trade(self):
-        pass
-
-    def get_entire_trade(self):
-        pass
 #RESEARCH THE MECHANICS OF CLOSE() METHOD
 #OPEN FILE LOCKS/STREAMLIT PROCESS FOR EVERY RERUN
 #REAL THREAD CONCURRENCY IN SQLITE3 MECHANICS.
