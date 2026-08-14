@@ -1,40 +1,23 @@
-from dataclasses import dataclass
 from datetime import date, datetime, time
 
 import exceptions as t
+from models import Trade
 
-
-@dataclass
-class TradeSetup:
-    entry_price : float
-    exit_price : float
-    stop_loss : float
-    take_profit : float
-    account_balance : int
-    risk_percent : int
-    lot_size : float
-    symbol : str
-    direction : str
-    entry_time : time
-    exit_time : time
-    date : date
-    duration : float
+#REFACTOR THE LOGIC IN HERE TO MATCH THE TRADE CLASS.
 
 INSTRUMENT_SPECS = {
     "NQ" : {"type" : "futures", "contract_size" : 20},
     "ES" : {"type" : "futures", "contract_size" : 50},
     "XAUUSD" : {"type" : "cfd", "contract_size" : 100},
-    "XAGUSD" : {"type" : "cfd", "contract_size" : 5000}
+    "XAGUSD" : {"type" : "cfd", "contract_size" : 5000},
 }
 
 MULTIPLIER = {"long" : 1, "short" : -1}
 
-#WHEN WE PASS SYMBOL AND DIRECTION TO GET_USER_INPUT(),
-#DOES TRADESETUP AUTOMATICALLY ADD THEM TO ITSELF?
 def main():
-    symbol = get_instrument_symbol()
+    asset = get_asset()
     direction = get_trade_direction()
-    trade = get_user_input(symbol, direction)
+    trade = get_user_input(asset, direction)
 
     results = calculate_profit_loss(trade)
     for k, v in results.items():
@@ -46,11 +29,11 @@ def main():
 
     print(f"POTENTIAL POSITION SIZE: {calculate_position_size(trade)}")
 
-def calculate_profit_loss(trade: TradeSetup):
-    contract_size = INSTRUMENT_SPECS[trade.symbol]["contract_size"]
+def calculate_profit_loss(trade: Trade):
+    contract_size = INSTRUMENT_SPECS[trade.asset]["contract_size"]
     multiplier = MULTIPLIER[trade.direction]
 
-    dollar_amount = (trade.exit_price - trade.entry_price) * multiplier * trade.lot_size * contract_size
+    dollar_amount = (trade.exit_price - trade.entry_price) * multiplier * trade.position_size * contract_size
     dollar_percent = (dollar_amount / trade.account_balance) * 100
 
     verdict = "PROFIT" if dollar_amount > 0 else "LOSS"
@@ -72,8 +55,8 @@ def get_trade_direction():
         else:
             continue
 
-def calculate_risk_reward_multiple(trade: TradeSetup):
-    contract_size = INSTRUMENT_SPECS[trade.symbol]["contract_size"]
+def calculate_risk_reward_multiple(trade: Trade):
+    contract_size = INSTRUMENT_SPECS[trade.asset]["contract_size"]
 
     if trade.take_profit == trade.exit_price:
         profit_distance = abs(trade.take_profit - trade.entry_price)
@@ -82,8 +65,8 @@ def calculate_risk_reward_multiple(trade: TradeSetup):
     
     risk_distance = abs(trade.stop_loss - trade.entry_price)
 
-    risk_amount = risk_distance * trade.lot_size * contract_size
-    profit_amount = profit_distance * trade.lot_size * contract_size
+    risk_amount = risk_distance * trade.position_size * contract_size
+    profit_amount = profit_distance * trade.position_size * contract_size
 
     rr_multiple = round(profit_distance / risk_distance, 2)
 
@@ -94,11 +77,11 @@ def calculate_risk_reward_multiple(trade: TradeSetup):
     }
 
 
-def calculate_position_size(trade: TradeSetup):
+def calculate_position_size(trade: Trade):
     #RETURNS LOT SIZE GIVEN INPUTS.
     #INPUTS INCLUDE: ENTRY_PRICE, STOP_LOSS, DIRECTION, INSTRUMENT/SYMBOL
     #CORE FORMULA: RISK_AMOUNT/(ENTRY_PRICE - STOP_LOSS) * CONTRACT_SIZE
-    contract_size = INSTRUMENT_SPECS[trade.symbol]["contract_size"]
+    contract_size = INSTRUMENT_SPECS[trade.asset]["contract_size"]
     risk_distance = abs(trade.entry_price - trade.stop_loss)
     risk_amount = trade.account_balance * (trade.risk_percent/100)
 
@@ -130,7 +113,7 @@ def get_valid_float(prompt, min_value=None, max_value=None, extend=None):
 
         return value
 
-def get_user_input(symbol, direction):
+def get_user_input(asset, direction):
     #DATA FROM USER: ENTRY_PRICE, EXIT_PRICE, STOP_LOSS, TAKE_PROFIT, SYMBOL, RISK_PERCENT
     #ACCOUNT_BALANCE, LOT_SIZE
     entry_price = get_valid_float("ENTRY PRICE: ")
@@ -140,33 +123,33 @@ def get_user_input(symbol, direction):
     risk_percent = get_valid_float("RISK PERCENT: ", max_value=100)
     account_balance = get_valid_float("ACCOUNT BALANCE: ")
 
-    if INSTRUMENT_SPECS[symbol]["type"] == "futures":
-        lot_size = get_valid_float("CONTRACTS: ", min_value=1)
+    if INSTRUMENT_SPECS[asset]["type"] == "futures":
+        position_size = get_valid_float("CONTRACTS: ", min_value=1)
     else:
-        lot_size = get_valid_float("LOT SIZE: ")
+        position_size = get_valid_float("LOT SIZE: ")
 
-    return TradeSetup(
+    return Trade(
         entry_price = entry_price,
         exit_price = exit_price,
         stop_loss = stop_loss,
         take_profit = take_profit,
         account_balance = account_balance,
         risk_percent = risk_percent,
-        lot_size = lot_size,
-        symbol = symbol,
-        direction = direction
+        position_size= position_size,
+        asset = asset,
+        direction = direction,
     )
 
-def get_instrument_symbol():
-    valid_instruments = ["NQ", "ES", "XAUUSD", "XAGUSD"]
+def get_asset():
+    valid_assets = ["NQ", "ES", "XAUUSD", "XAGUSD"]
     while True:
-        symbol = input("ENTER THE INSTRUMENT SYMBOL: ").upper().strip()
-        if symbol in valid_instruments:
-            return symbol
+        asset = input("ENTER THE INSTRUMENT SYMBOL: ").upper().strip()
+        if asset in valid_assets:
+            return asset
         else:
             continue
 
-def calculate_trade_duration(trade: TradeSetup):
+def calculate_trade_duration(trade: Trade):
 
     datetime_values = [
         #(field_name, value, expected_type)
