@@ -176,7 +176,7 @@ class Database:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
 #FIX THE DATETIME CONVERSION TO ISO 8601 TEXT
-    def add_trade_amendments(self, trade_id, amendment:TradeAmendments):
+    def add_trade_amendments(self, trade_id, amendment:TradeAmendments) -> int:
 
         cursor = self.conn.cursor()
         try:
@@ -184,7 +184,8 @@ class Database:
             "(?, ?, ?, ?, ?)", (trade_id, amendment.column_name, amendment.old_value, amendment.new_value, amendment.amended_at))
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
-        
+
+        return cursor.lastrowid
 
     def get_entry_execution_points(self, entry_execution_id: int) -> int:
         """GET ENTRY EXECUTION POINTS FROM DATABASE"""
