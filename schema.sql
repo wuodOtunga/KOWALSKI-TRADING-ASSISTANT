@@ -106,3 +106,12 @@ CREATE TABLE IF NOT EXISTS "charts" (
     PRIMARY KEY("chart_id"),
     FOREIGN KEY("trade_id") REFERENCES "trades"("trade_id")
 );
+
+CREATE TABLE IF NOT EXISTS "trade_amendments" (
+    "amendment_id" INTEGER,
+    "trade_id" INTEGER,
+    "column_name" TEXT NOT NULL,
+    "old_value" NUMERIC NOT NULL,
+    "new_value" NUMERIC NOT NULL,
+    "amended_at" TEXT NOT NULL, 
+)
