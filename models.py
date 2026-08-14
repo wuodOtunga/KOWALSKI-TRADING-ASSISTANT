@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from enum import Enum
 
 
@@ -28,6 +28,7 @@ class TradeResult(str, Enum):
     """THIS CLASS REPRESENTS RESULT AS A TYPE"""
     PROFIT = "PROFIT"
     LOSS = "LOSS"
+
     
 @dataclass
 class Trade:
@@ -89,3 +90,12 @@ class JournalEntry:
     charts : TradeChart
     trade_notes : TradeNotes
     parameter_ids : list[int]
+
+class TradeAmendments:
+    "THIS CLASS MANAGES CHANGES TO JOURNAL"
+    ammendment_id : int | None
+    trade_id : int
+    column_name : str
+    old_value : float | str
+    new_value : float | str
+    amended_at : datetime
