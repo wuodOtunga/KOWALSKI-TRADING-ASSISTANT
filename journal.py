@@ -1,9 +1,16 @@
-from datetime import date, time
+from datetime import date, datetime, time
 
 import exceptions as t
 import trade_calculator as y
 from database import Database
-from models import JournalEntry, Trade, TradeChart, TradeNotes, TradeResult
+from models import (
+    JournalEntry,
+    Trade,
+    TradeAmendments,
+    TradeChart,
+    TradeNotes,
+    TradeResult,
+)
 from validation import validate_trade_data
 
 trade1 = Trade(
@@ -65,10 +72,9 @@ class Journal:
         valid_trade = validate_trade_data(trade)
 
         #3: PERSIST TO THE DATABASE & #4: TRANSLATE THE ERRORS.
-        #ISSUE #2: WHAT CAN GO WRONG WHEN CALLING THE DATABASE METHOD?
-        #CONSTRAINT_VIOLATION_ERROR("FOREIGN KEY VIOLATION DETECTED.") AS A DB ERROR.
         try:
             trade_id = self.db.save_trade(valid_trade)
+            trade.trade_id = trade_id
             self.db.commit()
         except t.Constraint_Violation_Error as e:
             self.db.rollback()
@@ -76,8 +82,6 @@ class Journal:
         except t.Invalid_Identifier_Error as e:
             self.db.rollback()
             raise t.Trade_Recording_Error(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}") from e
-
-        trade.trade_id = trade_id
 
         #5: RETURN SOMETHING MEANINGFUL.
         return trade
@@ -113,12 +117,11 @@ class Journal:
         #3: PERSIST TO DATABASE AND TRANSLATE FAILURES.
         try:
             chart_id = self.db.add_chart(trade_id, charts)
+            charts.chart_id = chart_id
             self.db.commit()
         except t.Constraint_Violation_Error as e:
             self.db.rollback()
             raise t.Chart_Upload_Error(f"TRADE_ID PROVIDED {trade_id} DOESN'T EXIST: {e}") from e
-
-        charts.chart_id = chart_id
 
         #4: RETURN SOMETHING MEANINGFUL.
         return charts
@@ -142,14 +145,21 @@ class Journal:
 
         parameters_score = len(trade_parameters)
         #5. RETURN SOMETHING MEANINGFUL.
-        return entry_score, management_score, parameters_score
-
-#HOW DOES TUPLE UNPACKING WORKING.
+        return {
+            "entry_score" : entry_score,
+            "management_score" : management_score,
+            "parameters_score" : parameters_score,
+        }
+    
     def grade_trade(self, trade: Trade) -> str:
 
         #CALCULATE TRADE_POINTS.
         #TRADE_POINTS == POINTS SCORED ON MODEL CHECKLIST.
-        entry_score, management_score, parameters_score = self.evaluate_trade(*trade)
+        grading_points = self.evaluate_trade(trade)
+        entry_score = grading_points["entry_score"]
+        management_score = grading_points["management_score"]
+        parameters_score = grading_points["parameters_score"]
+
         trade_execution_average = (entry_score + management_score)/2
         if trade_execution_average >= 4:
             trade_points = parameters_score + 1
@@ -223,15 +233,16 @@ class Journal:
     def get_journal_entry(self, trade_id: int) -> JournalEntry:
         """READ AN ENTIRE JOURNAL ENTRY FROM DATABASE AT ONCE."""
 
+        trade = self.db.get_by_id(trade_id)
+        valid_trade = validate_trade_data(trade)
+
         try:
-            trade = self.db.get_by_id(trade_id)
-            valid_trade = validate_trade_data(trade)
             account = self.db.get_trading_account(valid_trade)
             trade_notes = self.db.get_trade_notes(trade_id)
             trade_charts = self.db.get_trade_charts(trade_id)
             parameter_ids = self.db.get_trade_parameters(trade_id)
         except t.DatabaseError as e:
-            raise t.Journal_Entry_Error from e
+            raise t.Journal_Entry_Error(f"JOURNAL ENTRY CAN'T BE RETRIEVED DUE TO DATABASE ERRORS: {e}") from e
 
         return JournalEntry(
             trade= trade,
@@ -261,7 +272,7 @@ class Journal:
 
         #STEP 3: PERSIST TO DB. STEP 4:TRANSLATE ERRORS.
         #NOTICE WE ARE CATCHING THE BROAD DATABASE ERROR.
-        #BECAUSE IT COVERS ALL THE SUB CLASSES OF ERRORS RAISED BY INDIVIDUAL METHHOD RUNS.
+        #BECAUSE IT COVERS ALL THE SUB CLASSES OF ERRORS RAISED BY INDIVIDUAL METHOD RUNS.
         try:
             account_id = self.db.create_trading_account(journal_entry.account)
             journal_entry.trade.account_id = account_id
@@ -282,16 +293,80 @@ class Journal:
         #STEP 5: RETURN SOMETHING MEANINGFUL.
         return journal_entry
 
+    def amend_trade_entry(self, trade_id: int, column: str, value):
+        #AMENDED FIELDS: EVERYTHING IN THE TRADE OBJECT EXCEPT COMPUTED FIELDS.
+        #CATEGORIES OF TRADE OBJECT FIELDS TO BE AMENDED.
+        #CATEGORY #1:
+        #ENTRY_PRICE, EXIT_PRICE, TAKE_PROFIT, STOP_LOSS, POSITION_SIZE, DATE
+        #ENTRY_TIME, EXIT_TIME, ASSET, DIRECTION, ACCOUNT_ID
 
-#QUESTION TO PONDER: WHAT DOES AMEND JOURNALE ENTRY MEAN?
-#I discovered something was wrong or incomplete. Change it.
-#WHAT IS BEING AMENDED? TRADES TABLE OR ANY OTHER TABLE?
-#INPUTS: TRADE_ID, TRADE CHANGES TO BE MADE.
-#OUTPUTS: SUCCESS/FAILURE MESSAGE.
-#RESPONSIBILITY: AMEND A TABLE IN DATABASE DEPENDING ON USER PREFERENCE.
-#ERRORS: TRADE_NOT_FOUND_ERROR.
-#CALLS UPDATE_TRADE_GRADE, UPDATE_TRADE_FIELD.
-    def amend_journal_entry(self, trade_id: int, trade_changes):
-        pass
+        #CATEGORY #2:
+        #MANAGEMENT_ID, ENTRY_EXECUTION_ID
+        #CATEGORY #3: MODEL_ID, ACCOUNT_ID. DOESN'T AFFECT ANYTHING.
 
+        #DERIVED/COMPUTED TRADE FIELDS CAN'T BE MANUALLY AMENDED.
+        FORBIDDEN_COLUMNS = ["dollar_amount", "duration", "result", "rr_multiple", "overall_trade_grade"]
+        if column in FORBIDDEN_COLUMNS:
+            raise t.Invalid_Column_Name_Error(f"CAN'T UPDATE COLUMN NAME {column}.")
+
+        #TRADE COLUMNS DIVIDED INTO THREE CATEGORIES.
+        #CATEGORY #1 AFFECTS COMPUTED/DERIVED FIELDS FROM CALCULATOR MODULE.
+        #CATEGORY #2 AFFECTS GRADE OF THE TRADE.
+        #CATEGORY #3 AFFECTS NOTHING.
+        category_one = [
+            "entry_price", "exit_price", "take_profit", "stop_loss", "position_size",
+            "date", "entry_time", "exit_time", "asset", "direction"
+        ]
+
+        category_two = ["management_id", "entry_execution_id"]
+
+        #ASSEMBLE/DERIVE OLD, NEW VALUE AND WHEN CHANGE HAPPENED.
+        amended_trade = self.db.get_by_id(trade_id)
+        trade = self._compute_derived_fields(amended_trade)
+        valid_trade = validate_trade_data(trade)
+
+        if column in category_one:
+            old_value = amended_trade[column]
+            new_value = value
+
+            amendment = TradeAmendments(
+                trade_id= trade_id,
+                column_name= column,
+                old_value= old_value,
+                new_value= new_value,
+                amended_at= datetime.now()  # noqa: DTZ005
+            )
+
+        #VALIDATE TRADE OBJECT, PERSIST THE DATA AND TRANSLATE FAILURES.
+            try:
+                amendment_id = self.db.add_trade_amendments(trade_id, amendment)
+                amendment.ammendment_id = amendment_id
+                trade_id = self.db.save_trade(valid_trade)
+                valid_trade.trade_id = trade_id
+                self.db.commit()
+            except t.DatabaseError as e:
+                self.db.rollback()
+                raise t.Journal_Entry_Error(f"TRADE ENTRY COULDN'T BE AMENDED: {e}") from e
+
+        if column in category_two:
+            self.evaluate_trade(valid_trade)
+            new_grade = self.grade_trade(valid_trade)
+
+            amendment = TradeAmendments(
+                trade_id= trade_id,
+                column_name= column,
+                old_value= valid_trade.overall_trade_grade,
+                new_value= new_grade,
+                amended_at= datetime.now()  # noqa: DTZ005
+            )
+
+            try:
+                amendment_id = self.db.add_trade_amendments(trade_id, amendment)
+                amendment.ammendment_id = amendment_id
+                self.db.commit()
+            except t.Constraint_Violation_Error as e:
+                raise t.Journal_Entry_Error(f"TRADE ENTRY COULDN'T BE AMENDED: {e}") from e
+
+        #RETURN SOMETHING MEANINGFUL.
+        return amendment
 main()
