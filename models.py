@@ -53,6 +53,8 @@ class Trade:
     result : TradeResult | None
     rr_multiple : float | None
     overall_trade_grade : TradeGrade | None = None
+    account_balance : float
+    risk_percent : float
 
 @dataclass
 class Account:
