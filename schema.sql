@@ -114,4 +114,4 @@ CREATE TABLE IF NOT EXISTS "trade_amendments" (
     "old_value" NUMERIC NOT NULL,
     "new_value" NUMERIC NOT NULL,
     "amended_at" TEXT NOT NULL, 
-)
+);
