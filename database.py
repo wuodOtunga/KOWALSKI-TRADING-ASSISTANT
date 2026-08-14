@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 
 import exceptions as t
-from models import Account, Trade, TradeChart, TradeNotes
+from models import Account, Trade, TradeAmendments, TradeChart, TradeNotes
 from seed_data import (
     accounts,
     entry_execution,
@@ -97,7 +97,7 @@ class Database:
             trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
             trade.duration.total_seconds(), trade.result, trade.rr_multiple, trade.overall_trade_grade))
         except sqlite3.IntegrityError as e:
-            raise t.Constraint_Violation_Error(f"FOREIGN KEY VIOLATION DETECTED. {e}") from e
+            raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
         
         return cursor.lastrowid
     
@@ -130,25 +130,15 @@ class Database:
         if cursor.rowcount == 0:
             raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} NOT FOUND.")
         
-
 #A GENERAL UPDATE METHOD TO UPDATE MORE DYNAMIC TRADE FIELDS. 
     def update_trade_field(self, trade_id: int, column: str, value) -> None:
         """UPDATES A DYNAMIC TRADE COLUMN BASED ON TRADER PREFERENCE"""
-        """ALLOWED_COLUMNS OFFERS PROTECTON AGAINST SQL INJECTION."""
-
-        ALLOWED_COLUMNS = ["entry_price", "exit_price", "take_profit", "stop_loss", "position_size", "asset", "direction"]
-
-        if column not in ALLOWED_COLUMNS:
-            raise t.Invalid_Column_Name_Error(f"CAN'T UPDATE COLUMN NAME {column}.")
         
         sql = f"UPDATE trades SET {column} = ? WHERE trade_id = ?"
         cursor = self.conn.cursor()
         cursor.execute(sql, (value, trade_id))
         if cursor.rowcount == 0:
-            self.conn.rollback()
             raise t.Trade_Not_Found_Error(f"NO ROW MATCHES THE {trade_id}.")
-        
-        self.conn.commit()
 
     def delete_trade(self, trade_id: int) -> None:
         """DELETE TRADE ROW DETAILS FROM DATABASE"""
@@ -169,7 +159,7 @@ class Database:
             cursor.execute("INSERT INTO charts (trade_id, filepath, timeframe) VALUES (?, ?, ?)",
                             (trade_id, charts.filepath, charts.timeframe))
         except sqlite3.IntegrityError as e:
-            raise t.Constraint_Violation_Error(f"INVALID TRADE_ID: {trade_id}, {e}") from e
+            raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
         
         return cursor.lastrowid
         
@@ -183,7 +173,17 @@ class Database:
             cursor.execute("INSERT INTO trade_notes (trade_id, emotions, mistakes, thoughts) VALUES" \
             "(?, ?, ?, ?)", (trade_id, trade_notes.emotions, trade_notes.mistakes, trade_notes.thoughts))
         except sqlite3.IntegrityError as e:
-            raise t.Constraint_Violation_Error(f"INVALID TRADE_ID: {trade_id}, {e}") from e
+            raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
+
+#FIX THE DATETIME CONVERSION TO ISO 8601 TEXT
+    def add_trade_amendments(self, trade_id, amendment:TradeAmendments):
+
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("INSERT INTO trade_amendments (trade_id, column_name, old_value, new_value, amended_at) VALUES " \
+            "(?, ?, ?, ?, ?)", (trade_id, amendment.column_name, amendment.old_value, amendment.new_value, amendment.amended_at))
+        except sqlite3.IntegrityError as e:
+            raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
         
 
     def get_entry_execution_points(self, entry_execution_id: int) -> int:
@@ -246,19 +246,20 @@ class Database:
         """STORE TRADING ACCOUNT DETAILS TO DATABASE"""
         """ARGS: ACCOUNT OBJECT."""
         """RETURNS INT AS THE ACCOUNT ID FOR THAT ACCOUNT."""
-
-        if account.account_type not in ["FUNDED CHALLENGE", "FUNDED LIVE", "PERSONAL LIVE"]:
-            raise t.Invalid_Account_Error("WRONG ACCOUNT TYPE DETECTED.")
-
+    
         cursor = self.conn.cursor()
-        cursor.execute("INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES" \
-        "(?, ?, ?, ?, ?)", (account.account_name, account.account_type, account.broker, account.starting_balance, account.is_active))
+        try:
+            cursor.execute("INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES" \
+            "(?, ?, ?, ?, ?)", (account.account_name, account.account_type, account.broker, account.starting_balance, account.is_active))
+        except sqlite3.IntegrityError as e:
+            raise t.Constraint_Violation_Error(f"CHECK FOR COLUMN CONSTRAINT VIOLATION: {e}") from e
 
         return cursor.lastrowid
 
     def check_foreign_keys(self, trade: Trade) -> None:
-        #CHECKS FOR EXISTENCE OF ACCOUNT_ID, MANAGEMENT_ID, ENTRY_EXECUTION_ID
-        #MODEL_ID
+        """CHECKS FOR EXISTENCE OF ACCOUNT_ID, MANAGEMENT_ID, 
+        ENTRY_EXECUTION_ID, MODEL_ID"""
+
         cursor = self.conn.cursor()
 
         cursor.execute("SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id = ?)", (trade.account_id,))
