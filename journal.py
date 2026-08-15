@@ -1,5 +1,3 @@
-from datetime import date, time
-
 import exceptions as t
 import trade_calculator as y
 from database import Database
@@ -11,30 +9,9 @@ from models import (
     TradeNotes,
     TradeResult,
 )
+from seed_data import trade1
 from validation import validate_trade_data
 
-trade1 = Trade(
-    trade_id= 1,
-    entry_price= 4023.90,
-    exit_price= 4030.40,
-    take_profit= 4045.00,
-    stop_loss= 4017.58,
-    position_size= 0.04,
-    entry_time= time(10, 30),
-    exit_time= time(12, 45),
-    date= date(2026, 8, 1),
-    model_id= 4,
-    account_id= 1,
-    management_id= 1,
-    entry_execution_id= 1,
-    asset= "XAUUSD",
-    direction= "long",
-    dollar_amount= None,
-    duration= None,
-    result= None,
-    rr_multiple= None,
-    overall_trade_grade= "C"
-)
 
 def main():
     db = Database()
@@ -61,10 +38,7 @@ class Journal:
             trade_id = self.db.save_trade(valid_trade)
             trade.trade_id = trade_id
             self.db.commit()
-        except t.Constraint_Violation_Error as e:
-            self.db.rollback()
-            raise t.Trade_Recording_Error(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}") from e
-        except t.Invalid_Identifier_Error as e:
+        except t.DatabaseError as e:
             self.db.rollback()
             raise t.Trade_Recording_Error(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}") from e
 
@@ -184,6 +158,8 @@ class Journal:
         #WHAT HAPPENS IF THIS METHOD ISN'T CALLED FROM THE STREAMLIT UI?
         #SCHEMA.SQL HAS NOT NULL CONSTRAINTS THAT RAISE INTEGRITYERROR.
         #DATABASE.PY CATCHES THE SQLITE ERRORS AND TRANSLATES. JOURNAL.PY ALSO TRANSLATES.
+
+        #THIN WRAPPER METHOD, ONLY SERVES TO TRANSLATES ERRORS.
         try:
             self.db.add_trade_notes(trade_id, trade_notes)
             self.db.commit()
@@ -193,12 +169,9 @@ class Journal:
 
         return trade_notes
 
-#THIN WRAPPER METHOD, ONLY SERVES TO TRANSLATES ERRORS.
-#DO I NEED TO VALIDATE THAT THE RETURNED TRADE HAS CORRECT TYPES?
-#DON'T CATCH VALIDATION ERROR IN EXCEPT BLOCK SINCE DOESN'T NEED TRANSLATION
-#OR ADDITIONAL INFO. LET IT PROPAGATE UP INTO STREAMLIT MODULE.
     def get_trade(self, trade_id: int) -> Trade:
 
+        #THIN WRAPPER METHOD, ONLY SERVES TO TRANSLATES ERRORS.
         try:
             trade = self.db.get_by_id(trade_id)
             valid_trade = validate_trade_data(trade)
@@ -237,7 +210,6 @@ class Journal:
 #DATACLASS OBJECTS INCLUDE: TRADE, ACCOUNT, TRADE_NOTE, TRADE_CHARTS.
 #LIST OF PARAMETER IDS IS PROVIDED BY THE CALLER.
 #OUTPUT: ENTIRE JOURNAL ENTRY. JOURNALENTRY DATACLASS.
-#CAN A DATACLASS CONTAIN OTHER DATACLASSES AS VALUE TYPES?
     def record_journal_entry(self, journal_entry: JournalEntry) -> JournalEntry:
         """SAVE AN ENTIRE JOURNAL ENTRY TO DATABASE AT ONCE."""
 
