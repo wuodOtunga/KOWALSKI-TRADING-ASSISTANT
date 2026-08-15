@@ -1,3 +1,6 @@
+from datetime import date, time
+
+from models import Trade
 
 #DECLARATIVE TABLE DATA FOR SEED DATA IDEMPOTENCY FOR STATIC LOOKUP TABLES.
 models = [
@@ -39,3 +42,26 @@ accounts = [
     ('GFT 10K PAY LATER CHALLENGE', 'FUNDED CHALLENGE', None, 10000, 1),
     ('FBS LIVE ACCOUNT', 'PERSONAL LIVE', 'FBS BROKER,', 1000, 0),
 ]
+
+trade1 = Trade(
+    trade_id= 1,
+    entry_price= 4023.90,
+    exit_price= 4030.40,
+    take_profit= 4045.00,
+    stop_loss= 4017.58,
+    position_size= 0.04,
+    entry_time= time(10, 30),
+    exit_time= time(12, 45),
+    date= date(2026, 8, 1),
+    model_id= 4,
+    account_id= 1,
+    management_id= 1,
+    entry_execution_id= 1,
+    asset= "XAUUSD",
+    direction= "long",
+    dollar_amount= None,
+    duration= None,
+    result= None,
+    rr_multiple= None,
+    overall_trade_grade= "C"
+)
