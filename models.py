@@ -93,9 +93,10 @@ class JournalEntry:
     trade_notes : TradeNotes
     parameter_ids : list[int]
 
-class TradeAmendments:
+@dataclass
+class Amendments:
     "THIS CLASS MANAGES CHANGES TO JOURNAL"
-    ammendment_id : int | None
+    amendment_id : int | None
     trade_id : int
     column_name : str
     old_value : float | str
