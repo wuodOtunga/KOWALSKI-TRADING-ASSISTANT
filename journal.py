@@ -1,12 +1,12 @@
-from datetime import date, datetime, time
+from datetime import date, time
 
 import exceptions as t
 import trade_calculator as y
 from database import Database
 from models import (
+    Amendments,
     JournalEntry,
     Trade,
-    TradeAmendments,
     TradeChart,
     TradeNotes,
     TradeResult,
@@ -30,27 +30,12 @@ trade1 = Trade(
     asset= "XAUUSD",
     direction= "long",
     dollar_amount= None,
-    duration= None,  #check correctness.
+    duration= None,
     result= None,
     rr_multiple= None,
     overall_trade_grade= "C"
 )
 
-trade2 = y.TradeSetup(
-    entry_price= 4023.90,
-    exit_price= 4030.40,
-    stop_loss= 4017.58,
-    take_profit= 4045.00,
-    account_balance= 5000,
-    risk_percent= 1,
-    lot_size= 0.04,
-    symbol= "XAUUSD",
-    direction= "long",
-    entry_time= time(6, 14),
-    exit_time= time(9, 16),
-    date= date(2026, 7, 28),
-    duration= None
-)
 def main():
     db = Database()
     journal = Journal(db)
@@ -90,7 +75,7 @@ class Journal:
     def _compute_derived_fields(self, trade: Trade) -> Trade:
         """COMPUTES DERIVED FIELDS USING THE CALCULATOR MODULE."""
 
-        results = y.calculate_profit_loss(trade2)
+        results = y.calculate_profit_loss(trade)
         dollar_amount = results["DOLLAR_AMOUNT"]
         trade.dollar_amount = dollar_amount
         result = results["RESULT"]
@@ -101,10 +86,10 @@ class Journal:
 
         trade.result = result
         
-        values = y.calculate_risk_reward_multiple(trade2)
+        values = y.calculate_risk_reward_multiple(trade)
         rr_multiple = values["RR_MULTIPLE"]
         trade.rr_multiple = rr_multiple
-        duration = y.calculate_trade_duration(trade2)
+        duration = y.calculate_trade_duration(trade)
         trade.duration = duration
 
         return trade
@@ -125,11 +110,7 @@ class Journal:
 
         #4: RETURN SOMETHING MEANINGFUL.
         return charts
-
-#DID YOU SPECIFY WHICH PROVIDED ID IS INVALID.
-#DOES from e OFFER CONTEXT ON WHICH ID DOESN'T EXIST?
-#DOES THE TRADE OBJECT GET TO THIS METHOD AS CLEAN DATA?
-#THERE IS NO VALIDATION/ASSEMBLE/DERIVE TO BE DONE HERE.  
+  
     def evaluate_trade(self, trade: Trade) -> int:
 
         #3: GET POINTS DATA FROM RELEVANT TABLES USING IDENTIFIERS.
@@ -151,7 +132,7 @@ class Journal:
             "parameters_score" : parameters_score,
         }
     
-    def grade_trade(self, trade: Trade) -> str:
+    def grade_trade(self, trade: Trade) -> None:
 
         #CALCULATE TRADE_POINTS.
         #TRADE_POINTS == POINTS SCORED ON MODEL CHECKLIST.
@@ -184,9 +165,9 @@ class Journal:
             self.db.rollback()
             raise t.Grading_Error(f"{trade.trade_id} IS INVALID. PROVIDE VALID TRADE_ID, {e}") from e
 
-        #RETURN SOMETHING MEANINGFUL.
-        #RETURN GRADE FOR ANYONE WHO NEEDS IT.
-        return trade_grade
+        #RETURN NONE.
+        #CALLER DOESNT NEED THE NEW GRADE BECAUSE METHOD ALREADY UPDATES THE NEW TRADE
+        #TO THE TRADE BY CALLING UPDATE_TRADE_GRADE INTERNALLY.
 
 #I WANT TO FORMALIZE WHAT TRADE NOTES MEANS FOR UNIFORMITY ACROSS TRADES.
 #TRADE NOTES INCLUDE: EMOTIONS, MISTAKES, LESSONS, NOTES.
@@ -233,10 +214,9 @@ class Journal:
     def get_journal_entry(self, trade_id: int) -> JournalEntry:
         """READ AN ENTIRE JOURNAL ENTRY FROM DATABASE AT ONCE."""
 
-        trade = self.db.get_by_id(trade_id)
-        valid_trade = validate_trade_data(trade)
-
         try:
+            trade = self.db.get_by_id(trade_id)
+            valid_trade = validate_trade_data(trade)
             account = self.db.get_trading_account(valid_trade)
             trade_notes = self.db.get_trade_notes(trade_id)
             trade_charts = self.db.get_trade_charts(trade_id)
@@ -293,80 +273,54 @@ class Journal:
         #STEP 5: RETURN SOMETHING MEANINGFUL.
         return journal_entry
 
-    def amend_trade_entry(self, trade_id: int, column: str, value):
-        #AMENDED FIELDS: EVERYTHING IN THE TRADE OBJECT EXCEPT COMPUTED FIELDS.
-        #CATEGORIES OF TRADE OBJECT FIELDS TO BE AMENDED.
-        #CATEGORY #1:
-        #ENTRY_PRICE, EXIT_PRICE, TAKE_PROFIT, STOP_LOSS, POSITION_SIZE, DATE
-        #ENTRY_TIME, EXIT_TIME, ASSET, DIRECTION, ACCOUNT_ID
 
-        #CATEGORY #2:
-        #MANAGEMENT_ID, ENTRY_EXECUTION_ID
-        #CATEGORY #3: MODEL_ID, ACCOUNT_ID. DOESN'T AFFECT ANYTHING.
+    def amend_trade_entry(self, trade_id: int, amendment: Amendments) -> Trade:
+        forbidden_columns = ["dollar_amount", "duration", "result", "rr_multiple", "overall_trade_grade"]
+        if amendment.column_name in forbidden_columns:
+            raise t.Invalid_Column_Name_Error(f"CAN'T AMEND COLUMN: {amendment.column_name}")
 
-        #DERIVED/COMPUTED TRADE FIELDS CAN'T BE MANUALLY AMENDED.
-        FORBIDDEN_COLUMNS = ["dollar_amount", "duration", "result", "rr_multiple", "overall_trade_grade"]
-        if column in FORBIDDEN_COLUMNS:
-            raise t.Invalid_Column_Name_Error(f"CAN'T UPDATE COLUMN NAME {column}.")
-
-        #TRADE COLUMNS DIVIDED INTO THREE CATEGORIES.
-        #CATEGORY #1 AFFECTS COMPUTED/DERIVED FIELDS FROM CALCULATOR MODULE.
-        #CATEGORY #2 AFFECTS GRADE OF THE TRADE.
-        #CATEGORY #3 AFFECTS NOTHING.
-        category_one = [
-            "entry_price", "exit_price", "take_profit", "stop_loss", "position_size",
-            "date", "entry_time", "exit_time", "asset", "direction"
+        trade_columns = [
+            #(column_name, category)
+            ("entry_price", 1),
+            ("exit_price", 1),
+            ("stop_loss", 1),
+            ("take_profit", 1),
+            ("position_size", 1),
+            ("entry_time", 1),
+            ("exit_time", 1),
+            ("date", 1),
+            ("model_id", 3),
+            ("account_id", 3),
+            ("management_id", 2),
+            ("entry_execution_id", 2),
+            ("asset", 1),
+            ("direction", 1),
+            ("account_balance", 1),
+            ("risk_percent", 1),
         ]
 
-        category_two = ["management_id", "entry_execution_id"]
-
-        #ASSEMBLE/DERIVE OLD, NEW VALUE AND WHEN CHANGE HAPPENED.
-        amended_trade = self.db.get_by_id(trade_id)
-        trade = self._compute_derived_fields(amended_trade)
-        valid_trade = validate_trade_data(trade)
-
-        if column in category_one:
-            old_value = amended_trade[column]
-            new_value = value
-
-            amendment = TradeAmendments(
-                trade_id= trade_id,
-                column_name= column,
-                old_value= old_value,
-                new_value= new_value,
-                amended_at= datetime.now()  # noqa: DTZ005
-            )
-
-        #VALIDATE TRADE OBJECT, PERSIST THE DATA AND TRANSLATE FAILURES.
+        for column_name, category in trade_columns:
             try:
+                trade = self.db.get_by_id(trade_id)
+                amended_trade = setattr(trade, amendment.column_name, amendment.new_value)
+
+                if amendment.column_name == column_name and category == 1:
+                    trade = self._compute_derived_fields(amended_trade)
+                elif amendment.column_name == column_name and category == 2:
+                    self.grade_trade(amended_trade)
+                else:
+                    continue
+
+                valid_trade = validate_trade_data(amended_trade)
+                self.db.update_trade_field(trade_id, amendment.column_name, amendment.new_value)
                 amendment_id = self.db.add_trade_amendments(trade_id, amendment)
-                amendment.ammendment_id = amendment_id
-                trade_id = self.db.save_trade(valid_trade)
-                valid_trade.trade_id = trade_id
+                amendment.amendment_id = amendment_id
                 self.db.commit()
             except t.DatabaseError as e:
                 self.db.rollback()
-                raise t.Journal_Entry_Error(f"TRADE ENTRY COULDN'T BE AMENDED: {e}") from e
+                raise t.Trade_Recording_Error(f"COULDN'T RECORD NEW TRADE UPDATE: {e}") from e
 
-        if column in category_two:
-            self.evaluate_trade(valid_trade)
-            new_grade = self.grade_trade(valid_trade)
-
-            amendment = TradeAmendments(
-                trade_id= trade_id,
-                column_name= column,
-                old_value= valid_trade.overall_trade_grade,
-                new_value= new_grade,
-                amended_at= datetime.now()  # noqa: DTZ005
-            )
-
-            try:
-                amendment_id = self.db.add_trade_amendments(trade_id, amendment)
-                amendment.ammendment_id = amendment_id
-                self.db.commit()
-            except t.Constraint_Violation_Error as e:
-                raise t.Journal_Entry_Error(f"TRADE ENTRY COULDN'T BE AMENDED: {e}") from e
-
-        #RETURN SOMETHING MEANINGFUL.
-        return amendment
-main()
+        return valid_trade
+  
+if __name__ == "__main__":
+    main()
