@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 
 import exceptions as t
-from models import Account, Trade, TradeAmendments, TradeChart, TradeNotes
+from models import Account, Amendments, Trade, TradeChart, TradeNotes
 from seed_data import (
     accounts,
     entry_execution,
@@ -176,7 +176,7 @@ class Database:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
 #FIX THE DATETIME CONVERSION TO ISO 8601 TEXT
-    def add_trade_amendments(self, trade_id, amendment:TradeAmendments) -> int:
+    def add_trade_amendments(self, trade_id, amendment: Amendments) -> int:
 
         cursor = self.conn.cursor()
         try:
