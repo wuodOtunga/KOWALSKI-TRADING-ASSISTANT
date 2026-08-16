@@ -99,6 +99,6 @@ class Amendments:
     amendment_id : int | None
     trade_id : int
     column_name : str
-    old_value : float | str
+    old_value : float | str | None
     new_value : float | str
-    amended_at : datetime
+    amended_at : datetime | None
