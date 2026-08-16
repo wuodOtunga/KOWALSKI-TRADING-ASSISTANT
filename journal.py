@@ -262,8 +262,6 @@ class Journal:
             "entry_time" : self._compute_derived_fields,
             "exit_time" : self._compute_derived_fields,
             "date" : self._compute_derived_fields,
-            "model_id" : None,
-            "account_id" : None,
             "management_id" : self.grade_trade,
             "entry_execution_id" : self.grade_trade,
             "asset" : self._compute_derived_fields,
@@ -272,6 +270,9 @@ class Journal:
             "risk_percent" : self._compute_derived_fields,
         }
 
+    #.GET() METHOD RETURNS NONE IF KEY ISN'T IN THE DICTIONARY.
+    #MEANING HAVING MODEL_ID, ACCOUNT_ID IN THE DICTIONARY IS REDUNDANT.
+    #YOU STILL NEED TO CHECK FOR IF RECOMPUTE BECAUSE IT CAN STILL BE NONE.
         try:
             trade = self.db.get_by_id(trade_id)
             amendment.old_value = getattr(trade, amendment.column_name)
