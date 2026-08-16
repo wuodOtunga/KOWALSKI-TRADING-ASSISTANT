@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import exceptions as t
 import trade_calculator as y
 from database import Database
@@ -251,46 +253,42 @@ class Journal:
         if amendment.column_name in forbidden_columns:
             raise t.Invalid_Column_Name_Error(f"CAN'T AMEND COLUMN: {amendment.column_name}")
 
-        trade_columns = [
-            #(column_name, category)
-            ("entry_price", 1),
-            ("exit_price", 1),
-            ("stop_loss", 1),
-            ("take_profit", 1),
-            ("position_size", 1),
-            ("entry_time", 1),
-            ("exit_time", 1),
-            ("date", 1),
-            ("model_id", 3),
-            ("account_id", 3),
-            ("management_id", 2),
-            ("entry_execution_id", 2),
-            ("asset", 1),
-            ("direction", 1),
-            ("account_balance", 1),
-            ("risk_percent", 1),
-        ]
+        self.recompute_values = {
+            "entry_price" : self._compute_derived_fields,
+            "exit_price" : self._compute_derived_fields,
+            "take_profit" : self._compute_derived_fields,
+            "stop_loss" : self._compute_derived_fields,
+            "position_size" : self._compute_derived_fields,
+            "entry_time" : self._compute_derived_fields,
+            "exit_time" : self._compute_derived_fields,
+            "date" : self._compute_derived_fields,
+            "model_id" : None,
+            "account_id" : None,
+            "management_id" : self.grade_trade,
+            "entry_execution_id" : self.grade_trade,
+            "asset" : self._compute_derived_fields,
+            "direction" : self._compute_derived_fields,
+            "account_balance" : self._compute_derived_fields,
+            "risk_percent" : self._compute_derived_fields,
+        }
 
-        for column_name, category in trade_columns:
-            try:
-                trade = self.db.get_by_id(trade_id)
-                amended_trade = setattr(trade, amendment.column_name, amendment.new_value)
+        try:
+            trade = self.db.get_by_id(trade_id)
+            amendment.old_value = getattr(trade, amendment.column_name)
+            setattr(trade, amendment.column_name, amendment.new_value)
 
-                if amendment.column_name == column_name and category == 1:
-                    trade = self._compute_derived_fields(amended_trade)
-                elif amendment.column_name == column_name and category == 2:
-                    self.grade_trade(amended_trade)
-                else:
-                    continue
+            recompute_method = self.recompute_values.get(amendment.column_name)
+            if recompute_method:
+                recompute_method(trade)
 
-                valid_trade = validate_trade_data(amended_trade)
-                self.db.update_trade_field(trade_id, amendment.column_name, amendment.new_value)
-                amendment_id = self.db.add_trade_amendments(trade_id, amendment)
-                amendment.amendment_id = amendment_id
-                self.db.commit()
-            except t.DatabaseError as e:
-                self.db.rollback()
-                raise t.Trade_Recording_Error(f"COULDN'T RECORD NEW TRADE UPDATE: {e}") from e
+            valid_trade = validate_trade_data(trade)
+            self.db.update_trade_field(trade_id, amendment.column_name, amendment.new_value)
+            amendment.amended_at = datetime.now()  # noqa: DTZ005
+            amendment.amendment_id = self.db.add_trade_amendments(trade_id, amendment)
+            self.db.commit()
+        except t.DatabaseError as e:
+            self.db.rollback()
+            raise t.Trade_Recording_Error(f"COULDN'T RECORD NEW TRADE UPDATE: {e}") from e
 
         return valid_trade
   
