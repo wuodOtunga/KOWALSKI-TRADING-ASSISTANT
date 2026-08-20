@@ -1,18 +1,17 @@
-from datetime import date, time
-
-from models import Trade
+import pandas as pd
 
 #DECLARATIVE TABLE DATA FOR SEED DATA IDEMPOTENCY FOR STATIC LOOKUP TABLES.
 models = [
-    ('BREAD AND BUTTER MODEL', None),
-    ('ONE SHOT ONE KILL', None),
-    ('2022 FVG MODEL', None),
-    ('NO MODEL USED', None),
+    ('BREAD AND BUTTER MODEL', 'REVERSAL OR CONTINUATION USING WEEKLY AND DAILY PROFILES. ENTRY FRAMED ON CISD ORDERBLOCK LIMIT ENTRY.'),
+    ('ONE SHOT ONE KILL', 'USE ICT WEEKLY PROFILES TO NARROW DOWN REVERSAL DAY OF THE WEEK. ENTRY ON PREMIUM/DISCOUNT PD ARRAYS.'),
+    ('2022 FVG MODEL', 'STOP RAID IN OPPOSITE DIRECTION OF DAILY BIAS. MARKET STRUCTURE SHIFT. ENTRY ON FIRST FVG AFTER REVERSAL.'),
+    ('ERL TO IRL MODEL', 'PRICE TRADES BELOW OLD LOW (ERL) LEADING TO A MOVE HIGHER INTO FVG (IRL). ENTRY USING LTF CISD PATTERN.'),
+    ('NO MODEL USED', 'NO TRADING MODEL WAS USED FOR THIS TRADE. IT WAS A YOLO TRADE AKA A GHOST TRADE. INSTANT F GRADE.'),
 ]
 
 entry_execution = [
     ('THE ALGORITHM', 'EXECUTED THE PLAN WITH MACHINE LIKE PRECISION. USED A LIMIT ORDER AT THE CISD/IFVG LEVEL THEN WAITED PATIENTLY.', 5, 'A+'),
-    ('IMPATIENT BUT DISCIPLINED', 'KNEW THE LEVEL BUT FEARED MISSING THE MOVE. USED A MARKETORDER CLOSE TO EXACT LEVEL DUE TO IMPATIENCE', 4, 'B'),
+    ('THE RESILIENT', 'KNEW THE LEVEL BUT FEARED MISSING THE MOVE. USED A MARKETORDER CLOSE TO EXACT LEVEL DUE TO IMPATIENCE', 4, 'B'),
     ('SLOPPY ANALYST', 'ENTERED THE RIGHT ZONE BUT THE WRONG PRICE. MISSED OPTIMAL PRICE DUE TO TECHNICAL ISSUES', 3, 'C'),
     ('THE GAMBLER', 'ABANDONED THE PLAN DUE TO EMOTION. ENTERED WITH A MARKETORDER DUE TO FOMO OR REVENGE TRADING.', 2, 'D'),
     ('THE REBEL', 'TRADED AGAINST THE MODEL ENTIRELY. TRADE ENTRY DOESNT CORRESPOND TO ANY MODEL OR LEVEL. GHOST TRADE', 1, 'F'),
@@ -34,7 +33,7 @@ parameter_values = [
     ('SETUP DIRECTION MUST ALIGN WITH HIGHER TIMEFRAME BIAS.',),
     ('SELL ABOVE MIDNIGHT OPENING PRICE, BUY BELOW MIDNIGHT OPENING PRICE.',),
     ('SELL AT A PREMIUM, BUY AT A DISCOUNT.',),
-    ('EXECUTION GRADE > B. PRE TRADE + AVG(ENTRY EXECUTION AND TRADE MANAGEMENT).',),
+    ('EXECUTION GRADE > B. PRE TRADE + AVG(ENTRY EXECUTION AND TRADE MANAGEMENT.',),
 ]
 
 accounts = [
@@ -43,25 +42,30 @@ accounts = [
     ('FBS LIVE ACCOUNT', 'PERSONAL LIVE', 'FBS BROKER,', 1000, 0),
 ]
 
-trade1 = Trade(
-    trade_id= 1,
-    entry_price= 4023.90,
-    exit_price= 4030.40,
-    take_profit= 4045.00,
-    stop_loss= 4017.58,
-    position_size= 0.04,
-    entry_time= time(10, 30),
-    exit_time= time(12, 45),
-    date= date(2026, 8, 1),
-    model_id= 4,
-    account_id= 1,
-    management_id= 1,
-    entry_execution_id= 1,
-    asset= "XAUUSD",
-    direction= "long",
-    dollar_amount= None,
-    duration= None,
-    result= None,
-    rr_multiple= None,
-    overall_trade_grade= "C"
-)
+parameters = [
+    'LIQUIDITY RAID ON BUYSTOPS/SELLSTOPS ABOVE OR BELOW MARKET PRICE.',
+    'DISPLACEMENT TO THE OPPOSITE DIRECTION.',
+    'CISD CLOSE AND/OR MARKET STRUCTURE SHIFT.',
+    'TRADE SETUP MUST OCCUR WITHIN 7 AM TO 12 NOON NEW YORK SESSION.',
+    'SETUP DIRECTION MUST ALIGN WITH HIGHER TIMEFRAME BIAS.',
+    'SELL ABOVE MIDNIGHT OPENING PRICE, BUY BELOW MIDNIGHT OPENING PRICE.',
+    'SELL AT A PREMIUM, BUY AT A DISCOUNT.',
+    'EXECUTION GRADE > B. PRE TRADE + AVG(ENTRY EXECUTION AND TRADE MANAGEMENT.',
+]
+
+timeframes = ["1M", "1W", "1D", "4HR", "1HR", "30MIN", "15MIN", "5MIN", "1M"]
+
+accounts_df = pd.DataFrame([(index,) + row for index, row in enumerate(accounts, start=1)],
+             columns=["account_id", "account_name", "account_type", "broker", "starting_balance", "is_active"])
+
+models_df = pd.DataFrame([(index,) + row for index, row in enumerate(models, start=1)],
+             columns=["model_id", "model_name", "model_description"])
+
+entry_execution_df = pd.DataFrame([(index,) + row for index, row in enumerate(entry_execution, start=1)],
+             columns=["id", "archetype", "description", "points", "grade"])
+
+trade_management_df = pd.DataFrame([(index,) + row for index, row in enumerate(trade_management, start=1)],
+             columns=["id", "archetype", "description", "points", "grade"])
+
+parameters_df = pd.DataFrame([(index,) + row for index, row in enumerate(parameter_values, start=1)],
+             columns=["parameter_id", "parameter_name"])
