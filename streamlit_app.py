@@ -97,14 +97,16 @@ with st.form("TRADE DATA", enter_to_submit=False):
                                                                         format_func=lambda id: entry_execution_df.loc[entry_execution_df["id"] == id, "archetype"].iloc[0])
 
     submit = st.form_submit_button(label="SUBMIT")
-    if submit and not all(st.session_state.trade_details.values()):
-        st.warning("Please fill in all the values.")
-    else:
-        st.success("TRADE DETAILS SUBMITTED SUCCESSFULLY!")
-        st.balloons()
-        st.write("### TRADE DETAILS INFO")
-        for key, value in st.session_state.trade_details.items():
-            st.write(f"{key} : {value}")
+    empty_values = [key for key, value in st.session_state.trade_details.items() if value is None]
+    if submit:
+        if empty_values:
+            st.warning(f"Please fill in all these values: {','.join(empty_values)}")
+        else:
+            st.success("TRADE DETAILS SUBMITTED SUCCESSFULLY!")
+            st.balloons()
+            st.write("### TRADE DETAILS INFO")
+            for key, value in st.session_state.trade_details.items():
+                st.write(f"{key} : {value}")
 
 st.divider()
 st.header("TRADE NOTES ENTRY FORM")
@@ -123,14 +125,16 @@ with st.form("TRADE NOTES", enter_to_submit=False):
                                                                  placeholder="Notes on trade grade, trade execution and management, etc")
 
     submit = st.form_submit_button(label="SUBMIT")
-    if submit and not all(st.session_state.trade_notes.values()):
-        st.warning("Please fill in all the values.")
-    else:
-        st.success("TRADE NOTES SUBMITTED SUCCESSFULLY!")
-        st.balloons()
-        st.write("### TRADE NOTES INFO")
-        for key, value in st.session_state.trade_notes.items():
-            st.write(f"{key} : {value}")
+    empty_values = [key for key, value in st.session_state.trade_notes.items() if value is None]
+    if submit:
+        if empty_values:
+            st.warning(f"Please fill in all the values: {','.join(empty_values)}")
+        else:
+            st.success("TRADE NOTES SUBMITTED SUCCESSFULLY!")
+            st.balloons()
+            st.write("### TRADE NOTES INFO")
+            for key, value in st.session_state.trade_notes.items():
+                st.write(f"{key} : {value}")
 
 st.divider()
 st.header("TRADE PARAMETERS CHECKLIST")
@@ -153,8 +157,10 @@ with st.form("TRADING CHARTS", enter_to_submit=False):
     st.session_state.trade_charts["timeframes"] = st.multiselect("SELECT TIMEFRAME", timeframes, key="timeframes")
 
     submit = st.form_submit_button(label="SUBMIT")
-    if submit and not all(st.session_state.trade_charts.values()):
-        st.warning("Please fill in all the values")
-    else:
-        st.success("TRADING CHARTS UPLOADED SUCCESSFULLY!")
+    empty_values = [key for key, value in st.session_state.trade_charts.items() if value is None]
+    if submit:
+        if empty_values:
+            st.warning(f"Please fill in all the values: {','.join(empty_values)}")
+        else:
+            st.success("TRADING CHARTS UPLOADED SUCCESSFULLY!")
 
