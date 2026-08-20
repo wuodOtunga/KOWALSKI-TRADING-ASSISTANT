@@ -133,12 +133,9 @@ class Journal:
         #UPDATE THE GRADE OF THE TRADE FROM NONE TO TRADE_GRADE
         try:
             self.db.update_trade_grade(trade.trade_id, trade_grade)
-            self.db.commit()
         except t.Invalid_Grade_Error as e:
-            self.db.rollback()
             raise t.Grading_Error(f"{trade_grade} IS INVALID. SHOULD BE BETWEEN (A+ - F), {e}") from e
         except t.Trade_Not_Found_Error as e:
-            self.db.rollback()
             raise t.Grading_Error(f"{trade.trade_id} IS INVALID. PROVIDE VALID TRADE_ID, {e}") from e
 
         #RETURN NONE.
@@ -253,7 +250,7 @@ class Journal:
         if amendment.column_name in forbidden_columns:
             raise t.Invalid_Column_Name_Error(f"CAN'T AMEND COLUMN: {amendment.column_name}")
 
-        self.recompute_values = {
+        recompute_values = {
             "entry_price" : self._compute_derived_fields,
             "exit_price" : self._compute_derived_fields,
             "take_profit" : self._compute_derived_fields,
@@ -278,7 +275,7 @@ class Journal:
             amendment.old_value = getattr(trade, amendment.column_name)
             setattr(trade, amendment.column_name, amendment.new_value)
 
-            recompute_method = self.recompute_values.get(amendment.column_name)
+            recompute_method = recompute_values.get(amendment.column_name)
             if recompute_method:
                 recompute_method(trade)
 
