@@ -52,9 +52,9 @@ class Trade:
     duration : timedelta | None
     result : TradeResult | None
     rr_multiple : float | None
-    overall_trade_grade : TradeGrade | None = None
     account_balance : float
     risk_percent : float
+    overall_trade_grade : TradeGrade | None = None
 
 @dataclass
 class Account:
@@ -81,7 +81,7 @@ class TradeNotes:
     trade_id : int
     emotions : str
     mistakes : str
-    thoughts : str
+    thoughts : str  #change this to lessons
 
 #CAN A DATACLASS CONTAIN OTHER DATACLASSES AS VALUE TYPES?
 @dataclass
