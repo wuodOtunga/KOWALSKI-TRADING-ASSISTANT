@@ -21,146 +21,178 @@ from seed_data import (
 min_date = datetime(1990, 1, 1)  # noqa: DTZ001
 max_date = datetime.now()  # noqa: DTZ005
 
+def main():
+    kowalski = Kowalski()
+    kowalski._render_widgets()
+    kowalski._render_trade_details_form()
+    kowalski._render_trade_notes_form()
+    kowalski._render_trade_parameters_form()
+    kowalski._render_trade_charts_form()
 
-if "trade_details" not in st.session_state:
-    st.session_state.trade_details = {}
+class Kowalski:
+    def __init__(self):
 
-if "trade_notes" not in st.session_state:
-    st.session_state.trade_notes = {}
+        if "trade_details" not in st.session_state:
+            st.session_state.trade_details = {}
 
-if "trade_parameters" not in st.session_state:
-    st.session_state.trade_parameters = []
+        if "trade_notes" not in st.session_state:
+            st.session_state.trade_notes = {}
 
-if "trade_charts" not in st.session_state:
-    st.session_state.trade_charts = {}
+        if "trade_parameters" not in st.session_state:
+            st.session_state.trade_parameters = []
 
-st.title("KOWALSKI TRADING JOURNAL")
+        if "trade_charts" not in st.session_state:
+            st.session_state.trade_charts = {}
 
-#SIDEBAR NEEDS TO CONTAIN:
-#ADDITIONAL FUNCTIONALITY OFFERED BY THE JOURNAL LIKE TRADE CALCULATOR, ECONOMIC CALENDAR
-st.sidebar.title("NAVIGATION")
-st.sidebar.header("TRADING JOURNAL")
-st.sidebar.header("TRADING CALCULATOR")
-st.sidebar.header("ECONOMIC CALENDAR")
-st.sidebar.header("TRADE ANALYTICS")
-st.sidebar.header("RECORD OF ALL TRADES")
+    def _render_trade_details_form(self):
+        st.header("TRADE DETAILS ENTRY FORM")
+        with st.form("TRADE DATA", enter_to_submit=False):
 
-st.write("USE THE TABS TO IDENTIFY RELEVANT IDs REQUIRED BY THE JOURNAL.")
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["tab1", "tab2", "tab3", "tab4", "tab5"])
-with tab1:
-    st.subheader("TRADING MODELS")
-    st.table(models_df)
+            st.session_state.trade_details["entry_price"] = st.number_input("ENTRY PRICE", value=None)
+            st.session_state.trade_details["exit_price"] = st.number_input("EXIT PRICE", value=None)
+            st.session_state.trade_details["stop_loss"] = st.number_input("STOP LOSS", value=None)
+            st.session_state.trade_details["take_profit"] = st.number_input("TAKE PROFIT", value=None)
 
-with tab2:
-    st.subheader("ENTRY EXECUTION ARCHETYPES")
-    st.table(entry_execution_df)
+            st.session_state.trade_details["position_size"] = st.number_input("POSITION SIZE", min_value=0.01, value=None)
+            st.session_state.trade_details["asset"] = st.selectbox("ASSET", list(TradeAsset), index=None, format_func=lambda a: a.value)
+            st.session_state.trade_details["direction"] = st.radio("DIRECTION", list(TradeDirection), index=None, format_func=lambda d: d.value)
+            st.session_state.trade_details["account_balance"] = st.number_input("ACCOUNT BALANCE", value=None)
+            st.session_state.trade_details["risk_percent"] = st.number_input("RISK PERCENT", value=None)
 
-with tab3:
-    st.subheader("TRADE MANAGEMENT ARCHETYPES")
-    st.table(trade_management_df)
+            st.session_state.trade_details["entry_time"] = st.time_input("ENTRY TIME", value=None)
+            st.session_state.trade_details["exit_time"] = st.time_input("EXIT TIME", value=None)
+            st.session_state.trade_details["date"] = st.date_input("DATE", min_value= min_date, max_value= max_date, value=None)
 
-with tab4:
-    st.subheader("TRADING ACCOUNTS")
-    st.table(accounts_df)
+            st.session_state.trade_details["model_id"] = st.selectbox("MODEL ID", models_df["model_id"], index=None,
+                                                                    format_func=lambda model_id: models_df.loc[models_df["model_id"] == model_id, "model_name"].iloc[0])
+            st.session_state.trade_details["account_id"] = st.selectbox("ACCOUNT ID", accounts_df["account_id"], index=None,
+                                                                        format_func=lambda account_id: accounts_df.loc[accounts_df["account_id"] == account_id, "account_name"].iloc[0])
+            st.session_state.trade_details["management_id"] = st.selectbox("MANAGEMENT ID", trade_management_df["id"], index=None,
+                                                                        format_func=lambda id: trade_management_df.loc[trade_management_df["id"] == id, "archetype"].iloc[0])
+            st.session_state.trade_details["entry_execution_id"] = st.selectbox("ENTRY EXECUTION ID", entry_execution_df["id"], index=None,
+                                                                                format_func=lambda id: entry_execution_df.loc[entry_execution_df["id"] == id, "archetype"].iloc[0])
 
-with tab5:
-    st.subheader("TRADE PARAMETERS")
-    st.table(parameters_df)
+            submit = st.form_submit_button(label="SUBMIT")
+            empty_values = [key for key, value in st.session_state.trade_details.items() if value is None]
+            if submit:
+                if empty_values:
+                    st.warning(f"Please fill in all these values: {','.join(empty_values)}")
+                else:
+                    st.success("TRADE DETAILS SUBMITTED SUCCESSFULLY!")
+                    st.balloons()
+                    st.write("### TRADE DETAILS INFO")
+                    for key, value in st.session_state.trade_details.items():
+                        st.write(f"{key} : {value}")
 
-st.divider()
+    def _render_trade_notes_form(self):
+        st.header("TRADE NOTES ENTRY FORM")
+        with st.form("TRADE NOTES", enter_to_submit=False):
+            st.session_state.trade_notes["emotions"] = st.text_area("EMOTIONS DURING TRADE",
+                                                                    key="emotions", 
+                                                                    placeholder="eg., Anxious at entry, confident during move.")
+            st.session_state.trade_notes["mistakes"] = st.text_area("MISTAKES MADE", 
+                                                                    key="mistakes",
+                                                                    placeholder="eg., Entered too early, added to loosers.")
+            st.session_state.trade_notes["lessons"] = st.text_area("LESSONS LEARNT", 
+                                                                key="lessons",
+                                                                placeholder="eg., Follow the trading model.")
+            st.session_state.trade_notes["general_notes"] = st.text_area("GENERAL NOTES", 
+                                                                        key="notes",
+                                                                        placeholder="Notes on trade grade, trade execution and management, etc")
 
-st.header("TRADE DETAILS ENTRY FORM")
-with st.form("TRADE DATA", enter_to_submit=False):
+            submit = st.form_submit_button(label="SUBMIT")
+            empty_values = [key for key, value in st.session_state.trade_notes.items() if value is None]
+            if submit:
+                if empty_values:
+                    st.warning(f"Please fill in all the values: {','.join(empty_values)}")
+                else:
+                    st.success("TRADE NOTES SUBMITTED SUCCESSFULLY!")
+                    st.balloons()
+                    st.write("### TRADE NOTES INFO")
+                    for key, value in st.session_state.trade_notes.items():
+                        st.write(f"{key} : {value}")
 
-    st.session_state.trade_details["entry_price"] = st.number_input("ENTRY PRICE", value=None)
-    st.session_state.trade_details["exit_price"] = st.number_input("EXIT PRICE", value=None)
-    st.session_state.trade_details["stop_loss"] = st.number_input("STOP LOSS", value=None)
-    st.session_state.trade_details["take_profit"] = st.number_input("TAKE PROFIT", value=None)
+    def _render_trade_parameters_form(self):
+        st.header("TRADE PARAMETERS CHECKLIST")
+        with st.form("PARAMETERS CHECKLIST", enter_to_submit=False):
+            st.session_state.trade_parameters = st.multiselect("PARAMETERS CHECKLIST", parameters, key="checklist")
 
-    st.session_state.trade_details["position_size"] = st.number_input("POSITION SIZE", min_value=0.01, value=None)
-    st.session_state.trade_details["asset"] = st.selectbox("ASSET", list(TradeAsset), index=None, format_func=lambda a: a.value)
-    st.session_state.trade_details["direction"] = st.radio("DIRECTION", list(TradeDirection), index=None, format_func=lambda d: d.value)
-    st.session_state.trade_details["account_balance"] = st.number_input("ACCOUNT BALANCE", value=None)
-    st.session_state.trade_details["risk_percent"] = st.number_input("RISK PERCENT", value=None)
+            submit = st.form_submit_button(label="SUBMIT")
+            if submit:
+                st.write("PARAMETERS PRESENT IN THE TRADE INCLUDE:")
+                for parameter in st.session_state.trade_parameters:
+                    st.write(parameter)
 
-    st.session_state.trade_details["entry_time"] = st.time_input("ENTRY TIME", value=None)
-    st.session_state.trade_details["exit_time"] = st.time_input("EXIT TIME", value=None)
-    st.session_state.trade_details["date"] = st.date_input("DATE", min_value= min_date, max_value= max_date, value=None)
+    def _render_trade_charts_form(self):
+        st.header("TRADING CHARTS UPLOAD")
+        with st.form("TRADING CHARTS", enter_to_submit=False):
+            st.session_state.trade_charts["charts"] = st.file_uploader("UPLOAD TRADING CHARTS", 
+                                type=["png", "jpg", "jpeg"], 
+                                key="charts", 
+                                accept_multiple_files=True)
+            st.session_state.trade_charts["timeframes"] = st.multiselect("SELECT TIMEFRAME", timeframes, key="timeframes")
 
-    st.session_state.trade_details["model_id"] = st.selectbox("MODEL ID", models_df["model_id"], index=None,
-                                                            format_func=lambda model_id: models_df.loc[models_df["model_id"] == model_id, "model_name"].iloc[0])
-    st.session_state.trade_details["account_id"] = st.selectbox("ACCOUNT ID", accounts_df["account_id"], index=None,
-                                                                format_func=lambda account_id: accounts_df.loc[accounts_df["account_id"] == account_id, "account_name"].iloc[0])
-    st.session_state.trade_details["management_id"] = st.selectbox("MANAGEMENT ID", trade_management_df["id"], index=None,
-                                                                   format_func=lambda id: trade_management_df.loc[trade_management_df["id"] == id, "archetype"].iloc[0])
-    st.session_state.trade_details["entry_execution_id"] = st.selectbox("ENTRY EXECUTION ID", entry_execution_df["id"], index=None,
-                                                                        format_func=lambda id: entry_execution_df.loc[entry_execution_df["id"] == id, "archetype"].iloc[0])
+            submit = st.form_submit_button(label="SUBMIT")
+            empty_values = [key for key, value in st.session_state.trade_charts.items() if value is None]
+            if submit:
+                if empty_values:
+                    st.warning(f"Please fill in all the values: {','.join(empty_values)}")
+                else:
+                    st.success("TRADING CHARTS UPLOADED SUCCESSFULLY!")
 
-    submit = st.form_submit_button(label="SUBMIT")
-    empty_values = [key for key, value in st.session_state.trade_details.items() if value is None]
-    if submit:
-        if empty_values:
-            st.warning(f"Please fill in all these values: {','.join(empty_values)}")
-        else:
-            st.success("TRADE DETAILS SUBMITTED SUCCESSFULLY!")
-            st.balloons()
-            st.write("### TRADE DETAILS INFO")
-            for key, value in st.session_state.trade_details.items():
-                st.write(f"{key} : {value}")
+    def _render_widgets(self):
+        st.title("KOWALSKI TRADING JOURNAL")
 
-st.divider()
-st.header("TRADE NOTES ENTRY FORM")
-with st.form("TRADE NOTES", enter_to_submit=False):
-    st.session_state.trade_notes["emotions"] = st.text_area("EMOTIONS DURING TRADE",
-                                                            key="emotions", 
-                                                            placeholder="eg., Anxious at entry, confident during move.")
-    st.session_state.trade_notes["mistakes"] = st.text_area("MISTAKES MADE", 
-                                                            key="mistakes",
-                                                            placeholder="eg., Entered too early, added to loosers.")
-    st.session_state.trade_notes["lessons"] = st.text_area("LESSONS LEARNT", 
-                                                           key="lessons",
-                                                           placeholder="eg., Follow the trading model.")
-    st.session_state.trade_notes["general_notes"] = st.text_area("GENERAL NOTES", 
-                                                                 key="notes",
-                                                                 placeholder="Notes on trade grade, trade execution and management, etc")
+        st.sidebar.title("NAVIGATION")
+        st.sidebar.subheader("TRADING JOURNAL")
+        with st.sidebar.expander("JOURNAL ACTIONS"):
+            st.button("RECORD TRADE")
+            st.button("FETCH TRADE")
+            st.button("AMEND TRADE")
+            st.button("RECORD JOURNAL ENTRY")
+            st.button("FETCH JOURNAL ENTRY")
 
-    submit = st.form_submit_button(label="SUBMIT")
-    empty_values = [key for key, value in st.session_state.trade_notes.items() if value is None]
-    if submit:
-        if empty_values:
-            st.warning(f"Please fill in all the values: {','.join(empty_values)}")
-        else:
-            st.success("TRADE NOTES SUBMITTED SUCCESSFULLY!")
-            st.balloons()
-            st.write("### TRADE NOTES INFO")
-            for key, value in st.session_state.trade_notes.items():
-                st.write(f"{key} : {value}")
+        st.sidebar.subheader("TRADING CALCULATOR")
+        with st.sidebar.expander("CALCULATOR ACTIONS"):
+            st.button("PROFIT-LOSS")
+            st.button("POSITION SIZING")
+            st.button("RISK-REWARD RATIO")
 
-st.divider()
-st.header("TRADE PARAMETERS CHECKLIST")
-with st.form("PARAMETERS CHECKLIST", enter_to_submit=False):
-    st.session_state.trade_parameters = st.multiselect("PARAMETERS CHECKLIST", parameters, key="checklist")
+        st.sidebar.subheader("ACCOUNTS")
+        with st.sidebar.expander("ACCOUNTS ACTIONS"):
+            st.button("CREATE TRADING ACCOUNT")
+            st.button("ARCHIVE TRADING ACCOUNT")
 
-    submit = st.form_submit_button(label="SUBMIT")
-    if submit:
-        st.write("PARAMETERS PRESENT IN THE TRADE INCLUDE:")
-        for parameter in st.session_state.trade_parameters:
-            st.write(parameter)
+        st.sidebar.subheader("TRADE ANALYTICS")
+        with st.sidebar.expander("VIEW ANALYTICS"):
+            st.button("TRADE STATS")
+            st.button("ANALYTICS CHARTS")
 
-st.divider()
-st.header("TRADING CHARTS UPLOAD")
-with st.form("TRADING CHARTS", enter_to_submit=False):
-    st.session_state.trade_charts["charts"] = st.file_uploader("UPLOAD TRADING CHARTS", 
-                        type=["png", "jpg", "jpeg"], 
-                        key="charts", 
-                        accept_multiple_files=True)
-    st.session_state.trade_charts["timeframes"] = st.multiselect("SELECT TIMEFRAME", timeframes, key="timeframes")
+        st.sidebar.subheader("RECORD OF ALL TRADES")
+        with st.sidebar.expander("FULL TRADE HISTORY"):
+            st.button("FETCH ALL TRADES")
 
-    submit = st.form_submit_button(label="SUBMIT")
-    empty_values = [key for key, value in st.session_state.trade_charts.items() if value is None]
-    if submit:
-        if empty_values:
-            st.warning(f"Please fill in all the values: {','.join(empty_values)}")
-        else:
-            st.success("TRADING CHARTS UPLOADED SUCCESSFULLY!")
+        st.write("USE THE TABS TO IDENTIFY RELEVANT IDs REQUIRED BY THE JOURNAL.")
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["tab1", "tab2", "tab3", "tab4", "tab5"])
+        with tab1:
+            st.subheader("TRADING MODELS")
+            st.table(models_df)
 
+        with tab2:
+            st.subheader("ENTRY EXECUTION ARCHETYPES")
+            st.table(entry_execution_df)
+
+        with tab3:
+            st.subheader("TRADE MANAGEMENT ARCHETYPES")
+            st.table(trade_management_df)
+
+        #WHERE DOES THE USER CREATE AN ACCOUNT?
+        with tab4:
+            st.subheader("TRADING ACCOUNTS")
+            st.table(accounts_df)
+
+        with tab5:
+            st.subheader("TRADE PARAMETERS")
+            st.table(parameters_df)
+
+main()
