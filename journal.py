@@ -30,8 +30,6 @@ class Journal:
 
         #1: ASSEMBLE/DERIVE TRADE DATA CALLER DOESN'T HAVE.
         trade = self._compute_derived_fields(trade)
-        trade_grade = self.grade_trade(trade)
-        trade.overall_trade_grade = trade_grade
         #2: VALIDATE THE TRADE DATA.
         valid_trade = validate_trade_data(trade)
 
@@ -289,6 +287,24 @@ class Journal:
             raise t.Trade_Recording_Error(f"COULDN'T RECORD NEW TRADE UPDATE: {e}") from e
 
         return valid_trade
+
+    def finalize_grade(self, trade_id: int, parameters: list) -> Trade:
+
+        try:
+            for parameter in parameters:
+                self.db.add_trade_parameters(trade_id, parameter)
+            trade = self.db.get_by_id(trade_id)
+            if trade.parameters_submitted:
+                self.grade_trade(trade)
+            else:
+                raise t.Grading_Error("PARAMETERS NOT CONFIRMED FOR THIS TRADE")
+            self.db.commit()
+        except t.DatabaseError as e:
+            self.db.rollback()
+            raise t.Grading_Error(f"ERROR FINALIZING GRADE: {e}")
+
+        return trade
+
   
 if __name__ == "__main__":
     main()
