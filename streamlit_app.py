@@ -111,7 +111,10 @@ class Kowalski:
                     st.write("### TRADE NOTES INFO")
                     for key, value in st.session_state.trade_notes.items():
                         st.write(f"{key} : {value}")
-
+                        
+    #IN THIS FORM, WHAT GETS RETURNED, LIST OF INTS OR LIST OF PARAMETERS
+    #WHEN YOU PRINT OUT TRADE_PARAMETERS, IT PRINTS THE LIST OF PARAMETERS.
+    #SO WHEN DOES THE LIST GET TO THE TRADE PARAMETERS JUNCTION TABLE?
     def _render_trade_parameters_form(self):
         st.header("TRADE PARAMETERS CHECKLIST")
         with st.form("PARAMETERS CHECKLIST", enter_to_submit=False):
@@ -160,8 +163,8 @@ class Kowalski:
 
         st.sidebar.subheader("ACCOUNTS")
         with st.sidebar.expander("ACCOUNTS ACTIONS"):
+            st.button("VIEW TRADING ACCOUNTS")
             st.button("CREATE TRADING ACCOUNT")
-            st.button("ARCHIVE TRADING ACCOUNT")
 
         st.sidebar.subheader("TRADE ANALYTICS")
         with st.sidebar.expander("VIEW ANALYTICS"):
