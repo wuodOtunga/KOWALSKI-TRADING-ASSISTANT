@@ -178,34 +178,34 @@ class Journal:
         return valid_trade
 
 #THE TRADER/USER WANTS TO SEE THE ENTIRE RECORDED JOURNAL ENTRY.
-#METHOD NEEDS TO GET DATA FROM: TRADES, ACCOUNTS, TRADE_PARAMETERS
+#METHOD NEEDS TO GET DATA FROM: TRADES, TRADE_PARAMETERS
 #TRADE NOTES, CHARTS TABLE.
-#METHOD NEEDS TO GET A LIST OF PARAMETERS IDS FOR THE TRADE. 
+#METHOD NEEDS TO GET A LIST OF PARAMETERS NAMES FOR THE TRADE. 
     def get_journal_entry(self, trade_id: int) -> JournalEntry:
         """READ AN ENTIRE JOURNAL ENTRY FROM DATABASE AT ONCE."""
 
         try:
             trade = self.db.get_by_id(trade_id)
             valid_trade = validate_trade_data(trade)
-            account = self.db.get_trading_account(valid_trade)
             trade_notes = self.db.get_trade_notes(trade_id)
             trade_charts = self.db.get_trade_charts(trade_id)
             parameter_ids = self.db.get_trade_parameters(trade_id)
+            if len(parameter_ids) > 0:
+                parameter_names = self.db.get_parameter_names(parameter_ids)
         except t.DatabaseError as e:
             raise t.Journal_Entry_Error(f"JOURNAL ENTRY CAN'T BE RETRIEVED DUE TO DATABASE ERRORS: {e}") from e
 
         return JournalEntry(
-            trade= trade,
-            account= account,
+            trade= valid_trade,
             charts= trade_charts,
             trade_notes= trade_notes,
-            parameter_ids= parameter_ids,
+            parameter_names= parameter_names,
         )
 
 #TARGET TABLES: TRADES, ACCOUNTS, TRADE_PARAMETERS, TRADE_NOTES, CHARTS.
 #INPUTS: DATACLASS OBJECTS AND A LIST OF PARAMETER IDS.
-#DATACLASS OBJECTS INCLUDE: TRADE, ACCOUNT, TRADE_NOTE, TRADE_CHARTS.
-#LIST OF PARAMETER IDS IS PROVIDED BY THE CALLER.
+#DATACLASS OBJECTS INCLUDE: TRADE, TRADE_NOTE, TRADE_CHARTS.
+#LIST OF PARAMETER NAMES IS PROVIDED BY THE CALLER.
 #OUTPUT: ENTIRE JOURNAL ENTRY. JOURNALENTRY DATACLASS.
     def record_journal_entry(self, journal_entry: JournalEntry) -> JournalEntry:
         """SAVE AN ENTIRE JOURNAL ENTRY TO DATABASE AT ONCE."""
@@ -213,8 +213,7 @@ class Journal:
         #STEP 1:ASSEMBLE/DERIVE DATA CALLER DOESN'T HAVE.
         #TRADE HAS DERIVED FIELDS, OTHER OBJECTS COME FULLY FORMED FROM CALLER.
         trade = self._compute_derived_fields(journal_entry.trade)
-        trade_grade = self.grade_trade(trade)
-        journal_entry.trade.overall_trade_grade = trade_grade
+        self.grade_trade(trade)
 
         #STEP 2: VALIDATE THE DATA.
         valid_trade = validate_trade_data(trade)
@@ -223,16 +222,15 @@ class Journal:
         #NOTICE WE ARE CATCHING THE BROAD DATABASE ERROR.
         #BECAUSE IT COVERS ALL THE SUB CLASSES OF ERRORS RAISED BY INDIVIDUAL METHOD RUNS.
         try:
-            account_id = self.db.create_trading_account(journal_entry.account)
-            journal_entry.trade.account_id = account_id
             trade_id = self.db.save_trade(valid_trade)
             journal_entry.trade.trade_id = trade_id
             chart_id = self.db.add_chart(journal_entry.trade.trade_id, journal_entry.charts)
             journal_entry.charts.chart_id = chart_id
             self.db.add_trade_notes(journal_entry.trade.trade_id, journal_entry.trade_notes)
 
-            for parameter_id in journal_entry.parameter_ids:
-                self.db.add_trade_parameters(journal_entry.trade.trade_id, parameter_id)
+            if len(journal_entry.parameter_names) > 0:
+                for parameter_id in journal_entry.parameter_names:
+                    self.db.add_trade_parameters(journal_entry.trade.trade_id, parameter_id)
 
             self.db.commit()
         except t.DatabaseError as e:
@@ -265,7 +263,7 @@ class Journal:
             "risk_percent" : self._compute_derived_fields,
         }
 
-    #.GET() METHOD RETURNS NONE IF KEY ISN'T IN THE DICTIONARY.
+    #.GET() METHOD RETURNS NONE IF VALUE ISN'T IN THE DICTIONARY.
     #MEANING HAVING MODEL_ID, ACCOUNT_ID IN THE DICTIONARY IS REDUNDANT.
     #YOU STILL NEED TO CHECK FOR IF RECOMPUTE BECAUSE IT CAN STILL BE NONE.
         try:
@@ -288,10 +286,13 @@ class Journal:
 
         return valid_trade
 
-    def finalize_grade(self, trade_id: int, parameters: list) -> Trade:
+    def finalize_grade(self, trade_id: int, parameter_names: list) -> Trade:
+
+        if len(parameter_names) > 0:
+            parameter_ids = self.db.get_parameter_ids(parameter_names)
 
         try:
-            for parameter in parameters:
+            for parameter in parameter_ids:
                 self.db.add_trade_parameters(trade_id, parameter)
             trade = self.db.get_by_id(trade_id)
             if trade.parameters_submitted:
@@ -305,6 +306,7 @@ class Journal:
 
         return trade
 
+#ADD JOURNAL METHOD FOR CREATING AN ACCOUNT
   
 if __name__ == "__main__":
     main()
