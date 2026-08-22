@@ -28,7 +28,6 @@ class TradeResult(str, Enum):
     """THIS CLASS REPRESENTS RESULT AS A TYPE"""
     PROFIT = "PROFIT"
     LOSS = "LOSS"
-
     
 @dataclass
 class Trade:
@@ -54,6 +53,7 @@ class Trade:
     rr_multiple : float | None
     account_balance : float
     risk_percent : float
+    parameters_submitted: bool
     overall_trade_grade : TradeGrade | None = None
 
 @dataclass
@@ -70,28 +70,28 @@ class Account:
 class TradeChart:
     "THIS CLASS MANAGES TRADING CHARTS DATA"
     chart_id : int | None
-    trade_id : int
-    filepath : str
-    timeframe : str
+    trade_id : int | None
+    filepath : str | None
+    timeframe : list[str]
 
 @dataclass
 class TradeNotes:
     """THIS CLASS MANAGES TRADING NOTES DATA."""
     """TRADING NOTES INCLUDE EMOTIONS, MISTAKES, THOUGHTS."""
-    trade_id : int
+    trade_id : int | None
     emotions : str
     mistakes : str
-    thoughts : str  #change this to lessons
+    lessons : str
+    general_notes : str
 
-#CAN A DATACLASS CONTAIN OTHER DATACLASSES AS VALUE TYPES?
+#ACCOUNT INFO IS NOT PART OF JOURNAL ENTRY!
 @dataclass
 class JournalEntry:
     """THIS CLASS MANAGES ENTIRE JOURNAL ENTRY DATA"""
     trade : Trade
-    account : Account
     charts : TradeChart
     trade_notes : TradeNotes
-    parameter_ids : list[int]
+    parameter_names : list[str]
 
 @dataclass
 class Amendments:
@@ -102,3 +102,9 @@ class Amendments:
     old_value : float | str | None
     new_value : float | str
     amended_at : datetime | None
+
+@dataclass
+class ServiceResult:
+    success : bool
+    message : str
+    data : Trade | TradeNotes | TradeChart | list[str] | None
