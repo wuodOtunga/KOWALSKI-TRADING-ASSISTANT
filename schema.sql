@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS "trade_notes" (
     "emotions" TEXT NOT NULL,
     "mistakes" TEXT NOT NULL,
     "lessons" TEXT NOT NULL,
+    "general_notes" TEXT NOT NULL,
     PRIMARY KEY("trade_id"),
     FOREIGN KEY("trade_id") REFERENCES "trades"("trade_id")
 );
