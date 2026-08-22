@@ -111,9 +111,9 @@ class Database:
         if row is None:
             raise t.Trade_Not_Found_Error(f"TRADEID {trade_id} NOT FOUND.")
 
-#WE ARE IGNORING THE NOQA: DTZ007 BECAUSE WE DON'T NEED TIMEZONE INFO.
-#NAIVE DATETIME OBJECTS ARE FINE FOR NOW, MIGHT CHANGE LATER IF WE NEED
-#FUNCTIONALITY FOR TIMEZONES.
+    #WE ARE IGNORING THE NOQA: DTZ007 BECAUSE WE DON'T NEED TIMEZONE INFO.
+    #NAIVE DATETIME OBJECTS ARE FINE FOR NOW, MIGHT CHANGE LATER IF WE NEED
+    #FUNCTIONALITY FOR TIMEZONES.
         row_dict = dict(row)
         row_dict["entry_time"] = datetime.strptime(row_dict["entry_time"], "%I:%M %p").time()  # noqa: DTZ007
         row_dict["exit_time"] = datetime.strptime(row_dict["exit_time"], "%I:%M %p").time()  # noqa: DTZ007
@@ -283,13 +283,13 @@ class Database:
         if not exists:
             raise t.Invalid_Identifier_Error(f"{trade.entry_execution_id} DOESN'T MATCH ANY ARCHETYPE.")
 
-    def get_trading_account(self, trade: Trade) -> Account:
+    def get_trading_account(self, account_id: int) -> Account:
 
         cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM accounts WHERE account_id = ?", (trade.account_id,))
+        cursor.execute("SELECT * FROM accounts WHERE account_id = ?", (account_id,))
         row = cursor.fetchone()
         if row is None:
-            raise t.Invalid_Identifier_Error(f"{trade.account_id} DOESN'T MATCH ANY ACCOUNT.")
+            raise t.Invalid_Identifier_Error(f"{account_id} DOESN'T MATCH ANY ACCOUNT.")
 
         return Account(**row)
 
@@ -312,6 +312,26 @@ class Database:
             raise t.Trade_Not_Found_Error(f"{trade_id} IS INVALID.")
 
         return TradeChart(**row)
+
+    def get_parameter_ids(self, parameter_names: list) -> list:
+        cursor = self.conn.cursor()
+        parameter_ids = []
+        for parameter in parameter_names:
+            cursor.execute("SELECT parameter_id FROM parameters WHERE parameter_name = ?", (parameter,))
+            row = cursor.fetchone()
+            parameter_ids.append(row[0])
+
+        return parameter_ids
+
+    def get_parameter_names(self, parameter_ids: list) -> list:
+        cursor = self.conn.cursor()
+        parameter_names = []
+        for parameter in parameter_ids:
+            cursor.execute("SELECT parameter_name FROM parameters WHERE parameter_id = ?", (parameter,))
+            row = cursor.fetchone()
+            parameter_names.append(row[0])
+
+        return parameter_names
 
 #RESEARCH THE MECHANICS OF CLOSE() METHOD
 #OPEN FILE LOCKS/STREAMLIT PROCESS FOR EVERY RERUN
