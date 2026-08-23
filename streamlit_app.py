@@ -7,6 +7,8 @@ from datetime import datetime
 
 import streamlit as st
 
+from database import Database
+from journal import Journal
 from models import TradeAsset, TradeDirection
 from seed_data import (
     accounts_df,
@@ -22,8 +24,18 @@ from seed_data import (
 min_date = datetime(1990, 1, 1)  # noqa: DTZ001
 max_date = datetime.now()  # noqa: DTZ005
 
+#UNDERSTAND WHY DATABASE AND JOURNAL AREN'T PART OF KOWALSKI CLASS
+@st.cache_resource
+def get_database():
+    return Database()
+
+@st.cache_resource
+def get_journal():
+    return Journal(get_database())
+
 def main():
-    kowalski = Kowalski()
+    journal = get_journal()
+    kowalski = Kowalski(journal)
     kowalski._render_widgets()
     kowalski._render_trade_details_form()
     kowalski._render_trade_notes_form()
@@ -32,7 +44,7 @@ def main():
     kowalski._render_trade_amendment_form()
 
 class Kowalski:
-    def __init__(self):
+    def __init__(self, journal: Journal):
 
         if "trade_details" not in st.session_state:
             st.session_state.trade_details = {}
@@ -48,7 +60,9 @@ class Kowalski:
 
         if "trade_amendment" not in st.session_state:
             st.session_state.trade_amendment = {}
-
+    
+    #UNDERSTAND WHETHER I SHOULD BUILD THE TRADE_DETAILS FIRST OUTSIDE SESSION_STATE
+    #THEN AT IF SUBMIT IS WHEN I ADD THE DICT TO SESSION_STATE
     def _render_trade_details_form(self):
         st.header("TRADE DETAILS ENTRY FORM")
         with st.form("TRADE DATA", enter_to_submit=False):
