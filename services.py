@@ -4,7 +4,6 @@ from datetime import date, time
 import exceptions as t
 from journal import Journal
 from models import (
-    Account,
     Amendments,
     JournalEntry,
     ServiceResult,
