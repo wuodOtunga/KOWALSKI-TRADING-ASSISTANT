@@ -53,6 +53,11 @@ parameters = [
     'EXECUTION GRADE > B. PRE TRADE + AVG(ENTRY EXECUTION AND TRADE MANAGEMENT.',
 ]
 
+column_names = [
+    "ENTRY PRICE", "EXIT PRICE", "TAKE PROFIT", "STOP LOSS", "POSITION SIZE",
+    "ENTRY TIME", "DATE", "MANAGEMENT_ID", "ENTRY_EXECUTION_ID", "ASSET",
+    "DIRECTION", "ACCOUNT BALANCE", "RISK PERCENT"]
+
 timeframes = ["1M", "1W", "1D", "4HR", "1HR", "30MIN", "15MIN", "5MIN", "1M"]
 
 accounts_df = pd.DataFrame([(index,) + row for index, row in enumerate(accounts, start=1)],
