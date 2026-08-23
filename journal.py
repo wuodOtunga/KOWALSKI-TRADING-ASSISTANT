@@ -11,14 +11,8 @@ from models import (
     TradeNotes,
     TradeResult,
 )
-from seed_data import trade1
 from validation import validate_trade_data
 
-
-def main():
-    db = Database()
-    journal = Journal(db)
-    journal.record_trade(trade1)
 
 class Journal:
 
@@ -309,5 +303,3 @@ class Journal:
 
 #ADD JOURNAL METHOD FOR CREATING AN ACCOUNT
   
-if __name__ == "__main__":
-    main()
