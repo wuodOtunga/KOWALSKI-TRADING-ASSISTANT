@@ -5,6 +5,7 @@ import exceptions as t
 from journal import Journal
 from models import (
     Account,
+    Amendments,
     JournalEntry,
     ServiceResult,
     Trade,
@@ -94,12 +95,15 @@ def submit_trade_charts(trade_id: int, trade_charts: dict, journal: Journal):
     #The UploadedFile class is a subclass of BytesIO, and therefore is "file-like". 
     #This means you can pass an instance of it anywhere a file is expected.
 
-    charts = TradeChart(
-        chart_id= None,
-        trade_id= trade_id,
-        filepath= trade_charts["charts"],
-        timeframe= trade_charts["timeframes"]
-    )
+    try:
+        charts = TradeChart(
+            chart_id= None,
+            trade_id= trade_id,
+            filepath= trade_charts["charts"],
+            timeframe= trade_charts["timeframes"]
+        )
+    except KeyError as e:
+        return ServiceResult(success= False, message= f"INVALID KEY REFERENCE: {e}", data= None)
 
     try:
         uploaded_charts = journal.attach_charts(trade_id, charts)
@@ -114,53 +118,57 @@ def submit_journal_entry(
             trade_charts: dict,
             trade_parameters: list,
             journal: Journal):
+    try:
+        trade = Trade(
+                trade_id= None,
+                entry_price= float(trade_details["entry_price"]),
+                exit_price= float(trade_details["exit_price"]),
+                take_profit= float(trade_details["take_profit"]),
+                stop_loss= float(trade_details["stop_loss"]),
+                position_size= float(trade_details["position_size"]),
+                entry_time= time(trade_details["entry_time"]),
+                exit_time= time(trade_details["exit_time"]),
+                date= date(trade_details["date"]),
+                model_id= int(trade_details["model_id"]),
+                account_id= int(trade_details["account_id"]),
+                management_id= int(trade_details["management_id"]),
+                entry_execution_id= int(trade_details["entry_execution_id"]),
+                asset= TradeAsset(trade_details["asset"]),
+                direction= TradeDirection(trade_details["direction"]),
+                dollar_amount= None,
+                duration= None,
+                result= None,
+                rr_multiple= None,
+                account_balance= float(trade_details["account_balance"]),
+                risk_percent= float(trade_details["risk_percent"]),
+                parameters_submitted= False,
+                overall_trade_grade= None
+            )
 
-    trade = Trade(
-            trade_id= None,
-            entry_price= float(trade_details["entry_price"]),
-            exit_price= float(trade_details["exit_price"]),
-            take_profit= float(trade_details["take_profit"]),
-            stop_loss= float(trade_details["stop_loss"]),
-            position_size= float(trade_details["position_size"]),
-            entry_time= time(trade_details["entry_time"]),
-            exit_time= time(trade_details["exit_time"]),
-            date= date(trade_details["date"]),
-            model_id= int(trade_details["model_id"]),
-            account_id= int(trade_details["account_id"]),
-            management_id= int(trade_details["management_id"]),
-            entry_execution_id= int(trade_details["entry_execution_id"]),
-            asset= TradeAsset(trade_details["asset"]),
-            direction= TradeDirection(trade_details["direction"]),
-            dollar_amount= None,
-            duration= None,
-            result= None,
-            rr_multiple= None,
-            account_balance= float(trade_details["account_balance"]),
-            risk_percent= float(trade_details["risk_percent"]),
-            parameters_submitted= False,
-            overall_trade_grade= None
-        )
+        trading_notes = TradeNotes(
+                trade_id= None,
+                emotions= trade_notes["emotions"],
+                mistakes= trade_notes["mistakes"],
+                lessons= trade_notes["lessons"],
+                general_notes= trade_notes["general_notes"]
+            )
 
-    trading_notes = TradeNotes(
-            trade_id= None,
-            emotions= trade_notes["emotions"],
-            mistakes= trade_notes["mistakes"],
-            lessons= trade_notes["lessons"],
-            general_notes= trade_notes["general_notes"]
+        charts = TradeChart(
+                chart_id= None,
+                trade_id= None,
+                filepath= trade_charts["charts"],
+                timeframe= trade_charts["timeframes"]
+            )
+        
+        journal_entry = JournalEntry(
+            trade= trade,
+            charts= charts,
+            trade_notes= trading_notes,
+            parameter_names= trade_parameters
         )
-
-    charts = TradeChart(
-            chart_id= None,
-            trade_id= None,
-            filepath= trade_charts["charts"],
-            timeframe= trade_charts["timeframes"]
-        )
-    journal_entry = JournalEntry(
-        trade= trade,
-        charts= charts,
-        trade_notes= trading_notes,
-        parameter_names= trade_parameters
-    )
+    except (KeyError, ValueError) as e:
+        return ServiceResult(success= False, message= f"ERROR OCCURRED DURING OBJECT CONSTRUCTION: {e}", data= None)
+    
 
     try:
         recorded_journal_entry = journal.record_journal_entry(journal_entry)
@@ -174,12 +182,49 @@ def submit_journal_entry(
     return ServiceResult(success= True, message= "JOURNAL ENTRY RECORDED SUCCESSFULLY!", data= recorded_journal_entry)
 
 
-def submit_amendment():
-    pass
+def submit_amendment(trade_id: int, trade_amendment: dict, journal: Journal):
 
-#OBJECTIVE #3: DISPLAY A TRADE AND JOURNAL ENTRY
-def fetch_trade():
-    pass
+    try:
+        amendment = Amendments(
+            amendment_id= None,
+            trade_id= trade_amendment["trade_id"],
+            column_name= trade_amendment["column_name"],
+            old_value= None,
+            new_value= trade_amendment["new_value"],
+            amended_at= None
+        )
+    except KeyError as e:
+        return ServiceResult(success= False, message= f"INVALID KEY REFERENCE: {e}", data=None)
 
-def fetch_journal_entry():
-    pass
+    try:
+        amended_trade = journal.amend_trade_entry(trade_id, amendment)
+    except t.Trade_Recording_Error as e:
+        return ServiceResult(success= False, message= f"ERROR RECORDING AMENDMENT: {e}", data= None)
+    except t.Trade_Validation_Error as e:
+        return ServiceResult(success= False, message= f"INVALID AMENDMENT VALUES: {e}", data= None)
+    except t.Invalid_Column_Name_Error as e:
+        return ServiceResult(success= False, message= f"COLUMN NAME CAN'T BE AMENDED: {e}", data= None)
+
+    return ServiceResult(success= True, message= "AMENDMENT RECORDED SUCCESSFULLY!", data= amended_trade)
+
+
+#STREAMLIT DISPLAY SERVICE FUNCTIONS
+def fetch_trade(trade_id: int, journal: Journal):
+    try:
+        trade = journal.get_trade(trade_id)
+    except t.Invalid_TradeID_Error as e:
+        return ServiceResult(success= False, message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}")
+    
+    return ServiceResult(success= True, message= "TRADE FETCHED SUCCESSFULLY!", data= trade)
+
+def fetch_journal_entry(trade_id: int, journal: Journal):
+
+    try:
+        journal_entry = journal.get_journal_entry(trade_id)
+    except t.Journal_Entry_Error as e:
+        return ServiceResult(success= False, message= f"ERROR RETRIEVING JOURNAL ENTRY: {e}", data= None)
+
+    return ServiceResult(success= True, message= "JOURNAL ENTRY RETRIEVED SUCCESSFULLY", data= journal_entry)
+
+#STREAMLIT SERVICE FUNCTIONS FOR ACCOUNTS ACTIONS
+#ACCOUNTS ACTION: VIEW ACCOUNTS, CREATE ACCOUNT
