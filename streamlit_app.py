@@ -3,10 +3,12 @@
 #OBJECTIVE #3: DISPLAY FULL TRADE DETAILS TO USER/TRADER
 #OBJECTIVE #4: ENABLE TRADING CALCULATOR FUNCTIONALITY.
 #OBJECTIVE #5: ADD IMPROVEMENTS TO THE WEBSITE.
+from dataclasses import asdict
 from datetime import datetime
 
 import streamlit as st
 
+import services as s
 from database import Database
 from journal import Journal
 from models import TradeAsset, TradeDirection
@@ -37,7 +39,9 @@ def main():
     journal = get_journal()
     kowalski = Kowalski(journal)
     kowalski._render_widgets()
-    kowalski._render_trade_details_form()
+
+    if st.session_state.show_trade_details_form:
+        kowalski._render_trade_details_form()
     kowalski._render_trade_notes_form()
     kowalski._render_trade_parameters_form()
     kowalski._render_trade_charts_form()
@@ -45,6 +49,7 @@ def main():
 
 class Kowalski:
     def __init__(self, journal: Journal):
+        self.journal = journal
 
         if "trade_details" not in st.session_state:
             st.session_state.trade_details = {}
@@ -60,6 +65,12 @@ class Kowalski:
 
         if "trade_amendment" not in st.session_state:
             st.session_state.trade_amendment = {}
+
+        if "show_trade_details_form" not in st.session_state:
+            st.session_state.show_trade_details_form = False
+
+        if "last_trade_result" not in st.session_state:
+            st.session_state.last_trade_result = None
     
     #UNDERSTAND WHETHER I SHOULD BUILD THE TRADE_DETAILS FIRST OUTSIDE SESSION_STATE
     #THEN AT IF SUBMIT IS WHEN I ADD THE DICT TO SESSION_STATE
@@ -97,12 +108,24 @@ class Kowalski:
                 if empty_values:
                     st.warning(f"Please fill in all these values: {','.join(empty_values)}")
                 else:
-                    st.success("TRADE DETAILS SUBMITTED SUCCESSFULLY!")
-                    st.balloons()
-                    st.write("### TRADE DETAILS INFO")
-                    for key, value in st.session_state.trade_details.items():
-                        st.write(f"{key} : {value}")
+                    results = s.submit_trade(st.session_state.trade_details, self.journal)
 
+                    if results.success:
+                        st.session_state.last_trade_result = results
+                        st.session_state.trade_details = {}
+                        st.success(results.message)
+                        st.balloons()
+                    else:
+                        st.session_state.last_trade_result = results
+                        st.error(results.message)
+
+                    if st.session_state.last_trade_result and st.session_state.last_trade_result.success:
+                        st.write("### RECORDED TRADE")
+                        trade = st.session_state.last_trade_result.data
+                        for field, value in asdict(trade).items():
+                            st.write(f"{field} : {value}")
+
+                
     def _render_trade_notes_form(self):
         st.header("TRADE NOTES ENTRY FORM")
         with st.form("TRADE NOTES", enter_to_submit=False):
@@ -183,7 +206,8 @@ class Kowalski:
         st.sidebar.title("NAVIGATION")
         st.sidebar.subheader("TRADING JOURNAL")
         with st.sidebar.expander("JOURNAL ACTIONS"):
-            st.button("RECORD TRADE")
+            if st.button("RECORD TRADE"):
+                st.session_state.show_trade_details_form = True
             st.button("FETCH TRADE")
             st.button("AMEND TRADE")
             st.button("RECORD JOURNAL ENTRY")
