@@ -10,6 +10,7 @@ import streamlit as st
 from models import TradeAsset, TradeDirection
 from seed_data import (
     accounts_df,
+    column_names,
     entry_execution_df,
     models_df,
     parameters,
@@ -28,6 +29,7 @@ def main():
     kowalski._render_trade_notes_form()
     kowalski._render_trade_parameters_form()
     kowalski._render_trade_charts_form()
+    kowalski._render_trade_amendment_form()
 
 class Kowalski:
     def __init__(self):
@@ -43,6 +45,9 @@ class Kowalski:
 
         if "trade_charts" not in st.session_state:
             st.session_state.trade_charts = {}
+
+        if "trade_amendment" not in st.session_state:
+            st.session_state.trade_amendment = {}
 
     def _render_trade_details_form(self):
         st.header("TRADE DETAILS ENTRY FORM")
@@ -142,6 +147,21 @@ class Kowalski:
                     st.warning(f"Please fill in all the values: {','.join(empty_values)}")
                 else:
                     st.success("TRADING CHARTS UPLOADED SUCCESSFULLY!")
+
+    def _render_trade_amendment_form(self):
+        st.header("TRADE AMENDMENTS ENTRY FORM")
+        with st.form("TRADE CHANGES", enter_to_submit=False):
+            st.session_state.trade_amendment["trade_id"] = st.number_input("TRADE_ID", value=None)
+            st.session_state.trade_amendment["column_name"] = st.selectbox("COLUMN NAME", column_names, index=None)
+            st.session_state.trade_amendment["new_value"] = st.number_input("NEW VALUE", value=None)
+
+            submit = st.form_submit_button(label="SUBMIT")
+            empty_values = [key for key, value in st.session_state.trade_amendment.items() if value is None]
+            if submit:
+                if empty_values:
+                    st.warning(f"Please fill in all the values: {','.join(empty_values)}")
+                else:
+                    st.success("TRADE AMENDMENTS SUBMITTED SUCCESSFULLY!")
 
     def _render_widgets(self):
         st.title("KOWALSKI TRADING JOURNAL")
