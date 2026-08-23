@@ -171,11 +171,10 @@ class Journal:
         #THIN WRAPPER METHOD, ONLY SERVES TO TRANSLATES ERRORS.
         try:
             trade = self.db.get_by_id(trade_id)
-            valid_trade = validate_trade_data(trade)
         except t.Trade_Not_Found_Error as e:
             raise t.Invalid_TradeID_Error(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
 
-        return valid_trade
+        return trade
 
 #THE TRADER/USER WANTS TO SEE THE ENTIRE RECORDED JOURNAL ENTRY.
 #METHOD NEEDS TO GET DATA FROM: TRADES, TRADE_PARAMETERS
@@ -186,7 +185,6 @@ class Journal:
 
         try:
             trade = self.db.get_by_id(trade_id)
-            valid_trade = validate_trade_data(trade)
             trade_notes = self.db.get_trade_notes(trade_id)
             trade_charts = self.db.get_trade_charts(trade_id)
             parameter_ids = self.db.get_trade_parameters(trade_id)
@@ -196,7 +194,7 @@ class Journal:
             raise t.Journal_Entry_Error(f"JOURNAL ENTRY CAN'T BE RETRIEVED DUE TO DATABASE ERRORS: {e}") from e
 
         return JournalEntry(
-            trade= valid_trade,
+            trade= trade,
             charts= trade_charts,
             trade_notes= trade_notes,
             parameter_names= parameter_names,
@@ -241,6 +239,9 @@ class Journal:
         return journal_entry
 
 
+    #ISSUE TO HANDLE: STREAMLIT DISPLAYS AND RETURNS THE COLUMN NAMES LIKE THIS : ENTRY PRICE
+    #AMEND_TRADE_ENTRY METHOD IS WORKING WITH COLUMN NAMES LIKE THIS : entry_price
+    #FIND OUT IF THIS MIGHT BE AN ISSUE: ENTRY PRICE != entry_price
     def amend_trade_entry(self, trade_id: int, amendment: Amendments) -> Trade:
         forbidden_columns = ["dollar_amount", "duration", "result", "rr_multiple", "overall_trade_grade"]
         if amendment.column_name in forbidden_columns:
