@@ -71,6 +71,12 @@ class Kowalski:
 
         if "last_trade_result" not in st.session_state:
             st.session_state.last_trade_result = None
+
+        if "show_trade_notes_form" not in st.session_state:
+            st.session_state.show_trade_notes_form = False
+
+        if "last_trade_notes_results" not in st.session_state:
+            st.session_state.last_trade_notes_results = None
     
     #UNDERSTAND WHETHER I SHOULD BUILD THE TRADE_DETAILS FIRST OUTSIDE SESSION_STATE
     #THEN AT IF SUBMIT IS WHEN I ADD THE DICT TO SESSION_STATE
@@ -148,6 +154,7 @@ class Kowalski:
     def _render_trade_notes_form(self):
         st.header("TRADE NOTES ENTRY FORM")
         with st.form("TRADE NOTES", enter_to_submit=False):
+            st.number_input("TRADE ID", value= None, key= "trade_id")
             st.text_area("EMOTIONS DURING TRADE", key="emotions", placeholder="eg., Anxious at entry, confident during move.")
             st.text_area("MISTAKES MADE", key="mistakes", placeholder="eg., Entered too early, added to loosers.")
             st.text_area("LESSONS LEARNT", key="lessons", placeholder="eg., Follow the trading model.")
@@ -156,6 +163,7 @@ class Kowalski:
             submit = st.form_submit_button(label="SUBMIT")
             if submit:
                 trade_notes = {
+                    "trade_id": st.session_state.trade_id,
                     "emotions": st.session_state.emotions,
                     "mistakes": st.session_state.mistakes,
                     "lessons": st.session_state.lessons,
@@ -166,11 +174,22 @@ class Kowalski:
                 if empty_values:
                     st.warning(f"Please fill in all the values: {','.join(empty_values)}")
                 else:
-                    st.success("TRADE NOTES SUBMITTED SUCCESSFULLY!")
-                    st.balloons()
-                    st.write("### TRADE NOTES INFO")
-                    for key, value in st.session_state.trade_notes.items():
-                        st.write(f"{key} : {value}")
+                    results = s.submit_trade_notes(st.session_state.trade_id, trade_notes, self.journal)
+
+                    if results.success:
+                        st.session_state.last_trade_notes_results = results
+                        st.session_state.trade_notes = {}
+                        st.success(results.message)
+                        st.balloons()
+                    else:
+                        st.session_state.last_trade_notes_results = results
+                        st.error(results.message)
+
+                    if st.session_state.last_trade_notes_results and st.session_state.last_trade_notes_results.success:
+                        st.write("### RECORDED TRADE NOTES")
+                        trading_notes = st.session_state.last_trade_notes_results.data
+                        for field, value in asdict(trading_notes).items():
+                            st.write(f"{field}: {value}")
                         
     #IN THIS FORM, WHAT GETS RETURNED, LIST OF INTS OR LIST OF PARAMETERS
     #WHEN YOU PRINT OUT TRADE_PARAMETERS, IT PRINTS THE LIST OF PARAMETERS.
@@ -234,7 +253,8 @@ class Kowalski:
         with st.sidebar.expander("JOURNAL ACTIONS"):
             if st.button("RECORD TRADE"):
                 st.session_state.show_trade_details_form = True
-            st.button("FETCH TRADE")
+            if st.button("RECORD TRADE NOTES"):
+                st.session_state.show_trade_notes_form = True
             st.button("AMEND TRADE")
             st.button("RECORD JOURNAL ENTRY")
             st.button("FETCH JOURNAL ENTRY")
