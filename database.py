@@ -25,7 +25,7 @@ class Database:
         """CONNECTS TO THE DATABASE FILE"""
 
         self.db_path = db_path
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         cursor = self.conn.cursor()
         cursor.execute("PRAGMA foreign_keys = ON")
@@ -163,15 +163,15 @@ class Database:
         
         return cursor.lastrowid
         
-    def add_trade_notes(self, trade_id: int, trade_notes: TradeNotes) -> None:
+    def add_trade_notes(self, trade_notes: TradeNotes) -> None:
         """ATTACH TRADE NOTES TO DATABASE"""
         """TRADE NOTES INCLUDE EMOTIONS, MISTAKES, LESSONS"""
         """ARGS: trade_id IDENTIFIER, TRADENOTE OBJECT"""
 
         cursor = self.conn.cursor()
         try:
-            cursor.execute("INSERT INTO trade_notes (trade_id, emotions, mistakes, thoughts) VALUES" \
-            "(?, ?, ?, ?)", (trade_id, trade_notes.emotions, trade_notes.mistakes, trade_notes.thoughts))
+            cursor.execute("INSERT INTO trade_notes (trade_id, emotions, mistakes, lessons, general_notes) VALUES" \
+            "(?, ?, ?, ?, ?)", (trade_notes.trade_id, trade_notes.emotions, trade_notes.mistakes, trade_notes.lessons, trade_notes.general_notes))
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
@@ -226,7 +226,7 @@ class Database:
     def get_trade_parameters(self, trade_id: int) -> list:
         """FIND HOW MANY PARAMETER POINTS THE TRADE HAS"""
         """ARGS: TRADE_ID ROW IDENTIFIER"""
-        """RETURNS INT AS THE NUMBER OF PARAMETER POINTS FOR THE TRADE."""
+        """RETURNS LIST OF PARAMETER IDS MATCHING THE TRADE_ID"""
 
         cursor = self.conn.cursor()
         cursor.execute("SELECT EXISTS(SELECT 1 FROM trades WHERE trade_id = ?)", trade_id)
