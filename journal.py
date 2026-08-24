@@ -24,6 +24,10 @@ class Journal:
 
         #1: ASSEMBLE/DERIVE TRADE DATA CALLER DOESN'T HAVE.
         trade = self._compute_derived_fields(trade)
+        #AT THIS POINT TRADE.PARAMETERS_SUBMITTED = FALSE
+        #SO MEANING WE CAN'T GRADE TRADE.
+        #IT GETS TO THE DATABASE AS NONE FOR OVERRAL_TRADE_GRADE
+
         #2: VALIDATE THE TRADE DATA.
         valid_trade = validate_trade_data(trade)
 
@@ -142,7 +146,7 @@ class Journal:
 #NOTES ON TRADE PARAMETERS PRESENT AND ABSENT,
 #NOTES ON EMOTIONS, MISTAKES MADE, LESSONS LEARNT.
 #INSIDE STREAMLIT MODULE, VALIDATE THE ABOVE IS WHAT IS BEING RECORDED.
-    def add_reflection_notes(self, trade_id: int, trade_notes: TradeNotes) -> TradeNotes:
+    def add_reflection_notes(self, trade_notes: TradeNotes) -> TradeNotes:
 
         #TRADE_NOTES OBJECT IS SUPPLIED BY STREAMLIT MODULE. (CALLER)
         #NO ASSEMBLY/DERIVING TRADE_NOTES OBJECT, ARRIVES AS CLEAN TRUSTED OBJECT.
@@ -152,11 +156,11 @@ class Journal:
 
         #THIN WRAPPER METHOD, ONLY SERVES TO TRANSLATES ERRORS.
         try:
-            self.db.add_trade_notes(trade_id, trade_notes)
+            self.db.add_trade_notes(trade_notes)
             self.db.commit()
         except t.Constraint_Violation_Error as e:
             self.db.rollback()
-            raise t.Notes_Recording_Error(f"TRADE_ID {trade_id} IS INVALID, {e}") from e
+            raise t.Notes_Recording_Error(f"TRADE_ID {trade_notes.trade_id} IS INVALID, {e}") from e
 
         return trade_notes
 
@@ -205,7 +209,6 @@ class Journal:
         #STEP 1:ASSEMBLE/DERIVE DATA CALLER DOESN'T HAVE.
         #TRADE HAS DERIVED FIELDS, OTHER OBJECTS COME FULLY FORMED FROM CALLER.
         trade = self._compute_derived_fields(journal_entry.trade)
-        self.grade_trade(trade)
 
         #STEP 2: VALIDATE THE DATA.
         valid_trade = validate_trade_data(trade)
@@ -283,6 +286,9 @@ class Journal:
 
     def finalize_grade(self, trade_id: int, parameter_names: list) -> Trade:
 
+        #DB METHOD ISN'T WRAPPED IN TRY/EXCEPT BLOCK SINCE IT'S
+        #CONDITIONALLY CALLED, IT'S A LOOK UP METHOD WITH NO RISKS
+        #OFF DATABASEERRORS CONSULT THOUGH.
         if len(parameter_names) > 0:
             parameter_ids = self.db.get_parameter_ids(parameter_names)
 
