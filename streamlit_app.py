@@ -76,35 +76,54 @@ class Kowalski:
     #THEN AT IF SUBMIT IS WHEN I ADD THE DICT TO SESSION_STATE
     def _render_trade_details_form(self):
         st.header("TRADE DETAILS ENTRY FORM")
-        with st.form("TRADE DATA", enter_to_submit=False):
+        with st.form("TRADE DETAILS", enter_to_submit=False):
 
-            st.session_state.trade_details["entry_price"] = st.number_input("ENTRY PRICE", value=None)
-            st.session_state.trade_details["exit_price"] = st.number_input("EXIT PRICE", value=None)
-            st.session_state.trade_details["stop_loss"] = st.number_input("STOP LOSS", value=None)
-            st.session_state.trade_details["take_profit"] = st.number_input("TAKE PROFIT", value=None)
+            st.number_input("ENTRY PRICE", value=None, key= "entry_price")
+            st.number_input("EXIT PRICE", value=None, key= "exit_price")
+            st.number_input("STOP LOSS", value=None, key= "stop_loss")
+            st.number_input("TAKE PROFIT", value=None, key= "take_profit")
 
-            st.session_state.trade_details["position_size"] = st.number_input("POSITION SIZE", min_value=0.01, value=None)
-            st.session_state.trade_details["asset"] = st.selectbox("ASSET", list(TradeAsset), index=None, format_func=lambda a: a.value)
-            st.session_state.trade_details["direction"] = st.radio("DIRECTION", list(TradeDirection), index=None, format_func=lambda d: d.value)
-            st.session_state.trade_details["account_balance"] = st.number_input("ACCOUNT BALANCE", value=None)
-            st.session_state.trade_details["risk_percent"] = st.number_input("RISK PERCENT", value=None)
+            st.number_input("POSITION SIZE", min_value=0.01, value=None, key= "position_size")
+            st.selectbox("ASSET", list(TradeAsset), index=None, format_func=lambda a: a.value, key= "asset")
+            st.radio("DIRECTION", list(TradeDirection), index=None, format_func=lambda d: d.value, key= "direction")
+            st.number_input("ACCOUNT BALANCE", value=None, key= "account_balance")
+            st.number_input("RISK PERCENT", value=None, key= "risk_percent")
 
-            st.session_state.trade_details["entry_time"] = st.time_input("ENTRY TIME", value=None)
-            st.session_state.trade_details["exit_time"] = st.time_input("EXIT TIME", value=None)
-            st.session_state.trade_details["date"] = st.date_input("DATE", min_value= min_date, max_value= max_date, value=None)
+            st.time_input("ENTRY TIME", value=None, key= "entry_time")
+            st.time_input("EXIT TIME", value=None, key= "exit_time")
+            st.date_input("DATE", value=None,  min_value= min_date, max_value= max_date, key= "date")
 
-            st.session_state.trade_details["model_id"] = st.selectbox("MODEL ID", models_df["model_id"], index=None,
-                                                                    format_func=lambda model_id: models_df.loc[models_df["model_id"] == model_id, "model_name"].iloc[0])
-            st.session_state.trade_details["account_id"] = st.selectbox("ACCOUNT ID", accounts_df["account_id"], index=None,
-                                                                        format_func=lambda account_id: accounts_df.loc[accounts_df["account_id"] == account_id, "account_name"].iloc[0])
-            st.session_state.trade_details["management_id"] = st.selectbox("MANAGEMENT ID", trade_management_df["id"], index=None,
-                                                                        format_func=lambda id: trade_management_df.loc[trade_management_df["id"] == id, "archetype"].iloc[0])
-            st.session_state.trade_details["entry_execution_id"] = st.selectbox("ENTRY EXECUTION ID", entry_execution_df["id"], index=None,
-                                                                                format_func=lambda id: entry_execution_df.loc[entry_execution_df["id"] == id, "archetype"].iloc[0])
+            st.selectbox("MODEL ID", models_df["model_id"], index=None,
+                        format_func=lambda model_id: models_df.loc[models_df["model_id"] == model_id, "model_name"].iloc[0], key= "model_id")
+            st.selectbox("ACCOUNT ID", accounts_df["account_id"], index=None,
+                        format_func=lambda account_id: accounts_df.loc[accounts_df["account_id"] == account_id, "account_name"].iloc[0], key= "account_id")
+            st.selectbox("MANAGEMENT ID", trade_management_df["id"], index=None,
+                        format_func=lambda id: trade_management_df.loc[trade_management_df["id"] == id, "archetype"].iloc[0], key= "management_id")
+            st.selectbox("ENTRY EXECUTION ID", entry_execution_df["id"], index=None,
+                        format_func=lambda id: entry_execution_df.loc[entry_execution_df["id"] == id, "archetype"].iloc[0], key= "entry_execution_id")
 
             submit = st.form_submit_button(label="SUBMIT")
-            empty_values = [key for key, value in st.session_state.trade_details.items() if value is None]
             if submit:
+                trade_details = {
+                    "entry_price": st.session_state.entry_price,
+                    "exit_price": st.session_state.exit_price,
+                    "stop_loss": st.session_state.stop_loss,
+                    "take_profit": st.session_state.take_profit,
+                    "position_size": st.session_state.position_size,
+                    "asset": st.session_state.asset,
+                    "direction": st.session_state.direction,
+                    "account_balance": st.session_state.account_balance,
+                    "risk_percent": st.session_state.risk_percent,
+                    "entry_time": st.session_state.entry_time,
+                    "exit_time": st.session_state.exit_time,
+                    "date": st.session_state.date,
+                    "model_id": st.session_state.model_id,
+                    "account_id": st.session_state.account_id,
+                    "management_id": st.session_state.management_id,
+                    "entry_execution_id": st.session_state.entry_execution_id,
+                }
+                st.session_state.trade_details = trade_details
+                empty_values = [key for key, value in st.session_state.trade_details.items() if value is None]
                 if empty_values:
                     st.warning(f"Please fill in all these values: {','.join(empty_values)}")
                 else:
@@ -129,22 +148,21 @@ class Kowalski:
     def _render_trade_notes_form(self):
         st.header("TRADE NOTES ENTRY FORM")
         with st.form("TRADE NOTES", enter_to_submit=False):
-            st.session_state.trade_notes["emotions"] = st.text_area("EMOTIONS DURING TRADE",
-                                                                    key="emotions", 
-                                                                    placeholder="eg., Anxious at entry, confident during move.")
-            st.session_state.trade_notes["mistakes"] = st.text_area("MISTAKES MADE", 
-                                                                    key="mistakes",
-                                                                    placeholder="eg., Entered too early, added to loosers.")
-            st.session_state.trade_notes["lessons"] = st.text_area("LESSONS LEARNT", 
-                                                                key="lessons",
-                                                                placeholder="eg., Follow the trading model.")
-            st.session_state.trade_notes["general_notes"] = st.text_area("GENERAL NOTES", 
-                                                                        key="notes",
-                                                                        placeholder="Notes on trade grade, trade execution and management, etc")
+            st.text_area("EMOTIONS DURING TRADE", key="emotions", placeholder="eg., Anxious at entry, confident during move.")
+            st.text_area("MISTAKES MADE", key="mistakes", placeholder="eg., Entered too early, added to loosers.")
+            st.text_area("LESSONS LEARNT", key="lessons", placeholder="eg., Follow the trading model.")
+            st.text_area("GENERAL NOTES", key="general_notes", placeholder="Notes on trade grade, trade execution and management, etc")
 
             submit = st.form_submit_button(label="SUBMIT")
-            empty_values = [key for key, value in st.session_state.trade_notes.items() if value is None]
             if submit:
+                trade_notes = {
+                    "emotions": st.session_state.emotions,
+                    "mistakes": st.session_state.mistakes,
+                    "lessons": st.session_state.lessons,
+                    "general_notes": st.session_state.general_notes,
+                }
+                st.session_state.trade_notes = trade_notes
+                empty_values = [key for key, value in st.session_state.trade_notes.items() if value is None]
                 if empty_values:
                     st.warning(f"Please fill in all the values: {','.join(empty_values)}")
                 else:
@@ -171,15 +189,17 @@ class Kowalski:
     def _render_trade_charts_form(self):
         st.header("TRADING CHARTS UPLOAD")
         with st.form("TRADING CHARTS", enter_to_submit=False):
-            st.session_state.trade_charts["charts"] = st.file_uploader("UPLOAD TRADING CHARTS", 
-                                type=["png", "jpg", "jpeg"], 
-                                key="charts", 
-                                accept_multiple_files=True)
-            st.session_state.trade_charts["timeframes"] = st.multiselect("SELECT TIMEFRAME", timeframes, key="timeframes")
+            st.file_uploader("UPLOAD TRADING CHARTS", type=["png", "jpg", "jpeg"], key="charts", accept_multiple_files=True)
+            st.multiselect("SELECT TIMEFRAME", timeframes, key="timeframes")
 
             submit = st.form_submit_button(label="SUBMIT")
-            empty_values = [key for key, value in st.session_state.trade_charts.items() if value is None]
             if submit:
+                trade_charts = {
+                    "charts": st.session_state.charts,
+                    "timeframes": st.session_state.timeframes,
+                }
+                st.session_state.trade_charts = trade_charts
+                empty_values = [key for key, value in st.session_state.trade_charts.items() if value is None]
                 if empty_values:
                     st.warning(f"Please fill in all the values: {','.join(empty_values)}")
                 else:
@@ -188,13 +208,19 @@ class Kowalski:
     def _render_trade_amendment_form(self):
         st.header("TRADE AMENDMENTS ENTRY FORM")
         with st.form("TRADE CHANGES", enter_to_submit=False):
-            st.session_state.trade_amendment["trade_id"] = st.number_input("TRADE_ID", value=None)
-            st.session_state.trade_amendment["column_name"] = st.selectbox("COLUMN NAME", column_names, index=None)
-            st.session_state.trade_amendment["new_value"] = st.number_input("NEW VALUE", value=None)
+            st.number_input("TRADE_ID", value=None, key= "trade_id")
+            st.selectbox("COLUMN NAME", column_names, index=None, key= "column_names")
+            st.number_input("NEW VALUE", value=None, key= "new_value")
 
             submit = st.form_submit_button(label="SUBMIT")
-            empty_values = [key for key, value in st.session_state.trade_amendment.items() if value is None]
             if submit:
+                trade_amendment = {
+                    "trade_id": st.session_state.trade_id,
+                    "column_names": st.session_state.column_names,
+                    "new_value": st.session_state.new_value,
+                }
+                st.session_state.trade_amendment = trade_amendment
+                empty_values = [key for key, value in st.session_state.trade_amendment.items() if value is None]
                 if empty_values:
                     st.warning(f"Please fill in all the values: {','.join(empty_values)}")
                 else:
