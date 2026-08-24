@@ -1,5 +1,4 @@
 #CONTAINS UI CONNECTOR FUNCTIONS THAT COORDINATE BETWEEN JOURNAL.PY AND STREAMLIT APP
-from datetime import date, time
 
 import exceptions as t
 from journal import Journal
@@ -29,9 +28,9 @@ def submit_trade(trade_details: dict, journal: Journal):
             take_profit= float(trade_details["take_profit"]),
             stop_loss= float(trade_details["stop_loss"]),
             position_size= float(trade_details["position_size"]),
-            entry_time= time(trade_details["entry_time"]),
-            exit_time= time(trade_details["exit_time"]),
-            date= date(trade_details["date"]),
+            entry_time= trade_details["entry_time"],
+            exit_time= trade_details["exit_time"],
+            date= trade_details["date"],
             model_id= int(trade_details["model_id"]),
             account_id= int(trade_details["account_id"]),
             management_id= int(trade_details["management_id"]),
@@ -47,8 +46,10 @@ def submit_trade(trade_details: dict, journal: Journal):
             parameters_submitted= False,
             overall_trade_grade= None
         )
-    except (ValueError, KeyError) as e:
-        return ServiceResult(success= False, message= f"Invalid input values: {e}", data= None)
+    except KeyError as e:
+        return ServiceResult(success= False, message= f"KEYERROR. VALUE ISN'T IN ST: {e}", data= None)
+    except ValueError as e:
+        return ServiceResult(success= False, message= f"TYPE CASTING FAILED: {e}", data= None)
     
     #STEP #3: CALL JOURNAL.PY METHOD # #STEP #4: CATCH/TRANSLATE ERRORS
     try:
@@ -61,11 +62,11 @@ def submit_trade(trade_details: dict, journal: Journal):
     #STEP #5: RETURN UI VALID OBJECT
     return ServiceResult(success= True, message= "TRADE RECORDED SUCCESSFULLY!", data= recorded_trade)
 
-def submit_trade_notes(trade_id: int, trade_notes: dict, journal: Journal):
+def submit_trade_notes(trade_notes: dict, journal: Journal):
 
     try:
         trading_notes = TradeNotes(
-            trade_id= trade_id,
+            trade_id= trade_notes["trade_id"],
             emotions= trade_notes["emotions"],
             mistakes= trade_notes["mistakes"],
             lessons= trade_notes["lessons"],
@@ -75,19 +76,32 @@ def submit_trade_notes(trade_id: int, trade_notes: dict, journal: Journal):
         return ServiceResult(success= False, message= f"SOME VALUES MISSING: {e}", data= None)
 
     try:
-        journal.add_reflection_notes(trade_id, trade_notes)
+        journal.add_reflection_notes(trading_notes)
     except t.Notes_Recording_Error as e:
-        return ServiceResult(success= False, message= f"ERROR OCCURRED WHILE RECORDING NOTES: {e}")
+        return ServiceResult(success= False, message= f"ERROR OCCURRED WHILE RECORDING NOTES: {e}", data= None)
 
     return ServiceResult(success= True, message= "TRADE NOTES RECORDED SUCCESSFULLY!", data= trading_notes)
 
-def submit_trade_parameters(trade_id: int, trade_parameters: list):
-    #ACCEPT UI LIST OF PARAMETERS
-    #CONSTRUCT DOMAIN OBJECT: LIST OF STRs
-    #CALL FINALIZE_GRADE JOURNAL METHOD
-    #CATCH AND TRANSLATE RELEVANT ERRORS
-    #RETURN SERVICERESULT
-    pass
+def submit_trade_parameters(trade_id: int, trade_parameters: list, journal: Journal):
+    #ASSUMPTIONS INCLUDE: TRADE IS ALREADY IN THE TRADES DATABASE TABLE.
+    #THE TRADE HASN'T BEEN GRADED YET SO WE CALL FINALIZE_GRADE TO GRADE IT.
+    #TRADE CAN'T BE GRADED UNTIL PARAMETERS_SUBMITTED BOOL == TRUE
+    #THIS SERVICE FUNCTION NEEDS TO FLIP THE BOOL FROM FALSE DEFAULT TO TRUE.
+
+    try:
+        trade = journal.get_trade(trade_id)
+        trade.parameters_submitted = True #ONLY PLACE WHERE THIS BOOL CAN BE FLIPPED TO TRUE
+
+        if trade.parameters_submitted:
+            graded_trade = journal.finalize_grade(trade_id, trade_parameters)
+
+    except t.Invalid_TradeID_Error:  #WE DON'T NEED AS e BECAUSE THE ERROR MESSAGE IS SIMILAR TO .message
+        return ServiceResult(success= False, message= f"PROVIDED TRADE_ID IS INVALID. GOT {trade_id}")
+    except t.Grading_Error as e:
+        return ServiceResult(success= False, message= f"ERROR GRADING TRADE: {e}")
+
+    return ServiceResult(success= True, message= "TRADE PARAMETERS SUBMITTED SUCCESSFULLY!", data= graded_trade)
+
 
 def submit_trade_charts(trade_id: int, trade_charts: dict, journal: Journal):
     #FROM STREAMLIT DOCS
@@ -125,9 +139,9 @@ def submit_journal_entry(
                 take_profit= float(trade_details["take_profit"]),
                 stop_loss= float(trade_details["stop_loss"]),
                 position_size= float(trade_details["position_size"]),
-                entry_time= time(trade_details["entry_time"]),
-                exit_time= time(trade_details["exit_time"]),
-                date= date(trade_details["date"]),
+                entry_time= trade_details["entry_time"],
+                exit_time= trade_details["exit_time"],
+                date= trade_details["date"],
                 model_id= int(trade_details["model_id"]),
                 account_id= int(trade_details["account_id"]),
                 management_id= int(trade_details["management_id"]),
@@ -212,7 +226,7 @@ def fetch_trade(trade_id: int, journal: Journal):
     try:
         trade = journal.get_trade(trade_id)
     except t.Invalid_TradeID_Error as e:
-        return ServiceResult(success= False, message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}")
+        return ServiceResult(success= False, message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}, {e}")
     
     return ServiceResult(success= True, message= "TRADE FETCHED SUCCESSFULLY!", data= trade)
 
