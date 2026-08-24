@@ -53,7 +53,7 @@ class Trade:
     rr_multiple : float | None
     account_balance : float
     risk_percent : float
-    parameters_submitted: bool
+    parameters_submitted: bool = False
     overall_trade_grade : TradeGrade | None = None
 
 @dataclass
@@ -77,7 +77,7 @@ class TradeChart:
 @dataclass
 class TradeNotes:
     """THIS CLASS MANAGES TRADING NOTES DATA."""
-    """TRADING NOTES INCLUDE EMOTIONS, MISTAKES, THOUGHTS."""
+    """TRADING NOTES INCLUDE EMOTIONS, MISTAKES, LESSONS, GENERAL_NOTES"""
     trade_id : int | None
     emotions : str
     mistakes : str
