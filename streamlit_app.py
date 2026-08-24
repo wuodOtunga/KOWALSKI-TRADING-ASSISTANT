@@ -42,7 +42,10 @@ def main():
 
     if st.session_state.show_trade_details_form:
         kowalski._render_trade_details_form()
-    kowalski._render_trade_notes_form()
+
+    if st.session_state.show_trade_notes_form:
+        kowalski._render_trade_notes_form()
+
     kowalski._render_trade_parameters_form()
     kowalski._render_trade_charts_form()
     kowalski._render_trade_amendment_form()
@@ -154,7 +157,7 @@ class Kowalski:
     def _render_trade_notes_form(self):
         st.header("TRADE NOTES ENTRY FORM")
         with st.form("TRADE NOTES", enter_to_submit=False):
-            st.number_input("TRADE ID", value= None, key= "trade_id")
+            st.number_input("TRADE ID", value= None, key= "tradingID")
             st.text_area("EMOTIONS DURING TRADE", key="emotions", placeholder="eg., Anxious at entry, confident during move.")
             st.text_area("MISTAKES MADE", key="mistakes", placeholder="eg., Entered too early, added to loosers.")
             st.text_area("LESSONS LEARNT", key="lessons", placeholder="eg., Follow the trading model.")
@@ -163,7 +166,7 @@ class Kowalski:
             submit = st.form_submit_button(label="SUBMIT")
             if submit:
                 trade_notes = {
-                    "trade_id": st.session_state.trade_id,
+                    "trade_id": st.session_state.tradingID,
                     "emotions": st.session_state.emotions,
                     "mistakes": st.session_state.mistakes,
                     "lessons": st.session_state.lessons,
@@ -174,7 +177,7 @@ class Kowalski:
                 if empty_values:
                     st.warning(f"Please fill in all the values: {','.join(empty_values)}")
                 else:
-                    results = s.submit_trade_notes(st.session_state.trade_id, trade_notes, self.journal)
+                    results = s.submit_trade_notes(st.session_state.trade_notes, self.journal)
 
                     if results.success:
                         st.session_state.last_trade_notes_results = results
