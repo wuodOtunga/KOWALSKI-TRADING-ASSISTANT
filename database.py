@@ -31,6 +31,9 @@ class Database:
         cursor.execute("PRAGMA foreign_keys = ON")
         self.initialize_database()
 
+    #DATABASE ISSUE: IF YOU DELETE/ADD A COLUMN IN A TABLE, WHEN PROGRAM RUNS AGAIN,
+    #IT DOESN'T CREATE NEW VERSION OF THE TABLE BECAUSE THE TABLE ALREADY EXISTS.
+    #FIND A FIX.
     def initialize_database(self) -> None:
         """RUNS SCHEMA STATEMENTS FROM SCHEMA.SQL"""
         """MAKES SURE TABLES EXISTS"""
@@ -74,6 +77,7 @@ class Database:
 #foreign-key violation, UNIQUE constraint violation
 #CHECK constraint violatioN, NOT NULL violation
 #PRIMARY KEY violation
+#FIX: USE SQLITE ERROR CODES
     def save_trade(self, trade: Trade) -> int:
         """SAVE TRADE TO DATABASE"""
         """RETURNS LASTROWID REPRESENTING TRADEID"""
@@ -87,15 +91,24 @@ class Database:
 
         cursor = self.conn.cursor()
 
+        #I RAN INTO SQLITE3.OPERATIONALERROR: TABLE TRADES HAS NO COLUMN NAMED account_balance
+        #ADDING NEW FIELDS IN THE TRADE DATACLASS, THEN ADDING INTO THE SAVE TRADE INSERT SQL STRING
+        #BUT THEN FORGETTING TO UPDATE THE SCHEMA.SQL FILE.
+        #ADD AN EXTRA EXCEPT CLAUSE FOR THIS SQLITE3 ERROR.
+        #ALSO RAN INTO SQLITE3.PROGRAMMINGERROR: CONNECTION OBJECT CAN ONLY BE USED IN THE SAME THREAD
+        #IT WAS CREATED. RESEARCH MORE ABOUT SQLITE3 THREAD MECHANICS
+        #I RAN INTO SQLITE3.PROGRAMMINGERROR: PARAMETERS ARE OF UNSUPPORTED TYPES.
+        #I PASSED TRADE_ID AS A PARAMETER INSTEAD OF A ONE ELEMENT TUPLE LIKE SO (TRADE_ID,)
+        #DATABASE IS CURRENTLY LOCKED. FIND OUT WHAT CAUSES THIS AND A FIX.
         try:
             cursor.execute("INSERT INTO trades (entry_price, exit_price, take_profit, stop_loss, position_size, entry_time, exit_time," \
             "date, model_id, account_id, management_id, entry_execution_id, asset, direction, dollar_amount, duration, result, rr_multiple,\
-            overall_trade_grade) VALUES"
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+            account_balance, risk_percent, overall_trade_grade) VALUES"
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
             (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size, 
              trade.entry_time.strftime("%I:%M %p"), trade.exit_time.strftime("%I:%M %p"), trade.date.isoformat(), trade.model_id,
             trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
-            trade.duration.total_seconds(), trade.result, trade.rr_multiple, trade.overall_trade_grade))
+            trade.duration.total_seconds(), trade.result, trade.rr_multiple, trade.account_balance, trade.risk_percent, trade.overall_trade_grade))
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
         
@@ -229,7 +242,7 @@ class Database:
         """RETURNS LIST OF PARAMETER IDS MATCHING THE TRADE_ID"""
 
         cursor = self.conn.cursor()
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM trades WHERE trade_id = ?)", trade_id)
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM trades WHERE trade_id = ?)", (trade_id,))
         exists = cursor.fetchone()[0]
         if not exists:
             raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} IS INVALID.")
