@@ -104,7 +104,7 @@ class Journal:
             "parameters_score" : parameters_score,
         }
     
-    def grade_trade(self, trade: Trade) -> None:
+    def grade_trade(self, trade: Trade) -> Trade:
 
         #CALCULATE TRADE_POINTS.
         #TRADE_POINTS == POINTS SCORED ON MODEL CHECKLIST.
@@ -126,6 +126,7 @@ class Journal:
             if trade_points == points:
                 trade_grade = grade
 
+        trade.overall_trade_grade = trade_grade
         #UPDATE THE GRADE OF THE TRADE FROM NONE TO TRADE_GRADE
         try:
             self.db.update_trade_grade(trade.trade_id, trade_grade)
@@ -134,9 +135,8 @@ class Journal:
         except t.Trade_Not_Found_Error as e:
             raise t.Grading_Error(f"{trade.trade_id} IS INVALID. PROVIDE VALID TRADE_ID, {e}") from e
 
-        #RETURN NONE.
-        #CALLER DOESNT NEED THE NEW GRADE BECAUSE METHOD ALREADY UPDATES THE NEW TRADE
-        #TO THE TRADE BY CALLING UPDATE_TRADE_GRADE INTERNALLY.
+        return trade
+
 
 #I WANT TO FORMALIZE WHAT TRADE NOTES MEANS FOR UNIFORMITY ACROSS TRADES.
 #TRADE NOTES INCLUDE: EMOTIONS, MISTAKES, LESSONS, NOTES.
@@ -296,16 +296,16 @@ class Journal:
             for parameter in parameter_ids:
                 self.db.add_trade_parameters(trade_id, parameter)
             trade = self.db.get_by_id(trade_id)
-            if trade.parameters_submitted:
-                self.grade_trade(trade)
+            if trade.overall_trade_grade is None:
+                graded_trade = self.grade_trade(trade)
             else:
-                raise t.Grading_Error("PARAMETERS NOT CONFIRMED FOR THIS TRADE")
+                raise t.Grading_Error("GRADING ERROR: TRADE HAS ALREADY BEEN GRADED")
             self.db.commit()
         except t.DatabaseError as e:
             self.db.rollback()
             raise t.Grading_Error(f"ERROR FINALIZING GRADE: {e}")
 
-        return trade
+        return graded_trade
 
 #ADD JOURNAL METHOD FOR CREATING AN ACCOUNT
   
