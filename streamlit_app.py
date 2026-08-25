@@ -290,8 +290,9 @@ class Kowalski:
                 st.session_state.show_trade_notes_form = True
             if st.button("RECORD TRADE PARAMETERS"):
                 st.session_state.show_trade_parameters_form = True
+            st.button("RECORD TRADE CHARTS")
             st.button("RECORD JOURNAL ENTRY")
-            st.button("FETCH JOURNAL ENTRY")
+            st.button("EDIT RECORDED TRADE")
 
         st.sidebar.subheader("TRADING CALCULATOR")
         with st.sidebar.expander("CALCULATOR ACTIONS"):
@@ -309,9 +310,11 @@ class Kowalski:
             st.button("TRADE STATS")
             st.button("ANALYTICS CHARTS")
 
-        st.sidebar.subheader("RECORD OF ALL TRADES")
-        with st.sidebar.expander("FULL TRADE HISTORY"):
-            st.button("FETCH ALL TRADES")
+        st.sidebar.subheader("RECORDS OF TRADES")
+        with st.sidebar.expander("TRADE HISTORY"):
+            st.button("VIEW TRADE")
+            st.button("VIEW ALL TRADES")
+            st.button("VIEW JOURNAL ENTRY")
 
         st.write("USE THE TABS TO IDENTIFY RELEVANT IDs REQUIRED BY THE JOURNAL.")
         tab1, tab2, tab3, tab4, tab5 = st.tabs(["tab1", "tab2", "tab3", "tab4", "tab5"])
