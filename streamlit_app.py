@@ -46,7 +46,9 @@ def main():
     if st.session_state.show_trade_notes_form:
         kowalski._render_trade_notes_form()
 
-    kowalski._render_trade_parameters_form()
+    if st.session_state.show_trade_parameters_form:
+        kowalski._render_trade_parameters_form()
+
     kowalski._render_trade_charts_form()
     kowalski._render_trade_amendment_form()
 
@@ -61,7 +63,7 @@ class Kowalski:
             st.session_state.trade_notes = {}
 
         if "trade_parameters" not in st.session_state:
-            st.session_state.trade_parameters = []
+            st.session_state.trade_parameters = {}
 
         if "trade_charts" not in st.session_state:
             st.session_state.trade_charts = {}
@@ -80,6 +82,12 @@ class Kowalski:
 
         if "last_trade_notes_results" not in st.session_state:
             st.session_state.last_trade_notes_results = None
+
+        if "show_trade_parameters_form" not in st.session_state:
+            st.session_state.show_trade_parameters_form = False
+
+        if "last_parameters_results" not in st.session_state:
+            st.session_state.last_parameters_results = None
     
     #UNDERSTAND WHETHER I SHOULD BUILD THE TRADE_DETAILS FIRST OUTSIDE SESSION_STATE
     #THEN AT IF SUBMIT IS WHEN I ADD THE DICT TO SESSION_STATE
@@ -200,13 +208,35 @@ class Kowalski:
     def _render_trade_parameters_form(self):
         st.header("TRADE PARAMETERS CHECKLIST")
         with st.form("PARAMETERS CHECKLIST", enter_to_submit=False):
-            st.session_state.trade_parameters = st.multiselect("PARAMETERS CHECKLIST", parameters, key="checklist")
+            st.number_input("TRADE ID", value= None, key= "trade_identifier")
+            
+            #WHAT DOES MULTISELECT RETURN WHEN NO OPTIONS HAVE BEEN SELECTED
+            #RESEARCH ABOUT PERSIST_STATE PARAMETER, NONE/PAGE/SESSION
+            st.multiselect("PARAMETERS CHECKLIST", parameters, key="checklist")
 
             submit = st.form_submit_button(label="SUBMIT")
             if submit:
-                st.write("PARAMETERS PRESENT IN THE TRADE INCLUDE:")
-                for parameter in st.session_state.trade_parameters:
-                    st.write(parameter)
+                trade_parameters = {
+                    "trade_id": st.session_state.trade_identifier,
+                    "parameters_list": st.session_state.checklist,
+                }
+                st.session_state.trade_parameters = trade_parameters
+                #NO CHECK FOR EMPTY VALUES BECAUSE THE parameters_list CAN HAVE 0 SELECTED OPTIONS
+                results = s.submit_trade_parameters(st.session_state.trade_parameters, self.journal)
+                if results.success:
+                    st.session_state.last_parameters_results = results
+                    st.session_state.trade_parameters = {}
+                    st.success(results.message)
+                else:
+                    st.session_state.last_parameters_results = results
+                    st.error(results.message)
+
+                #DISPLAY THE GRADED TRADE BACK TO THE TRADER.
+                if st.session_state.last_parameters_results and st.session_state.last_parameters_results.success:
+                    st.write(f"GRADED TRADE WITH ID OF {st.session_state.trade_identifier}")
+                    trade = st.session_state.last_parameters_results.data
+                    for field, value in asdict(trade).items():
+                        st.write(f"{field}: {value}")
 
     def _render_trade_charts_form(self):
         st.header("TRADING CHARTS UPLOAD")
@@ -258,7 +288,8 @@ class Kowalski:
                 st.session_state.show_trade_details_form = True
             if st.button("RECORD TRADE NOTES"):
                 st.session_state.show_trade_notes_form = True
-            st.button("AMEND TRADE")
+            if st.button("RECORD TRADE PARAMETERS"):
+                st.session_state.show_trade_parameters_form = True
             st.button("RECORD JOURNAL ENTRY")
             st.button("FETCH JOURNAL ENTRY")
 
