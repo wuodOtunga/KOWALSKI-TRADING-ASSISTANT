@@ -101,7 +101,7 @@ def submit_trade_parameters(trade_parameters: dict, journal: Journal):
     return ServiceResult(success= True, message= "TRADE PARAMETERS SUBMITTED SUCCESSFULLY!", data= graded_trade)
 
 
-def submit_trade_charts(trade_id: int, trade_charts: dict, journal: Journal):
+def submit_trade_charts(trade_charts: dict, journal: Journal):
     #FROM STREAMLIT DOCS
     #The UploadedFile class is a subclass of BytesIO, and therefore is "file-like". 
     #This means you can pass an instance of it anywhere a file is expected.
@@ -109,14 +109,17 @@ def submit_trade_charts(trade_id: int, trade_charts: dict, journal: Journal):
     try:
         charts = TradeChart(
             chart_id= None,
-            trade_id= trade_id,
+            trade_id= trade_charts["trade_id"],
             filepath= trade_charts["charts"],
-            timeframe= trade_charts["timeframes"]
+            timeframe= trade_charts["timeframes"],
         )
     except KeyError as e:
         return ServiceResult(success= False, message= f"INVALID KEY REFERENCE: {e}", data= None)
-
+    trade_id = trade_charts["trade_id"]
     try:
+        #SQLITE3.PROGRAMMINGERROR RAISED WHEN ADDING CHARTS TO THE DB.
+        #CHARTS AND TIMEFRAMES ARE LISTS HENCE WE HAVE ERROR BINDING PARAMETERS
+        #SINCE TYPE LIST IS NOT SUPPORTED. FIND A FIX.
         uploaded_charts = journal.attach_charts(trade_id, charts)
     except t.Chart_Upload_Error as e:
         return ServiceResult(success= False, message= f"ERROR UPLOADING CHART: {e}", data= None)

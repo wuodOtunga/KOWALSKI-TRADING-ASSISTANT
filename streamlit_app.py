@@ -49,7 +49,9 @@ def main():
     if st.session_state.show_trade_parameters_form:
         kowalski._render_trade_parameters_form()
 
-    kowalski._render_trade_charts_form()
+    if st.session_state.show_trade_charts_form:
+        kowalski._render_trade_charts_form()
+
     kowalski._render_trade_amendment_form()
 
 class Kowalski:
@@ -88,6 +90,12 @@ class Kowalski:
 
         if "last_parameters_results" not in st.session_state:
             st.session_state.last_parameters_results = None
+
+        if "show_trade_charts_form" not in st.session_state:
+            st.session_state.show_trade_charts_form = False
+
+        if "last_charts_results" not in st.session_state:
+            st.session_state.last_charts_results = None
     
     #UNDERSTAND WHETHER I SHOULD BUILD THE TRADE_DETAILS FIRST OUTSIDE SESSION_STATE
     #THEN AT IF SUBMIT IS WHEN I ADD THE DICT TO SESSION_STATE
@@ -241,12 +249,14 @@ class Kowalski:
     def _render_trade_charts_form(self):
         st.header("TRADING CHARTS UPLOAD")
         with st.form("TRADING CHARTS", enter_to_submit=False):
+            st.number_input("TRADING ID", value= None, key= "charting_id")
             st.file_uploader("UPLOAD TRADING CHARTS", type=["png", "jpg", "jpeg"], key="charts", accept_multiple_files=True)
             st.multiselect("SELECT TIMEFRAME", timeframes, key="timeframes")
 
             submit = st.form_submit_button(label="SUBMIT")
             if submit:
                 trade_charts = {
+                    "trade_id": st.session_state.charting_id,
                     "charts": st.session_state.charts,
                     "timeframes": st.session_state.timeframes,
                 }
@@ -255,7 +265,22 @@ class Kowalski:
                 if empty_values:
                     st.warning(f"Please fill in all the values: {','.join(empty_values)}")
                 else:
-                    st.success("TRADING CHARTS UPLOADED SUCCESSFULLY!")
+                    #SQLITE3.PROGRAMMINGERROR RAISED WHEN ADDING CHARTS TO THE DB.
+                    #CHARTS AND TIMEFRAMES ARE LISTS HENCE WE HAVE ERROR BINDING PARAMETERS
+                    #SINCE TYPE LIST IS NOT SUPPORTED. FIND A FIX.
+                    results = s.submit_trade_charts(st.session_state.trade_charts, self.journal)
+                    if results.success:
+                        st.session_state.last_charts_results = results
+                        st.session_state.trade_charts = {}
+                        st.success(results.message)
+                    else:
+                        st.session_state.last_charts_results = results
+                        st.error(results.message)
+
+                    if st.session_state.last_charts_results and st.session_state.last_charts_results.success:
+                        uploaded_charts = st.session_state.last_charts_results.data
+                        for field, value in asdict(uploaded_charts).items():
+                            st.write(f"{field}: {value}")
 
     def _render_trade_amendment_form(self):
         st.header("TRADE AMENDMENTS ENTRY FORM")
@@ -290,7 +315,8 @@ class Kowalski:
                 st.session_state.show_trade_notes_form = True
             if st.button("RECORD TRADE PARAMETERS"):
                 st.session_state.show_trade_parameters_form = True
-            st.button("RECORD TRADE CHARTS")
+            if st.button("RECORD TRADE CHARTS"):
+                st.session_state.show_trade_charts_form = True
             st.button("RECORD JOURNAL ENTRY")
             st.button("EDIT RECORDED TRADE")
 
