@@ -43,7 +43,6 @@ def submit_trade(trade_details: dict, journal: Journal):
             rr_multiple= None,
             account_balance= float(trade_details["account_balance"]),
             risk_percent= float(trade_details["risk_percent"]),
-            parameters_submitted= False,
             overall_trade_grade= None
         )
     except KeyError as e:
@@ -82,23 +81,22 @@ def submit_trade_notes(trade_notes: dict, journal: Journal):
 
     return ServiceResult(success= True, message= "TRADE NOTES RECORDED SUCCESSFULLY!", data= trading_notes)
 
-def submit_trade_parameters(trade_id: int, trade_parameters: list, journal: Journal):
+def submit_trade_parameters(trade_parameters: dict, journal: Journal):
     #ASSUMPTIONS INCLUDE: TRADE IS ALREADY IN THE TRADES DATABASE TABLE.
     #THE TRADE HASN'T BEEN GRADED YET SO WE CALL FINALIZE_GRADE TO GRADE IT.
     #TRADE CAN'T BE GRADED UNTIL PARAMETERS_SUBMITTED BOOL == TRUE
     #THIS SERVICE FUNCTION NEEDS TO FLIP THE BOOL FROM FALSE DEFAULT TO TRUE.
 
-    try:
-        trade = journal.get_trade(trade_id)
-        trade.parameters_submitted = True #ONLY PLACE WHERE THIS BOOL CAN BE FLIPPED TO TRUE
+    trade_id = trade_parameters["trade_id"] #MIGHT RAISE KEYERROR, HANDLE THAT IF IT DOES.
+    parameters_list = trade_parameters["parameters_list"]
 
-        if trade.parameters_submitted:
-            graded_trade = journal.finalize_grade(trade_id, trade_parameters)
+    try:
+        graded_trade = journal.finalize_grade(trade_id, parameters_list)
 
     except t.Invalid_TradeID_Error:  #WE DON'T NEED AS e BECAUSE THE ERROR MESSAGE IS SIMILAR TO .message
-        return ServiceResult(success= False, message= f"PROVIDED TRADE_ID IS INVALID. GOT {trade_id}")
+        return ServiceResult(success= False, message= f"PROVIDED TRADE_ID IS INVALID. GOT {trade_id}", data= None)
     except t.Grading_Error as e:
-        return ServiceResult(success= False, message= f"ERROR GRADING TRADE: {e}")
+        return ServiceResult(success= False, message= f"ERROR GRADING TRADE: {e}", data= None)
 
     return ServiceResult(success= True, message= "TRADE PARAMETERS SUBMITTED SUCCESSFULLY!", data= graded_trade)
 
@@ -154,7 +152,6 @@ def submit_journal_entry(
                 rr_multiple= None,
                 account_balance= float(trade_details["account_balance"]),
                 risk_percent= float(trade_details["risk_percent"]),
-                parameters_submitted= False,
                 overall_trade_grade= None
             )
 
