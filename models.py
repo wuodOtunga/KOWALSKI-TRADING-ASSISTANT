@@ -53,7 +53,6 @@ class Trade:
     rr_multiple : float | None
     account_balance : float
     risk_percent : float
-    parameters_submitted: bool = False
     overall_trade_grade : TradeGrade | None = None
 
 @dataclass
