@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS "trades" (
     "duration" NUMERIC, --calculated from trading_calculator.py
     "result" NUMERIC,    --calculated from trading_calculator.py
     "rr_multiple" NUMERIC,       --calculated from trading_calculator.py
+    "account_balance" NUMERIC,
+    "risk_percent" NUMERIC,
     "overall_trade_grade" TEXT CHECK("overall_trade_grade" IN ('A+', 'B', 'C', 'D', 'F') OR "overall_trade_grade" IS NULL),
     
     PRIMARY KEY("trade_id"),
