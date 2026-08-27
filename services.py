@@ -195,7 +195,7 @@ def submit_journal_entry(
     return ServiceResult(success= True, message= "JOURNAL ENTRY RECORDED SUCCESSFULLY!", data= recorded_journal_entry)
 
 
-def submit_amendment(trade_id: int, trade_amendment: dict, journal: Journal):
+def submit_amendment(trade_amendment: dict, journal: Journal):
 
     try:
         amendment = Amendments(
@@ -210,7 +210,7 @@ def submit_amendment(trade_id: int, trade_amendment: dict, journal: Journal):
         return ServiceResult(success= False, message= f"INVALID KEY REFERENCE: {e}", data=None)
 
     try:
-        amended_trade = journal.amend_trade_entry(trade_id, amendment)
+        amended_trade = journal.amend_trade_entry(amendment.trade_id, amendment)
     except t.Trade_Recording_Error as e:
         return ServiceResult(success= False, message= f"ERROR RECORDING AMENDMENT: {e}", data= None)
     except t.Trade_Validation_Error as e:

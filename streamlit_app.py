@@ -52,7 +52,8 @@ def main():
     if st.session_state.show_trade_charts_form:
         kowalski._render_trade_charts_form()
 
-    kowalski._render_trade_amendment_form()
+    if st.session_state.show_trade_amendment_form:
+        kowalski._render_trade_amendment_form()
 
 class Kowalski:
     def __init__(self, journal: Journal):
@@ -96,6 +97,12 @@ class Kowalski:
 
         if "last_charts_results" not in st.session_state:
             st.session_state.last_charts_results = None
+
+        if "show_trade_amendment_form" not in st.session_state:
+            st.session_state.show_trade_amendment_form = False
+
+        if "last_trade_changes_results" not in st.session_state:
+            st.session_state.last_trade_changes_results = None
     
     #UNDERSTAND WHETHER I SHOULD BUILD THE TRADE_DETAILS FIRST OUTSIDE SESSION_STATE
     #THEN AT IF SUBMIT IS WHEN I ADD THE DICT TO SESSION_STATE
@@ -287,13 +294,14 @@ class Kowalski:
         with st.form("TRADE CHANGES", enter_to_submit=False):
             st.number_input("TRADE_ID", value=None, key= "trade_id")
             st.selectbox("COLUMN NAME", column_names, index=None, key= "column_names")
+            #FIND OUT WHY NUMBER INPUT WIDGET RETURNS A FLOAT INSTEAD OF INTENDED INT
             st.number_input("NEW VALUE", value=None, key= "new_value")
 
             submit = st.form_submit_button(label="SUBMIT")
             if submit:
                 trade_amendment = {
                     "trade_id": st.session_state.trade_id,
-                    "column_names": st.session_state.column_names,
+                    "column_name": st.session_state.column_names,
                     "new_value": st.session_state.new_value,
                 }
                 st.session_state.trade_amendment = trade_amendment
@@ -301,7 +309,15 @@ class Kowalski:
                 if empty_values:
                     st.warning(f"Please fill in all the values: {','.join(empty_values)}")
                 else:
-                    st.success("TRADE AMENDMENTS SUBMITTED SUCCESSFULLY!")
+                    results = s.submit_amendment(st.session_state.trade_amendment, self.journal)
+                    if results.success:
+                        st.session_state.last_trade_changes_results = results
+                        st.session_state.trade_amendment = {}
+                        st.success(results.message)
+                        st.balloons()
+                    else:
+                        st.session_state.last_trade_changes_results = results
+                        st.error(results.message)
 
     def _render_widgets(self):
         st.title("KOWALSKI TRADING JOURNAL")
@@ -318,7 +334,9 @@ class Kowalski:
             if st.button("RECORD TRADE CHARTS"):
                 st.session_state.show_trade_charts_form = True
             st.button("RECORD JOURNAL ENTRY")
-            st.button("EDIT RECORDED TRADE")
+
+            if st.button("EDIT RECORDED TRADE"):
+                st.session_state.show_trade_amendment_form = True
 
         st.sidebar.subheader("TRADING CALCULATOR")
         with st.sidebar.expander("CALCULATOR ACTIONS"):

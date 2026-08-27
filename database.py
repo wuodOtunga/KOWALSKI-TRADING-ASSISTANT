@@ -113,7 +113,10 @@ class Database:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
         
         return cursor.lastrowid
-    
+
+    #ISSUE TO BE FIXED: WHEN WE PULL A TRADE FROM DB, SOME VALUES NEED REFORMATTING
+    #TO PASS VALIDATION SINCE THE TYPE STORED IN SQLITE IS DIFFERENT FROM PYTHON TYPES.
+    #EG. ENUM TYPES
     def get_by_id(self, trade_id: int) -> Trade:
         """GET TRADE DETAILS BY ID FROM DATABASE"""
         """RETURN TRADE ROW DETAILS FROM TRADES TABLE"""
