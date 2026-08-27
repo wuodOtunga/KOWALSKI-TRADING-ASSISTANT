@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, time
 
 import exceptions as t
 import trade_calculator as y
@@ -7,7 +7,10 @@ from models import (
     Amendments,
     JournalEntry,
     Trade,
+    TradeAsset,
     TradeChart,
+    TradeDirection,
+    TradeGrade,
     TradeNotes,
     TradeResult,
 )
@@ -120,8 +123,11 @@ class Journal:
             trade_points = parameters_score
 
         #GRADING OF TRADE BASED ON TRADE_POINTS.
-        #(POINTS, GRADE) -> (8, A+), (6/7, A), (5, B), (4, C), (3, D) (<3, F)
-        grading_system = [(8, "A+"), (7, "A"), (6, "A"), (5, "B"), (4, "C"), (3, "D"), (2, "F"), (1, "F"), (0, "F")]
+        #(POINTS, GRADE) -> (8, A), (6/7, A), (5, B), (4, C), (3, D) (<3, F)
+        grading_system = [(8, TradeGrade.A), (7, TradeGrade.A), 
+                          (6, TradeGrade.A), (5, TradeGrade.B), 
+                          (4, TradeGrade.C), (3, TradeGrade.D), 
+                          (2, TradeGrade.F), (1, TradeGrade.F), (0, TradeGrade.F)]
         for points, grade in grading_system:
             if trade_points == points:
                 trade_grade = grade
@@ -131,7 +137,7 @@ class Journal:
         try:
             self.db.update_trade_grade(trade.trade_id, trade_grade)
         except t.Invalid_Grade_Error as e:
-            raise t.Grading_Error(f"{trade_grade} IS INVALID. SHOULD BE BETWEEN (A+ - F), {e}") from e
+            raise t.Grading_Error(f"{trade_grade} IS INVALID. SHOULD BE BETWEEN (A - F), {e}") from e
         except t.Trade_Not_Found_Error as e:
             raise t.Grading_Error(f"{trade.trade_id} IS INVALID. PROVIDE VALID TRADE_ID, {e}") from e
 
@@ -260,6 +266,31 @@ class Journal:
             "account_balance" : self._compute_derived_fields,
             "risk_percent" : self._compute_derived_fields,
         }
+
+        #LOOK UP TABLE FOR TYPE CASTING OF NEW_VALUE GIVEN COLUMN_NAME
+        column_types = {
+            "entry_price": float,
+            "exit_price": float,
+            "take_profit": float,
+            "stop_loss": float,
+            "position_size": float,
+            "entry_time": time,
+            "exit_time": time,
+            "date": date,
+            "model_id": int,
+            "account_id": int,
+            "management_id": int,
+            "entry_execution_id": int,
+            "asset": TradeAsset,
+            "direction": TradeDirection,
+            "account_balance": float,
+            "risk_percent": float,
+        }
+        #THE CASTING WON'T WORK FOR DATE/TIME VALUES.
+        #STREAMLIT ALREADY RETURNS AS A DATETIME OBJECT.
+        caster = column_types[amendment.column_name]
+        typed_value = caster(amendment.new_value)
+        amendment.new_value = typed_value
 
     #.GET() METHOD RETURNS NONE IF VALUE ISN'T IN THE DICTIONARY.
     #MEANING HAVING MODEL_ID, ACCOUNT_ID IN THE DICTIONARY IS REDUNDANT.

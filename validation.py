@@ -40,18 +40,18 @@ def type_validation(trade: Trade) -> None:
     #STATE WHAT SHOULD BE TRUE, NOT HOW TO CHECK IT.
     valid_types = [
         #(field_name, field_value, expected_type, positive_check)
-        ("entry_price", trade.entry_price, (float, int), True),
-        ("exit_price", trade.exit_price, (float, int), True),
-        ("take_profit", trade.take_profit, (float, int), True),
-        ("stop_loss", trade.stop_loss, (float, int), True),
-        ("position_size", trade.position_size, (float, int), True),
+        ("entry_price", trade.entry_price, float, True),
+        ("exit_price", trade.exit_price, float, True),
+        ("take_profit", trade.take_profit, float, True),
+        ("stop_loss", trade.stop_loss, float, True),
+        ("position_size", trade.position_size, float, True),
         ("entry_time", trade.entry_time, time, False),
         ("exit_time", trade.exit_time, time, False),
         ("date", trade.date, date, False),
-        ("model_id", trade.model_id, (int, float), True),
-        ("account_id", trade.account_id, (int, float), True),
-        ("management_id", trade.management_id, (int, float), True),
-        ("entry_execution_id", trade.entry_execution_id, (int, float), True),
+        ("model_id", trade.model_id, int, True),
+        ("account_id", trade.account_id, int, True),
+        ("management_id", trade.management_id, int, True),
+        ("entry_execution_id", trade.entry_execution_id, int, True),
         ("dollar_amount", trade.dollar_amount, (float, int), False),
         ("result", trade.result, TradeResult, False),   #CHECK THIS LATER.
         ("rr_multiple", trade.rr_multiple, (float, int), False),

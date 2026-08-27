@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time
 from enum import Enum
 
 
@@ -19,6 +19,7 @@ class TradeAsset(str, Enum):
 #FIGURE HOW TO TYPE A+ INTO THE ENUM
 class TradeGrade(str, Enum):
     """THIS CLASS REPRESENTS GRADE AS A TYPE"""
+    A = "A"
     B = "B"
     C = "C"
     D = "D"
@@ -48,7 +49,7 @@ class Trade:
     asset : TradeAsset
     direction : TradeDirection
     dollar_amount : float | None
-    duration : timedelta | None
+    duration : int | None
     result : TradeResult | None
     rr_multiple : float | None
     account_balance : float

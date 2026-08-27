@@ -1,9 +1,19 @@
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import exceptions as t
-from models import Account, Amendments, Trade, TradeChart, TradeNotes
+from models import (
+    Account,
+    Amendments,
+    Trade,
+    TradeAsset,
+    TradeChart,
+    TradeDirection,
+    TradeGrade,
+    TradeNotes,
+    TradeResult,
+)
 from seed_data import (
     accounts,
     entry_execution,
@@ -131,14 +141,12 @@ class Database:
     #NAIVE DATETIME OBJECTS ARE FINE FOR NOW, MIGHT CHANGE LATER IF WE NEED
     #FUNCTIONALITY FOR TIMEZONES.
         row_dict = dict(row)
-        row_dict["entry_time"] = datetime.strptime(row_dict["entry_time"], "%I:%M %p").time()  # noqa: DTZ007
-        row_dict["exit_time"] = datetime.strptime(row_dict["exit_time"], "%I:%M %p").time()  # noqa: DTZ007
-        row_dict["date"] = datetime.fromisoformat(row_dict["date"])
-        return Trade(**row_dict)
+        trade = self._row_to_trade(row_dict)
+        return trade
     
-    def update_trade_grade(self, trade_id: int, overall_trade_grade: str) -> None:
+    def update_trade_grade(self, trade_id: int, overall_trade_grade: TradeGrade) -> None:
         """UPDATES OVERALL_TRADE_GRADE TO DATABASE"""
-        if overall_trade_grade not in ["A+", "B", "C", "D", "F"]:
+        if not isinstance(overall_trade_grade, TradeGrade):
             raise t.Invalid_Grade_Error(f"{overall_trade_grade} IS INVALID.")
         
         cursor = self.conn.cursor()
@@ -348,6 +356,34 @@ class Database:
             parameter_names.append(row[0])
 
         return parameter_names
+
+    def _row_to_trade(self, row_dict: dict):
+        """BUILDS TRADE OBJECT FROM SQLITE ROW VALUES"""
+        row_dict["trade_id"] = int(row_dict["trade_id"])
+        row_dict["entry_price"] = float(row_dict["entry_price"])
+        row_dict["exit_price"] = float(row_dict["exit_price"])
+        row_dict["take_profit"] = float(row_dict["take_profit"])
+        row_dict["position_size"] = float(row_dict["position_size"])
+        row_dict["entry_time"] = datetime.strptime(row_dict["entry_time"], "%I:%M %p").time()  # noqa: DTZ007
+        row_dict["exit_time"] = datetime.strptime(row_dict["exit_time"], "%I:%M %p").time()  # noqa: DTZ007
+        row_dict["date"] = datetime.fromisoformat(row_dict["date"])
+        row_dict["model_id"] = int(row_dict["model_id"])
+        row_dict["account_id"] = int(row_dict["account_id"])
+        row_dict["management_id"] = int(row_dict["management_id"])
+        row_dict["entry_execution_id"] = int(row_dict["entry_execution_id"])
+        row_dict["asset"] = TradeAsset(row_dict["asset"])
+        row_dict["direction"] = TradeDirection(row_dict["direction"])
+        row_dict["dollar_amount"] = float(row_dict["dollar_amount"])
+        row_dict["duration"] = timedelta(seconds=row_dict["duration"])
+        row_dict["result"] = TradeResult(row_dict["result"])
+        row_dict["rr_multiple"] = float(row_dict["rr_multiple"])
+        row_dict["account_balance"] = float(row_dict["account_balance"])
+        row_dict["risk_percent"] = float(row_dict["risk_percent"])
+
+        if row_dict["overall_trade_grade"] is not None:
+            row_dict["overall_trade_grade"] = TradeGrade(row_dict["overall_trade_grade"])
+
+        return Trade(**row_dict)
 
 #RESEARCH THE MECHANICS OF CLOSE() METHOD
 #OPEN FILE LOCKS/STREAMLIT PROCESS FOR EVERY RERUN

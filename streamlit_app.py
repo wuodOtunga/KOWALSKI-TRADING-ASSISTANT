@@ -294,7 +294,8 @@ class Kowalski:
         with st.form("TRADE CHANGES", enter_to_submit=False):
             st.number_input("TRADE_ID", value=None, key= "trade_id")
             st.selectbox("COLUMN NAME", column_names, index=None, key= "column_names")
-            #FIND OUT WHY NUMBER INPUT WIDGET RETURNS A FLOAT INSTEAD OF INTENDED INT
+            #COLUMN_NAME CAN BE A GENERIC ONE, SO ST.NUMBER_INPUT DOESN'T HANDLE
+            #COLUMN VALUES THAT AREN'T NUMBER VALUES LIKE TIME, STR VALUES. FIX THIS.
             st.number_input("NEW VALUE", value=None, key= "new_value")
 
             submit = st.form_submit_button(label="SUBMIT")

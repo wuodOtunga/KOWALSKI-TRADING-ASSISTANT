@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS "trades" (
     "rr_multiple" NUMERIC,       --calculated from trading_calculator.py
     "account_balance" NUMERIC,
     "risk_percent" NUMERIC,
-    "overall_trade_grade" TEXT CHECK("overall_trade_grade" IN ('A+', 'B', 'C', 'D', 'F') OR "overall_trade_grade" IS NULL),
+    "overall_trade_grade" TEXT CHECK("overall_trade_grade" IN ('A', 'B', 'C', 'D', 'F') OR "overall_trade_grade" IS NULL),
     
     PRIMARY KEY("trade_id"),
     FOREIGN KEY("model_id") REFERENCES "models"("model_id"),
