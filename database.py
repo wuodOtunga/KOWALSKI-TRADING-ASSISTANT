@@ -175,13 +175,13 @@ class Database:
         
         self.conn.commit()
 
-    def add_chart(self, trade_id: int, charts: TradeChart) -> int:
+    def add_chart(self, chart: TradeChart) -> int:
         """ATTACH TRADE CHART TO DATABASE"""
 
         cursor = self.conn.cursor()
         try:
-            cursor.execute("INSERT INTO charts (trade_id, filepath, timeframe) VALUES (?, ?, ?)",
-                            (trade_id, charts.filepath, charts.timeframe))
+            cursor.execute("INSERT INTO charts (trade_id, filepath, filename, upload_date) VALUES (?, ?, ?, ?)",
+                            (chart.trade_id, chart.filepath, chart.filename, chart.upload_date))
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
         

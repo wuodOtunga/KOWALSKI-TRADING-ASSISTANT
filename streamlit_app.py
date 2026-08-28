@@ -3,6 +3,7 @@
 #OBJECTIVE #3: DISPLAY FULL TRADE DETAILS TO USER/TRADER
 #OBJECTIVE #4: ENABLE TRADING CALCULATOR FUNCTIONALITY.
 #OBJECTIVE #5: ADD IMPROVEMENTS TO THE WEBSITE.
+import os
 from dataclasses import asdict
 from datetime import datetime
 
@@ -19,7 +20,6 @@ from seed_data import (
     models_df,
     parameters,
     parameters_df,
-    timeframes,
     trade_management_df,
 )
 
@@ -217,9 +217,6 @@ class Kowalski:
                         for field, value in asdict(trading_notes).items():
                             st.write(f"{field}: {value}")
                         
-    #IN THIS FORM, WHAT GETS RETURNED, LIST OF INTS OR LIST OF PARAMETERS
-    #WHEN YOU PRINT OUT TRADE_PARAMETERS, IT PRINTS THE LIST OF PARAMETERS.
-    #SO WHEN DOES THE LIST GET TO THE TRADE PARAMETERS JUNCTION TABLE?
     def _render_trade_parameters_form(self):
         st.header("TRADE PARAMETERS CHECKLIST")
         with st.form("PARAMETERS CHECKLIST", enter_to_submit=False):
@@ -258,23 +255,18 @@ class Kowalski:
         with st.form("TRADING CHARTS", enter_to_submit=False):
             st.number_input("TRADING ID", value= None, key= "charting_id")
             st.file_uploader("UPLOAD TRADING CHARTS", type=["png", "jpg", "jpeg"], key="charts", accept_multiple_files=True)
-            st.multiselect("SELECT TIMEFRAME", timeframes, key="timeframes")
 
             submit = st.form_submit_button(label="SUBMIT")
             if submit:
                 trade_charts = {
                     "trade_id": st.session_state.charting_id,
                     "charts": st.session_state.charts,
-                    "timeframes": st.session_state.timeframes,
                 }
                 st.session_state.trade_charts = trade_charts
                 empty_values = [key for key, value in st.session_state.trade_charts.items() if value is None]
                 if empty_values:
                     st.warning(f"Please fill in all the values: {','.join(empty_values)}")
                 else:
-                    #SQLITE3.PROGRAMMINGERROR RAISED WHEN ADDING CHARTS TO THE DB.
-                    #CHARTS AND TIMEFRAMES ARE LISTS HENCE WE HAVE ERROR BINDING PARAMETERS
-                    #SINCE TYPE LIST IS NOT SUPPORTED. FIND A FIX.
                     results = s.submit_trade_charts(st.session_state.trade_charts, self.journal)
                     if results.success:
                         st.session_state.last_charts_results = results
@@ -285,9 +277,11 @@ class Kowalski:
                         st.error(results.message)
 
                     if st.session_state.last_charts_results and st.session_state.last_charts_results.success:
-                        uploaded_charts = st.session_state.last_charts_results.data
-                        for field, value in asdict(uploaded_charts).items():
-                            st.write(f"{field}: {value}")
+                        uploaded_chart = st.session_state.last_charts_results.data
+                        if not os.path.exists(uploaded_chart.filepath):
+                            st.error(f"FILE NOT FOUND: {uploaded_chart.filepath}")
+
+                        st.image(uploaded_chart.filepath, caption= uploaded_chart.filename, use_column_width=True)
 
     def _render_trade_amendment_form(self):
         st.header("TRADE AMENDMENTS ENTRY FORM")

@@ -1,4 +1,8 @@
 #CONTAINS UI CONNECTOR FUNCTIONS THAT COORDINATE BETWEEN JOURNAL.PY AND STREAMLIT APP
+import os
+import uuid
+from datetime import datetime
+from pathlib import Path
 
 import exceptions as t
 from journal import Journal
@@ -106,26 +110,54 @@ def submit_trade_charts(trade_charts: dict, journal: Journal):
     #The UploadedFile class is a subclass of BytesIO, and therefore is "file-like". 
     #This means you can pass an instance of it anywhere a file is expected.
 
-    try:
-        charts = TradeChart(
-            chart_id= None,
-            trade_id= trade_charts["trade_id"],
-            filepath= trade_charts["charts"],
-            timeframe= trade_charts["timeframes"],
-        )
-    except KeyError as e:
-        return ServiceResult(success= False, message= f"INVALID KEY REFERENCE: {e}", data= None)
-    trade_id = trade_charts["trade_id"]
-    try:
-        #SQLITE3.PROGRAMMINGERROR RAISED WHEN ADDING CHARTS TO THE DB.
-        #CHARTS AND TIMEFRAMES ARE LISTS HENCE WE HAVE ERROR BINDING PARAMETERS
-        #SINCE TYPE LIST IS NOT SUPPORTED. FIND A FIX.
-        uploaded_charts = journal.attach_charts(trade_id, charts)
-    except t.Chart_Upload_Error as e:
-        return ServiceResult(success= False, message= f"ERROR UPLOADING CHART: {e}", data= None)
+    saved_charts = _save_uploaded_charts(trade_charts)
+    for chart in saved_charts:
+        try:
+            chart_obj = TradeChart(
+                chart_id= None,
+                trade_id= chart["trade_id"],
+                filepath= chart["filepath"],
+                filename= chart["filename"],
+                upload_date= chart["upload_date"],
+            )
+        except KeyError as e:
+            return ServiceResult(success= False, message= f"INVALID KEY REFERENCE: {e}", data= None)
+        
+        trade_id = chart["trade_id"]
+        try:
+            uploaded_chart = journal.attach_charts(trade_id, chart_obj)
+        except t.Chart_Upload_Error as e:
+            return ServiceResult(success= False, message= f"ERROR UPLOADING CHART: {e}", data= None)
 
-    return ServiceResult(success= True, message="TRADE CHARTS RECORDED SUCCESSFULLY!", data= uploaded_charts)
+        return ServiceResult(success= True, message="TRADE CHARTS RECORDED SUCCESSFULLY!", data= uploaded_chart)
 
+def _save_uploaded_charts(trade_charts: dict) -> list:
+    UPLOAD_DIR = "uploaded_charts"
+    Path(UPLOAD_DIR).mkdir(exist_ok=True)
+
+    uploaded_files = trade_charts["charts"]
+    saved_charts = []
+    
+    for uploaded_file in uploaded_files:
+        short_uuid = str(uuid.uuid4())[:6]
+        name, ext = os.path.splitext(uploaded_file)
+        unique_filename = f"{short_uuid}_{name}.{ext}"
+        relative_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+        with open(relative_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        file_info = {
+            "chart_id": None,
+            "trade_id": trade_charts["trade_id"],
+            "filepath": relative_path,
+            "filename": unique_filename,
+            "upload_date": datetime.now().isoformat()  # noqa: DTZ005
+        }
+        saved_charts.append(file_info)
+
+    return saved_charts
+    
 def submit_journal_entry(
             trade_details: dict,
             trade_notes: dict,

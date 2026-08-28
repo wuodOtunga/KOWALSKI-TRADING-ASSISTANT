@@ -105,7 +105,8 @@ CREATE TABLE IF NOT EXISTS "charts" (
     "chart_id" INTEGER,
     "trade_id" INTEGER,
     "filepath" TEXT NOT NULL,
-    "timeframe" TEXT NOT NULL CHECK("timeframe" in ("4H", "1H", "5M")),
+    "filename" TEXT NOT NULL,
+    "upload_date" TIMESTAMP,
     PRIMARY KEY("chart_id"),
     FOREIGN KEY("trade_id") REFERENCES "trades"("trade_id")
 );

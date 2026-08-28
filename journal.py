@@ -72,19 +72,19 @@ class Journal:
 #ASSEMBLE/DERIVE DATA AND VALIDATE DATA GETS HANDLED BY STREAMLIT.
 #STREAMLIT OWNS THE COLLECTION OF CHARTS DATA LOGIC.
 #ATTACH CHART RECEIVES A VALID, FULLY CONSTRUCTED CHARTS DATA. 
-    def attach_charts(self, trade_id: int, charts: TradeChart):
+    def attach_charts(self, trade_id: int, chart: TradeChart):
 
         #3: PERSIST TO DATABASE AND TRANSLATE FAILURES.
         try:
-            chart_id = self.db.add_chart(trade_id, charts)
-            charts.chart_id = chart_id
+            chart_id = self.db.add_chart(trade_id, chart)
+            chart.chart_id = chart_id
             self.db.commit()
         except t.Constraint_Violation_Error as e:
             self.db.rollback()
             raise t.Chart_Upload_Error(f"TRADE_ID PROVIDED {trade_id} DOESN'T EXIST: {e}") from e
 
         #4: RETURN SOMETHING MEANINGFUL.
-        return charts
+        return chart
   
     def evaluate_trade(self, trade: Trade) -> int:
 

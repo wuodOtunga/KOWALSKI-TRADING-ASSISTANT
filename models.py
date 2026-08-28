@@ -70,9 +70,10 @@ class Account:
 class TradeChart:
     "THIS CLASS MANAGES TRADING CHARTS DATA"
     chart_id : int | None
-    trade_id : int | None
-    filepath : str | None
-    timeframe : list[str]
+    trade_id : int
+    filepath : str
+    filename : str
+    upload_date: datetime
 
 @dataclass
 class TradeNotes:

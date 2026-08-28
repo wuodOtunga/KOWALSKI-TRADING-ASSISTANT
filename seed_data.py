@@ -59,8 +59,6 @@ column_names = [
     "entry_time", "exit_time", "date", "management_id", "entry_execution", "asset",
     "direction", "account_balance", "risk_percent"]
 
-timeframes = ["1M", "1W", "1D", "4HR", "1HR", "30MIN", "15MIN", "5MIN", "1M"]
-
 accounts_df = pd.DataFrame([(index,) + row for index, row in enumerate(accounts, start=1)],
              columns=["account_id", "account_name", "account_type", "broker", "starting_balance", "is_active"])
 
