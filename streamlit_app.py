@@ -263,25 +263,19 @@ class Kowalski:
                     "charts": st.session_state.charts,
                 }
                 st.session_state.trade_charts = trade_charts
-                empty_values = [key for key, value in st.session_state.trade_charts.items() if value is None]
-                if empty_values:
-                    st.warning(f"Please fill in all the values: {','.join(empty_values)}")
+                if not st.session_state.charts and st.session_state.charting_id:
+                    st.warning("Please fill in all the values!")
                 else:
                     results = s.submit_trade_charts(st.session_state.trade_charts, self.journal)
-                    if results.success:
-                        st.session_state.last_charts_results = results
-                        st.session_state.trade_charts = {}
-                        st.success(results.message)
-                    else:
-                        st.session_state.last_charts_results = results
-                        st.error(results.message)
-
-                    if st.session_state.last_charts_results and st.session_state.last_charts_results.success:
-                        uploaded_chart = st.session_state.last_charts_results.data
-                        if not os.path.exists(uploaded_chart.filepath):
-                            st.error(f"FILE NOT FOUND: {uploaded_chart.filepath}")
-
-                        st.image(uploaded_chart.filepath, caption= uploaded_chart.filename, use_column_width=True)
+                    for outcome in results.outcomes:
+                        if outcome.success:
+                            st.session_state.last_charts_results = results
+                            st.session_state.trade_charts = {}
+                            st.success(f"{outcome.filename} UPLOADED SUCCESSFULLY!")
+                            st.image(outcome.chart.filepath, caption= outcome.chart.filename) # pyright: ignore[reportOptionalMemberAccess]
+                        else:
+                            st.session_state.last_charts_results = results
+                            st.error(f"{outcome.filename}: {outcome.error_message}")
 
     def _render_trade_amendment_form(self):
         st.header("TRADE AMENDMENTS ENTRY FORM")

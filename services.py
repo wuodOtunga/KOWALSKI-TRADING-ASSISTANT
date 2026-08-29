@@ -8,6 +8,8 @@ import exceptions as t
 from journal import Journal
 from models import (
     Amendments,
+    ChartsBatchResult,
+    ChartUploadOutcome,
     JournalEntry,
     ServiceResult,
     Trade,
@@ -105,58 +107,84 @@ def submit_trade_parameters(trade_parameters: dict, journal: Journal):
     return ServiceResult(success= True, message= "TRADE PARAMETERS SUBMITTED SUCCESSFULLY!", data= graded_trade)
 
 
-def submit_trade_charts(trade_charts: dict, journal: Journal):
+def submit_trade_charts(trade_charts: dict, journal: Journal) -> ChartsBatchResult:
     #FROM STREAMLIT DOCS
     #The UploadedFile class is a subclass of BytesIO, and therefore is "file-like". 
     #This means you can pass an instance of it anywhere a file is expected.
 
-    saved_charts = _save_uploaded_charts(trade_charts)
-    for chart in saved_charts:
+    trade_id = trade_charts["trade_id"]
+    uploaded_files = trade_charts["charts"]
+
+    if not uploaded_files:
+        return ChartsBatchResult(outcomes=[])
+    
+    #CHECK LEGITIMACY OF TRADE_ID BEFORE BATCH LOOPING OPERATIONS
+    try:
+        journal.get_trade(trade_id)
+    except t.Invalid_TradeID_Error:
+        return ChartsBatchResult(outcomes=[
+            ChartUploadOutcome(filename= f.name, success= False, 
+                               chart= None, error_message= f"TRADE_ID {trade_id} INVALID")
+                               for f in uploaded_files
+        ])
+
+    outcomes = []
+    for uploaded_file in uploaded_files:
+        filepath = None
+
         try:
-            chart_obj = TradeChart(
-                chart_id= None,
-                trade_id= chart["trade_id"],
-                filepath= chart["filepath"],
-                filename= chart["filename"],
-                upload_date= chart["upload_date"],
-            )
-        except KeyError as e:
-            return ServiceResult(success= False, message= f"INVALID KEY REFERENCE: {e}", data= None)
-        
-        trade_id = chart["trade_id"]
+            filepath, filename = _save_uploaded_charts(uploaded_file)
+        except OSError as e:
+            outcomes.append(ChartUploadOutcome(
+                filename= uploaded_file.name,
+                success= False,
+                chart= None,
+                error_message= f"COULD NOT SAVE FILE {e}"
+            ))
+
+            continue
+
+        chart = TradeChart(
+            chart_id= None,
+            trade_id= trade_id,
+            filepath= filepath,
+            filename= filename,
+            upload_date= datetime.now().isoformat(),  # noqa: DTZ005
+        )
+
         try:
-            uploaded_chart = journal.attach_charts(trade_id, chart_obj)
+            saved_chart = journal.attach_charts(chart)
+            outcomes.append(ChartUploadOutcome(
+                filename= uploaded_file.name,
+                success= True,
+                chart= saved_chart,
+                error_message= None
+            ))
         except t.Chart_Upload_Error as e:
-            return ServiceResult(success= False, message= f"ERROR UPLOADING CHART: {e}", data= None)
+            #YOU HAVE TO REMOVE THE SAVED CHARTS IF DATABASE INSERT FAILS
+            os.remove(filepath)
+            outcomes.append(ChartUploadOutcome(
+                filename= uploaded_file.name,
+                success= False,
+                chart= None,
+                error_message= f"DATABASE SAVE FAILED {e}"
+            ))
 
-        return ServiceResult(success= True, message="TRADE CHARTS RECORDED SUCCESSFULLY!", data= uploaded_chart)
+    return ChartsBatchResult(outcomes= outcomes)
 
-def _save_uploaded_charts(trade_charts: dict) -> list:
+
+def _save_uploaded_charts(uploaded_file) -> tuple[str, str]:
     UPLOAD_DIR = "uploaded_charts"
     Path(UPLOAD_DIR).mkdir(exist_ok=True)
 
-    uploaded_files = trade_charts["charts"]
-    saved_charts = []
-    
-    for uploaded_file in uploaded_files:
-        short_uuid = str(uuid.uuid4())[:6]
-        name, ext = os.path.splitext(uploaded_file)
-        unique_filename = f"{short_uuid}_{name}.{ext}"
-        relative_path = os.path.join(UPLOAD_DIR, unique_filename)
-    
-        with open(relative_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+    original_name = Path(uploaded_file.name)  #.name is the string filename attribute
+    unique_filename = f"{uuid.uuid4().hex[:8]}_{original_name.stem}{original_name.suffix}"
+    filepath = os.path.join(UPLOAD_DIR, unique_filename)
 
-        file_info = {
-            "chart_id": None,
-            "trade_id": trade_charts["trade_id"],
-            "filepath": relative_path,
-            "filename": unique_filename,
-            "upload_date": datetime.now().isoformat()  # noqa: DTZ005
-        }
-        saved_charts.append(file_info)
+    with open(filepath, "wb") as f:
+        f.write(uploaded_file.getbuffer())
 
-    return saved_charts
+    return filepath, unique_filename
     
 def submit_journal_entry(
             trade_details: dict,
@@ -200,9 +228,10 @@ def submit_journal_entry(
 
         charts = TradeChart(
                 chart_id= None,
-                trade_id= None,
+                trade_id= trade_charts["trade_id"],
                 filepath= trade_charts["charts"],
-                timeframe= trade_charts["timeframes"]
+                filename= trade_charts["filename"],
+                upload_date= datetime.now()  # noqa: DTZ005
             )
         
         journal_entry = JournalEntry(
@@ -258,7 +287,7 @@ def fetch_trade(trade_id: int, journal: Journal):
     try:
         trade = journal.get_trade(trade_id)
     except t.Invalid_TradeID_Error as e:
-        return ServiceResult(success= False, message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}, {e}")
+        return ServiceResult(success= False, message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}, {e}", data= None)
     
     return ServiceResult(success= True, message= "TRADE FETCHED SUCCESSFULLY!", data= trade)
 

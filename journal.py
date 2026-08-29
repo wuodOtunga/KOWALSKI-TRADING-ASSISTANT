@@ -72,28 +72,29 @@ class Journal:
 #ASSEMBLE/DERIVE DATA AND VALIDATE DATA GETS HANDLED BY STREAMLIT.
 #STREAMLIT OWNS THE COLLECTION OF CHARTS DATA LOGIC.
 #ATTACH CHART RECEIVES A VALID, FULLY CONSTRUCTED CHARTS DATA. 
-    def attach_charts(self, trade_id: int, chart: TradeChart):
+    def attach_charts(self, chart: TradeChart):
 
+        #TRADE_ID ISN'T BEING VERIFIED ANYWHERE
         #3: PERSIST TO DATABASE AND TRANSLATE FAILURES.
         try:
-            chart_id = self.db.add_chart(trade_id, chart)
+            chart_id = self.db.add_chart(chart)
             chart.chart_id = chart_id
             self.db.commit()
         except t.Constraint_Violation_Error as e:
             self.db.rollback()
-            raise t.Chart_Upload_Error(f"TRADE_ID PROVIDED {trade_id} DOESN'T EXIST: {e}") from e
+            raise t.Chart_Upload_Error(f"TRADE_ID PROVIDED {chart.trade_id} DOESN'T EXIST: {e}") from e
 
         #4: RETURN SOMETHING MEANINGFUL.
         return chart
   
-    def evaluate_trade(self, trade: Trade) -> int:
+    def evaluate_trade(self, trade: Trade) -> dict:
 
         #3: GET POINTS DATA FROM RELEVANT TABLES USING IDENTIFIERS.
         #4: TRANSLATE THE ERRORS.
         try:
             entry_score = self.db.get_entry_execution_points(trade.entry_execution_id)
             management_score = self.db.get_trade_management_points(trade.management_id)
-            trade_parameters = self.db.get_trade_parameters(trade.trade_id)
+            trade_parameters = self.db.get_trade_parameters(trade.trade_id) # type: ignore
         except t.Invalid_Identifier_Error as e:
             raise t.Grading_Error(f"PROVIDED IDs ARE INVALID: {e}") from e
         except t.Trade_Not_Found_Error as e:
@@ -132,7 +133,7 @@ class Journal:
             if trade_points == points:
                 trade_grade = grade
 
-        trade.overall_trade_grade = trade_grade
+        trade.overall_trade_grade = trade_grade # type: ignore
         #UPDATE THE GRADE OF THE TRADE FROM NONE TO TRADE_GRADE
         try:
             self.db.update_trade_grade(trade.trade_id, trade_grade)
@@ -225,12 +226,14 @@ class Journal:
         try:
             trade_id = self.db.save_trade(valid_trade)
             journal_entry.trade.trade_id = trade_id
-            chart_id = self.db.add_chart(journal_entry.trade.trade_id, journal_entry.charts)
+            chart_id = self.db.add_chart(journal_entry.charts)
             journal_entry.charts.chart_id = chart_id
-            self.db.add_trade_notes(journal_entry.trade.trade_id, journal_entry.trade_notes)
+            self.db.add_trade_notes(journal_entry.trade_notes)
 
-            if len(journal_entry.parameter_names) > 0:
-                for parameter_id in journal_entry.parameter_names:
+            if journal_entry.parameter_names:
+                parameter_ids = self.db.get_parameter_ids(journal_entry.parameter_names)
+
+                for parameter_id in parameter_ids:
                     self.db.add_trade_parameters(journal_entry.trade.trade_id, parameter_id)
 
             self.db.commit()
@@ -320,7 +323,7 @@ class Journal:
         #DB METHOD ISN'T WRAPPED IN TRY/EXCEPT BLOCK SINCE IT'S
         #CONDITIONALLY CALLED, IT'S A LOOK UP METHOD WITH NO RISKS
         #OFF DATABASEERRORS CONSULT THOUGH.
-        if len(parameter_names) > 0:
+        if parameter_names:
             parameter_ids = self.db.get_parameter_ids(parameter_names)
 
         try:

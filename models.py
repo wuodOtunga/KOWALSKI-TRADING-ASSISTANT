@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from enum import Enum
 
 
@@ -49,7 +49,7 @@ class Trade:
     asset : TradeAsset
     direction : TradeDirection
     dollar_amount : float | None
-    duration : int | None
+    duration : timedelta | None
     result : TradeResult | None
     rr_multiple : float | None
     account_balance : float
@@ -73,7 +73,7 @@ class TradeChart:
     trade_id : int
     filepath : str
     filename : str
-    upload_date: datetime
+    upload_date: datetime | str
 
 @dataclass
 class TradeNotes:
@@ -108,4 +108,28 @@ class Amendments:
 class ServiceResult:
     success : bool
     message : str
-    data : Trade | TradeNotes | TradeChart | list[str] | None
+    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | None
+
+@dataclass
+class ChartUploadOutcome:
+    """OUTCOME FOR A SINGLE FILE WITHIN A BATCH UPLOAD"""
+    filename: str
+    success: bool
+    chart: TradeChart | None
+    error_message: str | None
+
+@dataclass
+class ChartsBatchResult:
+    """AGGREGATE RESULT FOR THE WHOLE RECORD TRADE CHARTS SUBMISSION"""
+    outcomes: list[ChartUploadOutcome]
+
+    @property
+    def succeeded(self) -> list[TradeChart]:
+        return [o.chart for o in self.outcomes if o.success] # type: ignore
+
+    @property
+    def failed(self) -> list[ChartUploadOutcome]:
+        return [o for o in self.outcomes if not o.success]
+
+    def all_succeeded(self) -> bool:
+        return all(o.success for o in self.outcomes)
