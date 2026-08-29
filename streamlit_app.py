@@ -26,7 +26,6 @@ from seed_data import (
 min_date = datetime(1990, 1, 1)  # noqa: DTZ001
 max_date = datetime.now()  # noqa: DTZ005
 
-#UNDERSTAND WHY DATABASE AND JOURNAL AREN'T PART OF KOWALSKI CLASS
 @st.cache_resource
 def get_database():
     return Database()
@@ -60,6 +59,9 @@ def main():
 
     if st.session_state.show_all_trades:
         kowalski._render_all_trades_table()
+
+    if st.session_state.show_journal_entry:
+        kowalski._render_journal_entry_data()
 
 class Kowalski:
     def __init__(self, journal: Journal):
@@ -121,9 +123,13 @@ class Kowalski:
 
         if "all_trades_results" not in st.session_state:
             st.session_state.all_trades_results = None
+
+        if "journal_entry_results" not in st.session_state:
+            st.session_state.journal_entry_results = None
+
+        if "show_journal_entry" not in st.session_state:
+            st.session_state.show_journal_entry = False
     
-    #UNDERSTAND WHETHER I SHOULD BUILD THE TRADE_DETAILS FIRST OUTSIDE SESSION_STATE
-    #THEN AT IF SUBMIT IS WHEN I ADD THE DICT TO SESSION_STATE
     def _render_trade_details_form(self):
         st.header("TRADE DETAILS ENTRY FORM")
         with st.form("TRADE DETAILS", enter_to_submit=False):
@@ -364,6 +370,47 @@ class Kowalski:
                 trades = st.session_state.all_trades_results.data
                 st.table(pd.DataFrame(trades)) # type: ignore
 
+    def _render_journal_entry_data(self):
+        st.subheader("VIEW JOURNAL ENTRY")
+        st.write("JOURNAL ENTRY REFERS TO TRADE DETAILS, NOTES, CHARTS, PARAMETERS BUNDLED TOGETHER")
+        with st.form("JOURNAL ENTRY", clear_on_submit= True, enter_to_submit= False):
+            st.number_input("TRADE_ID", min_value= 1, key= "journal_entry_id")
+
+            submit = st.form_submit_button("SUBMIT")
+            if submit:
+                if not st.session_state.journal_entry_id:
+                    st.warning("PLEASE PROVIDE A TRADE_ID")
+                else:
+                    results = s.fetch_journal_entry(st.session_state.journal_entry_id, self.journal)
+                    st.session_state.journal_entry_results = results
+
+                    if results.success:
+                        st.success(results.message)
+                        st.balloons()
+                    else:
+                        st.error(results.message)
+
+        if st.session_state.journal_entry_results and st.session_state.journal_entry_results.success:
+            journal_entry = st.session_state.journal_entry_results.data
+            st.subheader("JOURNAL ENTRY RESULTS")
+            st.divider()
+
+            st.subheader("TRADE DETAILS INFO")
+            st.table(pd.DataFrame(asdict(journal_entry.trade), index= ["info"])) # type: ignore
+            st.divider()
+
+            st.subheader("CHARTS ATTACHED TO THE TRADE")
+            for chart in journal_entry.charts: # type: ignore
+                st.image(image= chart.filepath, caption= chart.filename)
+            st.divider()
+
+            st.subheader("NOTES REGARDING THE TRADE")
+            st.table(pd.DataFrame(asdict(journal_entry.trade_notes), index= ["info"])) # type: ignore
+            st.divider()
+
+            st.subheader("TRADE PARAMETERS PRESENT")
+            for parameter in journal_entry.parameter_names: # type: ignore
+                st.write(parameter)
 
     def _render_widgets(self):
         st.title("KOWALSKI TRADING JOURNAL")
@@ -397,10 +444,7 @@ class Kowalski:
 
         st.sidebar.subheader("ACCOUNTS")
         with st.sidebar.expander("ACCOUNTS ACTIONS"):
-            if st.button("VIEW TRADING ACCOUNTS"):
-                st.subheader("TRADING ACCOUNTS")
-                st.table(accounts_df)
-                
+            st.button("VIEW TRADING ACCOUNTS")
             st.button("CREATE TRADING ACCOUNT")
 
         st.sidebar.subheader("TRADE ANALYTICS")
@@ -415,7 +459,9 @@ class Kowalski:
 
             if st.button("VIEW ALL TRADES"):
                 st.session_state.show_all_trades = True
-            st.button("VIEW JOURNAL ENTRY")
+
+            if st.button("VIEW JOURNAL ENTRY", key= "show_entry"):
+                st.session_state.show_journal_entry = True
 
         st.write("USE THE TABS TO IDENTIFY RELEVANT IDs REQUIRED BY THE JOURNAL.")
         tab1, tab2, tab3, tab4, tab5 = st.tabs(["tab1", "tab2", "tab3", "tab4", "tab5"])

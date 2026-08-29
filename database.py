@@ -118,11 +118,11 @@ class Database:
             (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size, 
              trade.entry_time.strftime("%I:%M %p"), trade.exit_time.strftime("%I:%M %p"), trade.date.isoformat(), trade.model_id,
             trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
-            trade.duration.total_seconds(), trade.result, trade.rr_multiple, trade.account_balance, trade.risk_percent, trade.overall_trade_grade))
+            trade.duration.total_seconds(), trade.result, trade.rr_multiple, trade.account_balance, trade.risk_percent, trade.overall_trade_grade)) # type: ignore
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
         
-        return cursor.lastrowid
+        return cursor.lastrowid # type: ignore
 
     #ISSUE TO BE FIXED: WHEN WE PULL A TRADE FROM DB, SOME VALUES NEED REFORMATTING
     #TO PASS VALIDATION SINCE THE TYPE STORED IN SQLITE IS DIFFERENT FROM PYTHON TYPES.
@@ -201,7 +201,7 @@ class Database:
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
         
-        return cursor.lastrowid
+        return cursor.lastrowid # type: ignore
         
     def add_trade_notes(self, trade_notes: TradeNotes) -> None:
         """ATTACH TRADE NOTES TO DATABASE"""
@@ -225,7 +225,7 @@ class Database:
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
-        return cursor.lastrowid
+        return cursor.lastrowid # type: ignore
 
     def get_entry_execution_points(self, entry_execution_id: int) -> int:
         """GET ENTRY EXECUTION POINTS FROM DATABASE"""
@@ -295,7 +295,7 @@ class Database:
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CHECK FOR COLUMN CONSTRAINT VIOLATION: {e}") from e
 
-        return cursor.lastrowid
+        return cursor.lastrowid # type: ignore
 
     def check_foreign_keys(self, trade: Trade) -> None:
         """CHECKS FOR EXISTENCE OF ACCOUNT_ID, MANAGEMENT_ID, 
@@ -343,15 +343,20 @@ class Database:
 
         return TradeNotes(**row)
 
-    def get_trade_charts(self, trade_id: int) -> TradeChart:
+    def get_trade_charts(self, trade_id: int) -> list[TradeChart]:
 
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM charts WHERE trade_id = ?", (trade_id,))
-        row = cursor.fetchone()
-        if row is None:
+        rows = cursor.fetchall()
+        if not rows:
             raise t.Trade_Not_Found_Error(f"{trade_id} IS INVALID.")
 
-        return TradeChart(**row)
+        charts_list = []
+
+        for row in rows:
+            charts_list.append(TradeChart(**row))
+
+        return charts_list
 
     def get_parameter_ids(self, parameter_names: list) -> list:
         cursor = self.conn.cursor()

@@ -90,7 +90,7 @@ class TradeNotes:
 class JournalEntry:
     """THIS CLASS MANAGES ENTIRE JOURNAL ENTRY DATA"""
     trade : Trade
-    charts : TradeChart
+    charts : list[TradeChart]
     trade_notes : TradeNotes
     parameter_names : list[str]
 

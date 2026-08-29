@@ -136,9 +136,9 @@ class Journal:
         trade.overall_trade_grade = trade_grade # type: ignore
         #UPDATE THE GRADE OF THE TRADE FROM NONE TO TRADE_GRADE
         try:
-            self.db.update_trade_grade(trade.trade_id, trade_grade)
+            self.db.update_trade_grade(trade.trade_id, trade_grade) # type: ignore
         except t.Invalid_Grade_Error as e:
-            raise t.Grading_Error(f"{trade_grade} IS INVALID. SHOULD BE BETWEEN (A - F), {e}") from e
+            raise t.Grading_Error(f"{trade_grade} IS INVALID. SHOULD BE BETWEEN (A - F), {e}") from e # type: ignore
         except t.Trade_Not_Found_Error as e:
             raise t.Grading_Error(f"{trade.trade_id} IS INVALID. PROVIDE VALID TRADE_ID, {e}") from e
 
@@ -186,7 +186,7 @@ class Journal:
             trade_notes = self.db.get_trade_notes(trade_id)
             trade_charts = self.db.get_trade_charts(trade_id)
             parameter_ids = self.db.get_trade_parameters(trade_id)
-            if len(parameter_ids) > 0:
+            if parameter_ids:
                 parameter_names = self.db.get_parameter_names(parameter_ids)
         except t.DatabaseError as e:
             raise t.Journal_Entry_Error(f"JOURNAL ENTRY CAN'T BE RETRIEVED DUE TO DATABASE ERRORS: {e}") from e
@@ -195,35 +195,18 @@ class Journal:
             trade= trade,
             charts= trade_charts,
             trade_notes= trade_notes,
-            parameter_names= parameter_names,
+            parameter_names= parameter_names, # type: ignore
         )
 
-    def record_journal_entry(self, journal_entry: JournalEntry) -> JournalEntry:
-        """SAVE AN ENTIRE JOURNAL ENTRY TO DATABASE AT ONCE."""
+#RECORD_JOURNAL_ENTRY METHOD ISN'T BEING CALLED BY STREAMLIT UI
+#THERE IS A BUG IN THE ADD_CHART DB CALL SINCE METHOD ASSUMES ATOMIC TRANSACTION
+#CHARTS UPLOAD IS DONE IN BATCHES AND SO WE CAN HAVE 3/4 SUCCESSES
+#MEANING CHART UPLOADS, COMMITS ARE DONE PER CHART.
 
-        trade = self._compute_derived_fields(journal_entry.trade)
-
-        valid_trade = validate_trade_data(trade)
-
-        try:
-            trade_id = self.db.save_trade(valid_trade)
-            journal_entry.trade.trade_id = trade_id
-            chart_id = self.db.add_chart(journal_entry.charts)
-            journal_entry.charts.chart_id = chart_id
-            self.db.add_trade_notes(journal_entry.trade_notes)
-
-            if journal_entry.parameter_names:
-                parameter_ids = self.db.get_parameter_ids(journal_entry.parameter_names)
-
-                for parameter_id in parameter_ids:
-                    self.db.add_trade_parameters(journal_entry.trade.trade_id, parameter_id)
-
-            self.db.commit()
-        except t.DatabaseError as e:
-            self.db.rollback()
-            raise t.Journal_Entry_Error(f"JOURNAL ENTRY NOT SAVED DUE TO DATABASE ERRORS: {e}") from e
-
-        return journal_entry
+#NOTE TO FUTURE SELF/DEVELOPER
+#RECORD_JOURNAL_ENTRY METHOD WAS DELETED ON 30/8/2026.
+#WITH THE GIVEN STREAMLIT CODE PATH, THERE IS NO USE FOR THE JOURNAL METHOD.
+#IN THE FUTURE IF NEED ARISES, YOU CAN REWRITE IT.
 
 
     #ISSUE TO HANDLE: STREAMLIT DISPLAYS AND RETURNS THE COLUMN NAMES LIKE THIS : ENTRY PRICE
@@ -308,7 +291,7 @@ class Journal:
             parameter_ids = self.db.get_parameter_ids(parameter_names)
 
         try:
-            for parameter in parameter_ids:
+            for parameter in parameter_ids: # type: ignore
                 self.db.add_trade_parameters(trade_id, parameter)
             trade = self.db.get_by_id(trade_id)
             if trade.overall_trade_grade is None:

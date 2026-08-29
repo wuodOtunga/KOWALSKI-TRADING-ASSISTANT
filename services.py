@@ -10,7 +10,6 @@ from models import (
     Amendments,
     ChartsBatchResult,
     ChartUploadOutcome,
-    JournalEntry,
     ServiceResult,
     Trade,
     TradeAsset,
@@ -185,76 +184,10 @@ def _save_uploaded_charts(uploaded_file) -> tuple[str, str]:
         f.write(uploaded_file.getbuffer())
 
     return filepath, unique_filename
-    
-def submit_journal_entry(
-            trade_details: dict,
-            trade_notes: dict,
-            trade_charts: dict,
-            trade_parameters: list,
-            journal: Journal):
-    try:
-        trade = Trade(
-                trade_id= None,
-                entry_price= float(trade_details["entry_price"]),
-                exit_price= float(trade_details["exit_price"]),
-                take_profit= float(trade_details["take_profit"]),
-                stop_loss= float(trade_details["stop_loss"]),
-                position_size= float(trade_details["position_size"]),
-                entry_time= trade_details["entry_time"],
-                exit_time= trade_details["exit_time"],
-                date= trade_details["date"],
-                model_id= int(trade_details["model_id"]),
-                account_id= int(trade_details["account_id"]),
-                management_id= int(trade_details["management_id"]),
-                entry_execution_id= int(trade_details["entry_execution_id"]),
-                asset= TradeAsset(trade_details["asset"]),
-                direction= TradeDirection(trade_details["direction"]),
-                dollar_amount= None,
-                duration= None,
-                result= None,
-                rr_multiple= None,
-                account_balance= float(trade_details["account_balance"]),
-                risk_percent= float(trade_details["risk_percent"]),
-                overall_trade_grade= None
-            )
 
-        trading_notes = TradeNotes(
-                trade_id= None,
-                emotions= trade_notes["emotions"],
-                mistakes= trade_notes["mistakes"],
-                lessons= trade_notes["lessons"],
-                general_notes= trade_notes["general_notes"]
-            )
-
-        charts = TradeChart(
-                chart_id= None,
-                trade_id= trade_charts["trade_id"],
-                filepath= trade_charts["charts"],
-                filename= trade_charts["filename"],
-                upload_date= datetime.now()  # noqa: DTZ005
-            )
-        
-        journal_entry = JournalEntry(
-            trade= trade,
-            charts= charts,
-            trade_notes= trading_notes,
-            parameter_names= trade_parameters
-        )
-    except (KeyError, ValueError) as e:
-        return ServiceResult(success= False, message= f"ERROR OCCURRED DURING OBJECT CONSTRUCTION: {e}", data= None)
-    
-
-    try:
-        recorded_journal_entry = journal.record_journal_entry(journal_entry)
-    except t.Journal_Entry_Error as e:
-        return ServiceResult(success= False, message= f"ERROR RECORDING JOURNAL ENTRY: {e}", data= None)
-    except t.Trade_Validation_Error as e:
-        return ServiceResult(success= False, message= f"CHECK VALIDITY OF TRADE ENTRY DATA: {e}", data= None)
-    except t.Grading_Error as e:
-        return ServiceResult(success= False, message= f"ERROR CALCULATING THE GRADE OF TRADE: {e}", data= None)
-
-    return ServiceResult(success= True, message= "JOURNAL ENTRY RECORDED SUCCESSFULLY!", data= recorded_journal_entry)
-
+#NOTE TO FUTURE DEVELOPER: SUBMIT_JOURNAL_ENTRY SERVICE FUNCTION WAS DELETED ON 30/8/2026.
+#WITH THE GIVEN STREAMLIT CODE PATH, THERE IS NO USE FOR THE SERVICE FUNCTION.
+#IN THE FUTURE IF NEED ARISES FOR THIS SERVICE FUNCTION, SIMPLY REWRITE IT.
 
 def submit_amendment(trade_amendment: dict, journal: Journal):
 
