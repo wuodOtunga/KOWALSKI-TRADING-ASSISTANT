@@ -291,6 +291,14 @@ def fetch_trade(trade_id: int, journal: Journal):
     
     return ServiceResult(success= True, message= "TRADE FETCHED SUCCESSFULLY!", data= trade)
 
+def fetch_all_trades(journal: Journal):
+    try:
+        trades = journal.get_all_trades()
+    except t.Trades_Not_Found_Error as e:
+        return ServiceResult(success= False, message= f"NO TRADES FOUND: {e}", data= None)
+
+    return ServiceResult(success= True, message= "AVAILABLE TRADES FOUND SUCCESSFULLY", data= trades)
+
 def fetch_journal_entry(trade_id: int, journal: Journal):
 
     try:

@@ -144,22 +144,7 @@ class Journal:
 
         return trade
 
-
-#I WANT TO FORMALIZE WHAT TRADE NOTES MEANS FOR UNIFORMITY ACROSS TRADES.
-#TRADE NOTES INCLUDE: EMOTIONS, MISTAKES, LESSONS, NOTES.
-#NOTES INCLUDE: NOTES ON THE GRADE OF TRADE, NOTES ON MODEL USED,
-#NOTES ON ENTRY EXECUTION AND TRADE MANAGEMENT,
-#NOTES ON ENTRY AND EXIT RATIONALE,
-#NOTES ON TRADE PARAMETERS PRESENT AND ABSENT,
-#NOTES ON EMOTIONS, MISTAKES MADE, LESSONS LEARNT.
-#INSIDE STREAMLIT MODULE, VALIDATE THE ABOVE IS WHAT IS BEING RECORDED.
     def add_reflection_notes(self, trade_notes: TradeNotes) -> TradeNotes:
-
-        #TRADE_NOTES OBJECT IS SUPPLIED BY STREAMLIT MODULE. (CALLER)
-        #NO ASSEMBLY/DERIVING TRADE_NOTES OBJECT, ARRIVES AS CLEAN TRUSTED OBJECT.
-        #WHAT HAPPENS IF THIS METHOD ISN'T CALLED FROM THE STREAMLIT UI?
-        #SCHEMA.SQL HAS NOT NULL CONSTRAINTS THAT RAISE INTEGRITYERROR.
-        #DATABASE.PY CATCHES THE SQLITE ERRORS AND TRANSLATES. JOURNAL.PY ALSO TRANSLATES.
 
         #THIN WRAPPER METHOD, ONLY SERVES TO TRANSLATES ERRORS.
         try:
@@ -180,6 +165,14 @@ class Journal:
             raise t.Invalid_TradeID_Error(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
 
         return trade
+
+    def get_all_trades(self) -> list[Trade]:
+
+        try:
+            trades = self.db.get_all_trade_rows()
+            return trades
+        except t.Empty_Trades_Table_Error as e:
+            raise t.Trades_Not_Found_Error(f"EMPTY TRADES DATABASE TABLE: {e}")
 
 #THE TRADER/USER WANTS TO SEE THE ENTIRE RECORDED JOURNAL ENTRY.
 #METHOD NEEDS TO GET DATA FROM: TRADES, TRADE_PARAMETERS
@@ -205,24 +198,13 @@ class Journal:
             parameter_names= parameter_names,
         )
 
-#TARGET TABLES: TRADES, ACCOUNTS, TRADE_PARAMETERS, TRADE_NOTES, CHARTS.
-#INPUTS: DATACLASS OBJECTS AND A LIST OF PARAMETER IDS.
-#DATACLASS OBJECTS INCLUDE: TRADE, TRADE_NOTE, TRADE_CHARTS.
-#LIST OF PARAMETER NAMES IS PROVIDED BY THE CALLER.
-#OUTPUT: ENTIRE JOURNAL ENTRY. JOURNALENTRY DATACLASS.
     def record_journal_entry(self, journal_entry: JournalEntry) -> JournalEntry:
         """SAVE AN ENTIRE JOURNAL ENTRY TO DATABASE AT ONCE."""
 
-        #STEP 1:ASSEMBLE/DERIVE DATA CALLER DOESN'T HAVE.
-        #TRADE HAS DERIVED FIELDS, OTHER OBJECTS COME FULLY FORMED FROM CALLER.
         trade = self._compute_derived_fields(journal_entry.trade)
 
-        #STEP 2: VALIDATE THE DATA.
         valid_trade = validate_trade_data(trade)
 
-        #STEP 3: PERSIST TO DB. STEP 4:TRANSLATE ERRORS.
-        #NOTICE WE ARE CATCHING THE BROAD DATABASE ERROR.
-        #BECAUSE IT COVERS ALL THE SUB CLASSES OF ERRORS RAISED BY INDIVIDUAL METHOD RUNS.
         try:
             trade_id = self.db.save_trade(valid_trade)
             journal_entry.trade.trade_id = trade_id
@@ -241,7 +223,6 @@ class Journal:
             self.db.rollback()
             raise t.Journal_Entry_Error(f"JOURNAL ENTRY NOT SAVED DUE TO DATABASE ERRORS: {e}") from e
 
-        #STEP 5: RETURN SOMETHING MEANINGFUL.
         return journal_entry
 
 

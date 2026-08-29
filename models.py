@@ -108,7 +108,7 @@ class Amendments:
 class ServiceResult:
     success : bool
     message : str
-    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | None
+    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | None
 
 @dataclass
 class ChartUploadOutcome:

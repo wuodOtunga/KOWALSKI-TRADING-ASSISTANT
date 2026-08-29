@@ -3,10 +3,10 @@
 #OBJECTIVE #3: DISPLAY FULL TRADE DETAILS TO USER/TRADER
 #OBJECTIVE #4: ENABLE TRADING CALCULATOR FUNCTIONALITY.
 #OBJECTIVE #5: ADD IMPROVEMENTS TO THE WEBSITE.
-import os
 from dataclasses import asdict
 from datetime import datetime
 
+import pandas as pd
 import streamlit as st
 
 import services as s
@@ -54,6 +54,12 @@ def main():
 
     if st.session_state.show_trade_amendment_form:
         kowalski._render_trade_amendment_form()
+
+    if st.session_state.show_view_trade_table:
+        kowalski._render_view_trade_table()
+
+    if st.session_state.show_all_trades:
+        kowalski._render_all_trades_table()
 
 class Kowalski:
     def __init__(self, journal: Journal):
@@ -103,6 +109,18 @@ class Kowalski:
 
         if "last_trade_changes_results" not in st.session_state:
             st.session_state.last_trade_changes_results = None
+
+        if "show_view_trade_table" not in st.session_state:
+            st.session_state.show_view_trade_table = False
+
+        if "last_view_trade_results" not in st.session_state:
+            st.session_state.last_view_trade_results = None
+
+        if "show_all_trades" not in st.session_state:
+            st.session_state.show_all_trades = False
+
+        if "all_trades_results" not in st.session_state:
+            st.session_state.all_trades_results = None
     
     #UNDERSTAND WHETHER I SHOULD BUILD THE TRADE_DETAILS FIRST OUTSIDE SESSION_STATE
     #THEN AT IF SUBMIT IS WHEN I ADD THE DICT TO SESSION_STATE
@@ -173,7 +191,7 @@ class Kowalski:
                     if st.session_state.last_trade_result and st.session_state.last_trade_result.success:
                         st.write("### RECORDED TRADE")
                         trade = st.session_state.last_trade_result.data
-                        for field, value in asdict(trade).items():
+                        for field, value in asdict(trade).items(): # type: ignore
                             st.write(f"{field} : {value}")
 
                 
@@ -214,7 +232,7 @@ class Kowalski:
                     if st.session_state.last_trade_notes_results and st.session_state.last_trade_notes_results.success:
                         st.write("### RECORDED TRADE NOTES")
                         trading_notes = st.session_state.last_trade_notes_results.data
-                        for field, value in asdict(trading_notes).items():
+                        for field, value in asdict(trading_notes).items(): # type: ignore
                             st.write(f"{field}: {value}")
                         
     def _render_trade_parameters_form(self):
@@ -247,7 +265,7 @@ class Kowalski:
                 if st.session_state.last_parameters_results and st.session_state.last_parameters_results.success:
                     st.write(f"GRADED TRADE WITH ID OF {st.session_state.trade_identifier}")
                     trade = st.session_state.last_parameters_results.data
-                    for field, value in asdict(trade).items():
+                    for field, value in asdict(trade).items(): # type: ignore
                         st.write(f"{field}: {value}")
 
     def _render_trade_charts_form(self):
@@ -308,6 +326,45 @@ class Kowalski:
                         st.session_state.last_trade_changes_results = results
                         st.error(results.message)
 
+    def _render_view_trade_table(self):
+        st.subheader("VIEW RECORDED TRADE")
+        with st.form("VIEW TRADE", enter_to_submit= False):
+            st.number_input("TRADE_ID", min_value= 1, value= None, key= "identifier")
+
+            submit =st.form_submit_button("SUBMIT")
+            if submit:
+                if not st.session_state.identifier:
+                    st.warning("PLEASE PROVIDE A TRADE_ID")
+                else:
+                    results = s.fetch_trade(st.session_state.identifier, self.journal)
+                    st.session_state.last_view_trade_results = results
+                    if results.success:
+                        st.success(results.message)
+                        st.balloons()
+                    else:
+                        st.error(results.message)
+
+        if st.session_state.last_view_trade_results and st.session_state.last_view_trade_results.success:
+            trade = st.session_state.last_view_trade_results.data
+            st.table(pd.DataFrame(asdict(trade), index=["info"])) # type: ignore
+
+    def _render_all_trades_table(self):
+        st.subheader("RECORD OF ALL TRADES")
+        if st.session_state.show_all_trades:
+            results = s.fetch_all_trades(self.journal)
+            st.session_state.all_trades_results = results
+
+            if results.success:
+                st.success(results.message)
+                st.balloons()
+            else:
+                st.error(results.message)
+
+            if st.session_state.all_trades_results and st.session_state.all_trades_results.success:
+                trades = st.session_state.all_trades_results.data
+                st.table(pd.DataFrame(trades)) # type: ignore
+
+
     def _render_widgets(self):
         st.title("KOWALSKI TRADING JOURNAL")
 
@@ -322,7 +379,12 @@ class Kowalski:
                 st.session_state.show_trade_parameters_form = True
             if st.button("RECORD TRADE CHARTS"):
                 st.session_state.show_trade_charts_form = True
-            st.button("RECORD JOURNAL ENTRY")
+
+            if st.button("RECORD JOURNAL ENTRY"):
+                st.session_state.show_trade_details_form = True
+                st.session_state.show_trade_notes_form = True
+                st.session_state.show_trade_parameters_form = True
+                st.session_state.show_trade_charts_form = True
 
             if st.button("EDIT RECORDED TRADE"):
                 st.session_state.show_trade_amendment_form = True
@@ -335,7 +397,10 @@ class Kowalski:
 
         st.sidebar.subheader("ACCOUNTS")
         with st.sidebar.expander("ACCOUNTS ACTIONS"):
-            st.button("VIEW TRADING ACCOUNTS")
+            if st.button("VIEW TRADING ACCOUNTS"):
+                st.subheader("TRADING ACCOUNTS")
+                st.table(accounts_df)
+                
             st.button("CREATE TRADING ACCOUNT")
 
         st.sidebar.subheader("TRADE ANALYTICS")
@@ -345,8 +410,11 @@ class Kowalski:
 
         st.sidebar.subheader("RECORDS OF TRADES")
         with st.sidebar.expander("TRADE HISTORY"):
-            st.button("VIEW TRADE")
-            st.button("VIEW ALL TRADES")
+            if st.button("VIEW TRADE"):
+                st.session_state.show_view_trade_table = True
+
+            if st.button("VIEW ALL TRADES"):
+                st.session_state.show_all_trades = True
             st.button("VIEW JOURNAL ENTRY")
 
         st.write("USE THE TABS TO IDENTIFY RELEVANT IDs REQUIRED BY THE JOURNAL.")

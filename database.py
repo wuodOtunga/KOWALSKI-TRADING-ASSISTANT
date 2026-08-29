@@ -143,6 +143,22 @@ class Database:
         row_dict = dict(row)
         trade = self._row_to_trade(row_dict)
         return trade
+
+    def get_all_trade_rows(self) -> list[Trade]:
+
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM trades")
+        rows = cursor.fetchall()
+        if not rows:
+            raise t.Empty_Trades_Table_Error("TRADES TABLE IS EMPTY!")
+
+        trades_list = []
+        for row in rows:
+            row_dict = dict(row)
+            trade = self._row_to_trade(row_dict)
+            trades_list.append(trade)
+
+        return trades_list
     
     def update_trade_grade(self, trade_id: int, overall_trade_grade: TradeGrade) -> None:
         """UPDATES OVERALL_TRADE_GRADE TO DATABASE"""

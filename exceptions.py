@@ -57,6 +57,9 @@ class Invalid_TradeID_Error(JournalingError):
 class Journal_Entry_Error(JournalingError):
     "EXCEPTION CLASS FOR FAILED JOURNAL ENTRIES."
 
+class Trades_Not_Found_Error(JournalingError):
+    "EXCEPTION CLASS FOR NO TRADES FOUND IN THE DATABASE"
+
 #SQLITE3 DATABASE DOMAIN ERRORS EXCEPTION CLASSES.
 #REVISIT WHY SQLITE3.DATABASEERRORS ARE NOT BEING CAUGHT.
 class DatabaseError(Exception):
@@ -86,3 +89,6 @@ class Invalid_Asset_Error(DatabaseError):
 
 class Invalid_Direction_Error(DatabaseError):
     "EXCEPTION CLASS FOR AN INVALID DIRECTION STRING."
+
+class Empty_Trades_Table_Error(DatabaseError):
+    """EXCEPTION CLASS FOR AN EMPTY TRADES TABLE IN THE DATABASE"""
