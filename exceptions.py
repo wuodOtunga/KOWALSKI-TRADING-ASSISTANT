@@ -60,6 +60,12 @@ class Journal_Entry_Error(JournalingError):
 class Trades_Not_Found_Error(JournalingError):
     "EXCEPTION CLASS FOR NO TRADES FOUND IN THE DATABASE"
 
+class Account_Creation_Error(JournalingError):
+    """EXCEPTION CLASS FOR FAILED DB ACCOUNT CREATION"""
+
+class Accounts_Not_Found_Error(JournalingError):
+    """EXCEPTION CLASS FOR NO ACCOUNTS FOUND IN THE DATABASE"""
+
 #SQLITE3 DATABASE DOMAIN ERRORS EXCEPTION CLASSES.
 #REVISIT WHY SQLITE3.DATABASEERRORS ARE NOT BEING CAUGHT.
 class DatabaseError(Exception):
@@ -92,3 +98,6 @@ class Invalid_Direction_Error(DatabaseError):
 
 class Empty_Trades_Table_Error(DatabaseError):
     """EXCEPTION CLASS FOR AN EMPTY TRADES TABLE IN THE DATABASE"""
+
+class Empty_Accounts_Table_Error(DatabaseError):
+    """EXCEPTION CLASS FOR AN EMPTY ACCOUNTS TABLE IN THE DATABASE"""

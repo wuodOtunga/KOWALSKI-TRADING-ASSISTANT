@@ -323,15 +323,19 @@ class Database:
         if not exists:
             raise t.Invalid_Identifier_Error(f"{trade.entry_execution_id} DOESN'T MATCH ANY ARCHETYPE.")
 
-    def get_trading_account(self, account_id: int) -> Account:
+    def get_trading_accounts(self) -> list[Account]:
 
         cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM accounts WHERE account_id = ?", (account_id,))
-        row = cursor.fetchone()
-        if row is None:
-            raise t.Invalid_Identifier_Error(f"{account_id} DOESN'T MATCH ANY ACCOUNT.")
+        cursor.execute("SELECT * FROM accounts")
+        rows = cursor.fetchall()
+        if not rows:
+            raise t.Empty_Accounts_Table_Error("NO ACCOUNTS FOUND!")
 
-        return Account(**row)
+        accounts = []
+        for row in rows:
+            accounts.append(Account(**row))
+
+        return accounts
 
     def get_trade_notes(self, trade_id: int) -> TradeNotes:
 

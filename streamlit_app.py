@@ -63,6 +63,9 @@ def main():
     if st.session_state.show_journal_entry:
         kowalski._render_journal_entry_data()
 
+    if st.session_state.show_accounts_table:
+        kowalski._render_available_accounts_table()
+
 class Kowalski:
     def __init__(self, journal: Journal):
         self.journal = journal
@@ -81,6 +84,9 @@ class Kowalski:
 
         if "trade_amendment" not in st.session_state:
             st.session_state.trade_amendment = {}
+
+        if "account_info" not in st.session_state:
+            st.session_state.account_info = {}
 
         if "show_trade_details_form" not in st.session_state:
             st.session_state.show_trade_details_form = False
@@ -129,6 +135,18 @@ class Kowalski:
 
         if "show_journal_entry" not in st.session_state:
             st.session_state.show_journal_entry = False
+
+        if "account_info_results" not in st.session_state:
+            st.session_state.account_info_results = None
+
+        if "show_account_creation_form" not in st.session_state:
+            st.session_state.show_account_creation_form = False
+
+        if "show_accounts_table" not in st.session_state:
+            st.session_state.show_accounts_table = False
+
+        if "available_accounts_results" not in st.session_state:
+            st.session_state.available_accounts_results = None
     
     def _render_trade_details_form(self):
         st.header("TRADE DETAILS ENTRY FORM")
@@ -412,6 +430,65 @@ class Kowalski:
             for parameter in journal_entry.parameter_names: # type: ignore
                 st.write(parameter)
 
+    def _render_account_creation_form(self):
+        st.subheader("CREATE TRADING ACCOUNT")
+
+        with st.form("ACCOUNT CREATION", clear_on_submit= True, enter_to_submit= False):
+            st.text_input("ACCOUNT NAME", value= None, key= "account_name")
+            st.selectbox("ACCOUNT TYPE", ['FUNDED CHALLENGE', 'FUNDED LIVE', 'PERSONAL LIVE', 'DEMO ACCOUNT'], index= None, key= "account_type")
+            st.text_input("BROKER NAME", value= None, key= "broker_name")
+            st.number_input("STARTING BALANCE", value= None, key= "starting_balance")
+            st.radio("IS_ACTIVE", options= [True, False], index= None, key= "is_active")
+
+            submit = st.form_submit_button("SUBMIT")
+            if submit:
+                account_info = {
+                    "account_name": st.session_state.account_name,
+                    "account_type": st.session_state.account_type,
+                    "broker_name": st.session_state.broker_name,
+                    "starting_balance": st.session_state.starting_balance,
+                    "is_active": st.session_state.is_active,
+                }
+                st.session_state.account_info = account_info
+                empty_values = [key for key, value in st.session_state.account_info.items() if value is None]
+                if empty_values:
+                    st.warning(f"PLEASE FILL IN ALL REQUIRED FIELDS: {','.join(empty_values)}")
+                else:
+                    results = s.create_trading_account(st.session_state.account_info, self.journal)
+                    st.session_state.account_info_results = results
+                    if results.success:
+                        st.success(results.message)
+                        st.session_state.account_info = {}
+                        st.balloons()
+                    else:
+                        st.error(results.message)
+
+        st.divider()
+        st.subheader("### REGISTERED ACCOUNT INFO")
+        if st.session_state.account_info_results and st.session_state.account_info_results.success:
+            account = st.session_state.account_info_results.data
+            for key, value in asdict(account).items(): # type: ignore
+                st.write(f"{key}: {value}")
+
+    def _render_available_accounts_table(self):
+        st.subheader("AVAILABLE ACCOUNTS INFO")
+
+        if st.session_state.show_accounts_table:
+            results = s.view_trading_accounts(self.journal)
+            st.session_state.available_accounts_results = results
+
+            if results.success:
+                st.success(results.message)
+                st.balloons()
+            else:
+                st.error(results.message)
+
+            if st.session_state.available_accounts_results and st.session_state.available_accounts_results.success:
+                accounts = st.session_state.available_accounts_results.data
+
+                st.table(pd.DataFrame(accounts)) # type: ignore
+
+
     def _render_widgets(self):
         st.title("KOWALSKI TRADING JOURNAL")
 
@@ -444,8 +521,10 @@ class Kowalski:
 
         st.sidebar.subheader("ACCOUNTS")
         with st.sidebar.expander("ACCOUNTS ACTIONS"):
-            st.button("VIEW TRADING ACCOUNTS")
-            st.button("CREATE TRADING ACCOUNT")
+            if st.button("CREATE TRADING ACCOUNT"):
+                st.session_state.show_account_creation_form = True
+            if st.button("VIEW TRADING ACCOUNTS"):
+                st.session_state.show_accounts_table = True
 
         st.sidebar.subheader("TRADE ANALYTICS")
         with st.sidebar.expander("VIEW ANALYTICS"):

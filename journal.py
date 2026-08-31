@@ -4,6 +4,7 @@ import exceptions as t
 import trade_calculator as y
 from database import Database
 from models import (
+    Account,
     Amendments,
     JournalEntry,
     Trade,
@@ -172,7 +173,7 @@ class Journal:
             trades = self.db.get_all_trade_rows()
             return trades
         except t.Empty_Trades_Table_Error as e:
-            raise t.Trades_Not_Found_Error(f"EMPTY TRADES DATABASE TABLE: {e}")
+            raise t.Trades_Not_Found_Error(f"EMPTY TRADES DATABASE TABLE: {e}") from e
 
 #THE TRADER/USER WANTS TO SEE THE ENTIRE RECORDED JOURNAL ENTRY.
 #METHOD NEEDS TO GET DATA FROM: TRADES, TRADE_PARAMETERS
@@ -208,10 +209,6 @@ class Journal:
 #WITH THE GIVEN STREAMLIT CODE PATH, THERE IS NO USE FOR THE JOURNAL METHOD.
 #IN THE FUTURE IF NEED ARISES, YOU CAN REWRITE IT.
 
-
-    #ISSUE TO HANDLE: STREAMLIT DISPLAYS AND RETURNS THE COLUMN NAMES LIKE THIS : ENTRY PRICE
-    #AMEND_TRADE_ENTRY METHOD IS WORKING WITH COLUMN NAMES LIKE THIS : entry_price
-    #FIND OUT IF THIS MIGHT BE AN ISSUE: ENTRY PRICE != entry_price
     def amend_trade_entry(self, trade_id: int, amendment: Amendments) -> Trade:
         forbidden_columns = ["dollar_amount", "duration", "result", "rr_multiple", "overall_trade_grade"]
         if amendment.column_name in forbidden_columns:
@@ -301,9 +298,25 @@ class Journal:
             self.db.commit()
         except t.DatabaseError as e:
             self.db.rollback()
-            raise t.Grading_Error(f"ERROR FINALIZING GRADE: {e}")
+            raise t.Grading_Error(f"ERROR FINALIZING GRADE: {e}") from e
 
         return graded_trade
 
-#ADD JOURNAL METHOD FOR CREATING AN ACCOUNT
-  
+    def register_trading_account(self, account: Account) -> Account:
+
+        try:
+            account_id = self.db.create_trading_account(account)
+            account.account_id = account_id
+        except t.Constraint_Violation_Error as e:
+            raise t.Account_Creation_Error(f"ACCOUNT COULDN'T BE CREATED DUE TO DB ERROR: {e}") from e
+
+        return account
+
+    def fetch_all_trading_accounts(self) -> list[Account]:
+
+        try:
+            accounts = self.db.get_trading_accounts()
+        except t.Empty_Accounts_Table_Error as e:
+            raise t.Accounts_Not_Found_Error(f"ERROR! EMPTY ACCOUNTS TABLE: {e}") from e
+
+        return accounts

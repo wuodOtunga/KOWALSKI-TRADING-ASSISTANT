@@ -7,6 +7,7 @@ from pathlib import Path
 import exceptions as t
 from journal import Journal
 from models import (
+    Account,
     Amendments,
     ChartsBatchResult,
     ChartUploadOutcome,
@@ -21,7 +22,7 @@ from models import (
 
 #OBJECTIVE #2: RECORD A TRADE AND JOURNAL ENTRY.
 #REQUIRED SERVICE FUNCTIONS.
-def submit_trade(trade_details: dict, journal: Journal):
+def submit_trade(trade_details: dict, journal: Journal) -> ServiceResult:
     #STEP #1: ACCEPT UI DICT/LIST DATA
 
     #STEP #2: CONSTRUCT DOMAIN OBJECT
@@ -66,7 +67,7 @@ def submit_trade(trade_details: dict, journal: Journal):
     #STEP #5: RETURN UI VALID OBJECT
     return ServiceResult(success= True, message= "TRADE RECORDED SUCCESSFULLY!", data= recorded_trade)
 
-def submit_trade_notes(trade_notes: dict, journal: Journal):
+def submit_trade_notes(trade_notes: dict, journal: Journal) -> ServiceResult:
 
     try:
         trading_notes = TradeNotes(
@@ -86,7 +87,7 @@ def submit_trade_notes(trade_notes: dict, journal: Journal):
 
     return ServiceResult(success= True, message= "TRADE NOTES RECORDED SUCCESSFULLY!", data= trading_notes)
 
-def submit_trade_parameters(trade_parameters: dict, journal: Journal):
+def submit_trade_parameters(trade_parameters: dict, journal: Journal) -> ServiceResult:
     #ASSUMPTIONS INCLUDE: TRADE IS ALREADY IN THE TRADES DATABASE TABLE.
     #THE TRADE HASN'T BEEN GRADED YET SO WE CALL FINALIZE_GRADE TO GRADE IT.
     #TRADE CAN'T BE GRADED UNTIL PARAMETERS_SUBMITTED BOOL == TRUE
@@ -189,7 +190,7 @@ def _save_uploaded_charts(uploaded_file) -> tuple[str, str]:
 #WITH THE GIVEN STREAMLIT CODE PATH, THERE IS NO USE FOR THE SERVICE FUNCTION.
 #IN THE FUTURE IF NEED ARISES FOR THIS SERVICE FUNCTION, SIMPLY REWRITE IT.
 
-def submit_amendment(trade_amendment: dict, journal: Journal):
+def submit_amendment(trade_amendment: dict, journal: Journal) -> ServiceResult:
 
     try:
         amendment = Amendments(
@@ -216,7 +217,7 @@ def submit_amendment(trade_amendment: dict, journal: Journal):
 
 
 #STREAMLIT DISPLAY SERVICE FUNCTIONS
-def fetch_trade(trade_id: int, journal: Journal):
+def fetch_trade(trade_id: int, journal: Journal) -> ServiceResult:
     try:
         trade = journal.get_trade(trade_id)
     except t.Invalid_TradeID_Error as e:
@@ -224,7 +225,7 @@ def fetch_trade(trade_id: int, journal: Journal):
     
     return ServiceResult(success= True, message= "TRADE FETCHED SUCCESSFULLY!", data= trade)
 
-def fetch_all_trades(journal: Journal):
+def fetch_all_trades(journal: Journal) -> ServiceResult:
     try:
         trades = journal.get_all_trades()
     except t.Trades_Not_Found_Error as e:
@@ -243,3 +244,33 @@ def fetch_journal_entry(trade_id: int, journal: Journal):
 
 #STREAMLIT SERVICE FUNCTIONS FOR ACCOUNTS ACTIONS
 #ACCOUNTS ACTION: VIEW ACCOUNTS, CREATE ACCOUNT
+def create_trading_account(account_info: dict, journal: Journal) -> ServiceResult:
+    try:
+        account = Account(
+            account_id= None,
+            account_name= account_info["account_name"],
+            account_type= account_info["account_type"],
+            broker= account_info["broker_name"],
+            starting_balance= account_info["starting_balance"],
+            is_active= account_info["is_active"]
+        )
+    except KeyError as e:
+        return ServiceResult(success= False, message= f"INVALID KEY REFERENCE: {e}", data= None)
+
+    try:
+        registered_account = journal.register_trading_account(account)
+    except t.Account_Creation_Error as e:
+        return ServiceResult(success= False, message= f"ACCOUNT REGISTRATION FAILED: {e}", data= None)
+
+    return ServiceResult(success= True, message= "ACCOUNT REGISTERED SUCCESSFULLY!", data= registered_account)
+
+def view_trading_accounts(journal: Journal) -> ServiceResult:
+    try:
+        available_accounts = journal.fetch_all_trading_accounts()
+    except t.Accounts_Not_Found_Error as e:
+        return ServiceResult(success= False, message= f"NO ACCOUNTS FOUND! {e}", data= None)
+
+    return ServiceResult(success= True, message= "ACCOUNTS FOUND SUCCESSFULLY!", data= available_accounts) # type: ignore
+
+def delete_account_info():
+    pass
