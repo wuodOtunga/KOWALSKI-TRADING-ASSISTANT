@@ -66,6 +66,12 @@ def main():
     if st.session_state.show_accounts_table:
         kowalski._render_available_accounts_table()
 
+    if st.session_state.show_trade_calculator_form:
+        kowalski._render_trade_calculator_form()
+
+    if st.session_state.show_position_sizing_form:
+        kowalski._render_position_sizing_form()
+
 class Kowalski:
     def __init__(self, journal: Journal):
         self.journal = journal
@@ -87,6 +93,12 @@ class Kowalski:
 
         if "account_info" not in st.session_state:
             st.session_state.account_info = {}
+
+        if "setup_values" not in st.session_state:
+            st.session_state.setup_values = {}
+
+        if "position_sizing_inputs" not in st.session_state:
+            st.session_state.position_sizing_inputs = {}
 
         if "show_trade_details_form" not in st.session_state:
             st.session_state.show_trade_details_form = False
@@ -147,6 +159,18 @@ class Kowalski:
 
         if "available_accounts_results" not in st.session_state:
             st.session_state.available_accounts_results = None
+
+        if "show_trade_calculator_form" not in st.session_state:
+            st.session_state.show_trade_calculator_form = False
+
+        if "setup_values_results" not in st.session_state:
+            st.session_state.setup_values_results = None
+
+        if "position_sizing_results" not in st.session_state:
+            st.session_state.position_sizing_results = None
+
+        if "show_position_sizing_form" not in st.session_state:
+            st.session_state.show_position_sizing_form = False
     
     def _render_trade_details_form(self):
         st.header("TRADE DETAILS ENTRY FORM")
@@ -264,7 +288,6 @@ class Kowalski:
         with st.form("PARAMETERS CHECKLIST", enter_to_submit=False):
             st.number_input("TRADE ID", value= None, key= "trade_identifier")
             
-            #WHAT DOES MULTISELECT RETURN WHEN NO OPTIONS HAVE BEEN SELECTED
             #RESEARCH ABOUT PERSIST_STATE PARAMETER, NONE/PAGE/SESSION
             st.multiselect("PARAMETERS CHECKLIST", parameters, key="checklist")
 
@@ -488,6 +511,91 @@ class Kowalski:
 
                 st.table(pd.DataFrame(accounts)) # type: ignore
 
+    def _render_trade_calculator_form(self):
+        st.subheader("TRADING CALCULATOR")
+        with st.form("TRADING CALCULATOR", clear_on_submit= True, enter_to_submit= False):
+            st.number_input("ENTRY PRICE", value= None, key="opening_price")
+            st.number_input("EXIT PRICE", value= None, key= "closing_price")
+            st.number_input("STOP LOSS", value= None, key= "loss_price")
+            st.number_input("TAKE PROFIT", value= None, key= "profit_price")
+            st.radio("ASSET", options= list(TradeAsset), index= None, key= "instrument")
+            st.radio("DIRECTION", options= list(TradeDirection), index= None, key= "trade_direction")
+            st.number_input("POSITION SIZE", value= None, key= "lot_size")
+            st.number_input("ACCOUNT BALANCE", value= None, key= "balance")
+            st.number_input("RISK PERCENT", value= None, key= "percent")
+
+            submit = st.form_submit_button("SUBMIT")
+            if submit:
+                setup_values = {
+                    "entry_price": st.session_state.opening_price,
+                    "exit_price": st.session_state.closing_price,
+                    "stop_loss": st.session_state.loss_price,
+                    "take_profit": st.session_state.profit_price,
+                    "asset": st.session_state.instrument,
+                    "direction": st.session_state.trade_direction,
+                    "position_size": st.session_state.lot_size,
+                    "account_balance": st.session_state.balance,
+                    "risk_percent": st.session_state.percent,
+                }
+                st.session_state.setup_values = setup_values
+                results = s.run_calculator(st.session_state.setup_values)
+                st.session_state.setup_values_results = results
+
+                if results.success:
+                    st.success(results.message)
+                    st.session_state.setup_values = {}
+                    st.balloons()
+                else:
+                    st.error(results.message)
+
+        if st.session_state.setup_values_results and st.session_state.setup_values_results.success:
+            profit_loss = st.session_state.setup_values_results.profit_loss
+            risk_reward = st.session_state.setup_values_results.risk_reward
+
+            st.subheader("CALCULATOR TRADE METRICS RESULTS")
+            st.divider()
+            st.write("PROFIT AND LOSS METRICS FOR THE TRADE SETUP")
+            for key, value in profit_loss.items(): # type: ignore
+                st.write(f"{key}: {value}")
+
+            st.divider()
+            st.write("RISK-REWARD METRICS FOR THE TRADE SETUP")
+            for key, value in risk_reward.items(): # type: ignore
+                st.write(f"{key}: {value}")
+
+    def _render_position_sizing_form(self):
+        with st.form("POSITION SIZE", clear_on_submit= True, enter_to_submit= False):
+            st.number_input("ENTRY PRICE", value= None, key= "potential_entry")
+            st.number_input("STOP LOSS", value= None, key= "potential_exit")
+            st.radio("ASSET", options= list(TradeAsset), index= None, key= "symbol")
+            st.number_input("ACCOUNT BALANCE", value= None, key= "available_balance")
+            st.number_input("RISK PERCENT", value= None, key= "allowed_risk")
+
+            submit = st.form_submit_button("SUBMIT")
+            if submit:
+                position_sizing_inputs = {
+                    "entry_price": st.session_state.potential_entry,
+                    "stop_loss": st.session_state.potential_exit,
+                    "asset": st.session_state.symbol,
+                    "account_balance": st.session_state.available_balance,
+                    "risk_percent": st.session_state.allowed_risk,
+                }
+                st.session_state.position_sizing_inputs = position_sizing_inputs
+                results = s.position_sizing(st.session_state.position_sizing_inputs)
+                st.session_state.position_sizing_results = results
+                if results.success:
+                    st.success(results.message)
+                    st.session_state.position_sizing_inputs = {}
+                    st.balloons()
+                else:
+                    st.error(results.message)
+
+        if st.session_state.position_sizing_results and st.session_state.position_sizing_results.success:
+            calculated_position_size = st.session_state.position_sizing_results.position_size
+            st.subheader("OPTIMAL POSITION SIZE")
+            st.divider()
+            st.write(f"POSITION SIZE: {calculated_position_size}")
+
 
     def _render_widgets(self):
         st.title("KOWALSKI TRADING JOURNAL")
@@ -515,9 +623,11 @@ class Kowalski:
 
         st.sidebar.subheader("TRADING CALCULATOR")
         with st.sidebar.expander("CALCULATOR ACTIONS"):
-            st.button("PROFIT-LOSS")
-            st.button("POSITION SIZING")
-            st.button("RISK-REWARD RATIO")
+            if st.button("RUN CALCULATOR"):
+                st.session_state.show_trade_calculator_form = True
+
+            if st.button("POSITION SIZING"):
+                st.session_state.show_position_sizing_form = True
 
         st.sidebar.subheader("ACCOUNTS")
         with st.sidebar.expander("ACCOUNTS ACTIONS"):

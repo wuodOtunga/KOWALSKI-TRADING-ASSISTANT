@@ -105,7 +105,40 @@ class Amendments:
     amended_at : datetime | None
 
 @dataclass
+class TradeSetup:
+    """THIS CLASS MANAGES THE CALCULATOR INPUTS"""
+    entry_price: float
+    exit_price: float
+    stop_loss: float
+    take_profit: float
+    asset: TradeAsset
+    direction: TradeDirection
+    position_size: float
+    account_balance: float
+    risk_percent: float
+    entry_time: time | None
+    exit_time: time | None
+    date: date | None
+
+@dataclass
+class PositionSizing:
+    """MANAGES POSITION SIZE INPUT VALUES"""
+    entry_price: float
+    stop_loss: float
+    asset: TradeAsset
+    account_balance: float
+    risk_percent: float
+
+@dataclass
+class PositionSizingInput:
+    """REPRESENTS POSITION SIZE CALCULATIONS OUTCOME"""
+    success: bool
+    message: str
+    position_size: float | int | None
+
+@dataclass
 class ServiceResult:
+    """MANAGES RETURN TYPES OF SERVICE FUNCTIONS"""
     success : bool
     message : str
     data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | None
@@ -133,3 +166,11 @@ class ChartsBatchResult:
 
     def all_succeeded(self) -> bool:
         return all(o.success for o in self.outcomes)
+
+@dataclass
+class CalculatorResults:
+    """BUNDLE OF CALCULATOR RESULTS OUTPUT"""
+    success: bool
+    message: str
+    profit_loss: dict | None
+    risk_reward: dict | None

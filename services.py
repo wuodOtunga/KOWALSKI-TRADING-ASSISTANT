@@ -5,18 +5,23 @@ from datetime import datetime
 from pathlib import Path
 
 import exceptions as t
+import trade_calculator as y
 from journal import Journal
 from models import (
     Account,
     Amendments,
+    CalculatorResults,
     ChartsBatchResult,
     ChartUploadOutcome,
+    PositionSizing,
+    PositionSizingInput,
     ServiceResult,
     Trade,
     TradeAsset,
     TradeChart,
     TradeDirection,
     TradeNotes,
+    TradeSetup,
 )
 
 
@@ -274,3 +279,85 @@ def view_trading_accounts(journal: Journal) -> ServiceResult:
 
 def delete_account_info():
     pass
+
+def run_calculator(setup_values: dict) -> CalculatorResults:
+    #USER WANTS TO CALCULATE PROFIT/LOSS, RISK_REWARD RATIO
+    try:
+        setup = TradeSetup(
+            entry_price= float(setup_values["entry_price"]),
+            exit_price= float(setup_values["exit_price"]),
+            stop_loss= float(setup_values["stop_loss"]),
+            take_profit= float(setup_values["take_profit"]),
+            asset= TradeAsset(setup_values["asset"]),
+            direction= TradeDirection(setup_values["direction"]),
+            position_size= float(setup_values["position_size"]),
+            account_balance= float(setup_values["account_balance"]),
+            risk_percent= float(setup_values["risk_percent"]),
+            entry_time= None,
+            exit_time= None,
+            date= None,
+        )
+    except ValueError as e:
+        return CalculatorResults(
+            success= False, 
+            message= f"TYPE VALIDATION FAILED. CHECK INPUT TYPES: {e}",
+            profit_loss= None,
+            risk_reward= None,
+        )
+    except KeyError as e:
+        return CalculatorResults(
+            success= False,
+            message= f"SOME INPUT VALUES ARE MISSING. PROVIDE ALL REQUIRED FIELDS: {e}",
+            profit_loss= None,
+            risk_reward= None,
+        )
+
+    try:
+        profit_loss_results = y.calculate_profit_loss(setup)
+        risk_reward_results = y.calculate_risk_reward_multiple(setup)
+    except t.Trade_Validation_Error as e:
+        return CalculatorResults(
+            success= False,
+            message= f"TRADE VALIDATION FAILED: {e}",
+            profit_loss= None,
+            risk_reward= None,
+        )
+
+    return CalculatorResults(
+        success= True,
+        message= "CALCULATIONS DONE SUCCESSFULLY!",
+        profit_loss= profit_loss_results,
+        risk_reward= risk_reward_results,
+    )
+
+def position_sizing(position_sizing_inputs: dict) -> PositionSizingInput:
+
+    try:
+        position_size = PositionSizing(
+            entry_price= float(position_sizing_inputs["entry_price"]),
+            stop_loss= float(position_sizing_inputs["stop_loss"]),
+            asset= TradeAsset(position_sizing_inputs["asset"]),
+            account_balance= float(position_sizing_inputs["account_balance"]),
+            risk_percent= float(position_sizing_inputs["risk_percent"])
+        )
+    except (KeyError, ValueError) as e:
+        return PositionSizingInput(
+            success= False,
+            message= f"WRONG INPUT VALUES. ENTER VALID VALUES: {e}",
+            position_size= None
+        )
+
+    try:
+        lot = y.calculate_position_size(position_size)
+    except t.Trade_Validation_Error as e:
+        return PositionSizingInput(
+            success= False,
+            message= f"INPUT VALIDATION FAILED: {e}",
+            position_size= None
+        )
+
+    return PositionSizingInput(
+        success= True,
+        message= "POSITION SIZE CALCULATED SUCCESSFULLY!",
+        position_size= lot
+    )

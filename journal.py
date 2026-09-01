@@ -14,6 +14,7 @@ from models import (
     TradeGrade,
     TradeNotes,
     TradeResult,
+    TradeSetup,
 )
 from validation import validate_trade_data
 
@@ -50,8 +51,9 @@ class Journal:
 #DOLLAR_AMOUNT, RESULT, RR_MULTIPLE, DURATION ARE DERIVED.
     def _compute_derived_fields(self, trade: Trade) -> Trade:
         """COMPUTES DERIVED FIELDS USING THE CALCULATOR MODULE."""
+        setup = self._convert_to_trade_setup(trade)
 
-        results = y.calculate_profit_loss(trade)
+        results = y.calculate_profit_loss(setup)
         dollar_amount = results["DOLLAR_AMOUNT"]
         trade.dollar_amount = dollar_amount
         result = results["RESULT"]
@@ -62,14 +64,33 @@ class Journal:
 
         trade.result = result
         
-        values = y.calculate_risk_reward_multiple(trade)
+        values = y.calculate_risk_reward_multiple(setup)
         rr_multiple = values["RR_MULTIPLE"]
         trade.rr_multiple = rr_multiple
-        duration = y.calculate_trade_duration(trade)
+        duration = y.calculate_trade_duration(setup)
         trade.duration = duration
 
         return trade
-    
+
+    def _convert_to_trade_setup(self, trade: Trade) -> TradeSetup:
+
+        setup = TradeSetup(
+            entry_price= trade.entry_price,
+            exit_price= trade.exit_price,
+            stop_loss= trade.stop_loss,
+            take_profit= trade.take_profit,
+            asset= trade.asset,
+            direction= trade.direction,
+            position_size= trade.position_size,
+            account_balance= trade.account_balance,
+            risk_percent= trade.risk_percent,
+            entry_time= trade.entry_time,
+            exit_time= trade.exit_time,
+            date= trade.date
+        )
+
+        return setup
+        
 #ASSEMBLE/DERIVE DATA AND VALIDATE DATA GETS HANDLED BY STREAMLIT.
 #STREAMLIT OWNS THE COLLECTION OF CHARTS DATA LOGIC.
 #ATTACH CHART RECEIVES A VALID, FULLY CONSTRUCTED CHARTS DATA. 
