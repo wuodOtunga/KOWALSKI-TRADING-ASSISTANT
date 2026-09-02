@@ -73,3 +73,9 @@ trade_management_df = pd.DataFrame([(index,) + row for index, row in enumerate(t
 
 parameters_df = pd.DataFrame([(index,) + row for index, row in enumerate(parameter_values, start=1)],
              columns=["parameter_id", "parameter_name"])
+
+#DICTIONARY MAPPING OF IDS TO NAMES AND ARCHETYPES FOR FORMAT_FUNC PARAMETER FORMATTING IN THE TRADE DETAILS FORM
+models_options = models_df.set_index("model_id")["model_name"].to_dict()
+account_options = accounts_df.set_index("account_id")["account_name"].to_dict()
+entry_execution_options = entry_execution_df.set_index("id")["archetype"].to_dict()
+trade_management_options = trade_management_df.set_index("id")["archetype"].to_dict()

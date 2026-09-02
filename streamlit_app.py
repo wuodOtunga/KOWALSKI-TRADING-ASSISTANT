@@ -14,13 +14,17 @@ from database import Database
 from journal import Journal
 from models import TradeAsset, TradeDirection
 from seed_data import (
+    account_options,
     accounts_df,
     column_names,
     entry_execution_df,
+    entry_execution_options,
     models_df,
+    models_options,
     parameters,
     parameters_df,
     trade_management_df,
+    trade_management_options,
 )
 
 min_date = datetime(1990, 1, 1)  # noqa: DTZ001
@@ -191,14 +195,14 @@ class Kowalski:
             st.time_input("EXIT TIME", value=None, key= "exit_time")
             st.date_input("DATE", value=None,  min_value= min_date, max_value= max_date, key= "date")
 
-            st.selectbox("MODEL ID", models_df["model_id"], index=None,
-                        format_func=lambda model_id: models_df.loc[models_df["model_id"] == model_id, "model_name"].iloc[0], key= "model_id")
-            st.selectbox("ACCOUNT ID", accounts_df["account_id"], index=None,
-                        format_func=lambda account_id: accounts_df.loc[accounts_df["account_id"] == account_id, "account_name"].iloc[0], key= "account_id")
-            st.selectbox("MANAGEMENT ID", trade_management_df["id"], index=None,
-                        format_func=lambda id: trade_management_df.loc[trade_management_df["id"] == id, "archetype"].iloc[0], key= "management_id")
-            st.selectbox("ENTRY EXECUTION ID", entry_execution_df["id"], index=None,
-                        format_func=lambda id: entry_execution_df.loc[entry_execution_df["id"] == id, "archetype"].iloc[0], key= "entry_execution_id")
+            st.selectbox(label= "MODEL ID", options= list(models_options.keys()), index=None,
+                         format_func= lambda x: models_options[x], key= "model_id")
+            st.selectbox(label= "ACCOUNT ID", options= list(account_options.keys()), index=None,
+                         format_func= lambda x: account_options[x], key= "account_id")
+            st.selectbox(label= "MANAGEMENT ID", options= list(trade_management_options.keys()), index=None,
+                         format_func= lambda x: trade_management_options[x], key= "management_id")
+            st.selectbox(label= "ENTRY EXECUTION ID", options= list(entry_execution_options.keys()), index=None,
+                         format_func= lambda x: entry_execution_options[x], key= "entry_execution_id")
 
             submit = st.form_submit_button(label="SUBMIT")
             if submit:
@@ -518,8 +522,8 @@ class Kowalski:
             st.number_input("EXIT PRICE", value= None, key= "closing_price")
             st.number_input("STOP LOSS", value= None, key= "loss_price")
             st.number_input("TAKE PROFIT", value= None, key= "profit_price")
-            st.radio("ASSET", options= list(TradeAsset), index= None, key= "instrument")
-            st.radio("DIRECTION", options= list(TradeDirection), index= None, key= "trade_direction")
+            st.radio("ASSET", options= list(TradeAsset), index= None, format_func= lambda a: a.value, key= "instrument")
+            st.radio("DIRECTION", options= list(TradeDirection), index= None, format_func= lambda d: d.value, key= "trade_direction")
             st.number_input("POSITION SIZE", value= None, key= "lot_size")
             st.number_input("ACCOUNT BALANCE", value= None, key= "balance")
             st.number_input("RISK PERCENT", value= None, key= "percent")
@@ -567,7 +571,7 @@ class Kowalski:
         with st.form("POSITION SIZE", clear_on_submit= True, enter_to_submit= False):
             st.number_input("ENTRY PRICE", value= None, key= "potential_entry")
             st.number_input("STOP LOSS", value= None, key= "potential_exit")
-            st.radio("ASSET", options= list(TradeAsset), index= None, key= "symbol")
+            st.radio("ASSET", options= list(TradeAsset), index= None, format_func= lambda a: a.value, key= "symbol")
             st.number_input("ACCOUNT BALANCE", value= None, key= "available_balance")
             st.number_input("RISK PERCENT", value= None, key= "allowed_risk")
 
@@ -596,6 +600,8 @@ class Kowalski:
             st.divider()
             st.write(f"POSITION SIZE: {calculated_position_size}")
 
+    def _render_landing_page(self):
+        pass
 
     def _render_widgets(self):
         st.title("KOWALSKI TRADING JOURNAL")
