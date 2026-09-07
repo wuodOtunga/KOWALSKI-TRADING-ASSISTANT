@@ -29,9 +29,9 @@ class Journal:
 
         #1: ASSEMBLE/DERIVE TRADE DATA CALLER DOESN'T HAVE.
         trade = self._compute_derived_fields(trade)
-        #AT THIS POINT TRADE.PARAMETERS_SUBMITTED = FALSE
-        #SO MEANING WE CAN'T GRADE TRADE.
-        #IT GETS TO THE DATABASE AS NONE FOR OVERRAL_TRADE_GRADE
+        #TRADE ISN'T GRADED AT THIS POINT BECAUSE TRADE PARAMETERS
+        #MAY NOT HAVE BEEN SUBMITTED YET.
+        #FINALIZE_GRADE() METHOD WILL HANDLE GRADING AND UPDATING OF OVERALL_TRADE_GRADE
 
         #2: VALIDATE THE TRADE DATA.
         valid_trade = validate_trade_data(trade)
@@ -51,6 +51,7 @@ class Journal:
 #DOLLAR_AMOUNT, RESULT, RR_MULTIPLE, DURATION ARE DERIVED.
     def _compute_derived_fields(self, trade: Trade) -> Trade:
         """COMPUTES DERIVED FIELDS USING THE CALCULATOR MODULE."""
+
         setup = self._convert_to_trade_setup(trade)
 
         results = y.calculate_profit_loss(setup)
@@ -67,6 +68,8 @@ class Journal:
         values = y.calculate_risk_reward_multiple(setup)
         rr_multiple = values["RR_MULTIPLE"]
         trade.rr_multiple = rr_multiple
+        risk_percent = values["RISK_PERCENT"]
+        trade.risk_percent = risk_percent
         duration = y.calculate_trade_duration(setup)
         trade.duration = duration
 
@@ -74,6 +77,7 @@ class Journal:
 
     def _convert_to_trade_setup(self, trade: Trade) -> TradeSetup:
 
+        live_account_balance = self.db.get_current_account_balance(trade.account_id) # type: ignore
         setup = TradeSetup(
             entry_price= trade.entry_price,
             exit_price= trade.exit_price,
@@ -82,8 +86,7 @@ class Journal:
             asset= trade.asset,
             direction= trade.direction,
             position_size= trade.position_size,
-            account_balance= trade.account_balance,
-            risk_percent= trade.risk_percent,
+            account_balance= live_account_balance,
             entry_time= trade.entry_time,
             exit_time= trade.exit_time,
             date= trade.date
@@ -196,10 +199,10 @@ class Journal:
         except t.Empty_Trades_Table_Error as e:
             raise t.Trades_Not_Found_Error(f"EMPTY TRADES DATABASE TABLE: {e}") from e
 
-#THE TRADER/USER WANTS TO SEE THE ENTIRE RECORDED JOURNAL ENTRY.
-#METHOD NEEDS TO GET DATA FROM: TRADES, TRADE_PARAMETERS
-#TRADE NOTES, CHARTS TABLE.
-#METHOD NEEDS TO GET A LIST OF PARAMETERS NAMES FOR THE TRADE. 
+    #THE TRADER/USER WANTS TO SEE THE ENTIRE RECORDED JOURNAL ENTRY.
+    #METHOD NEEDS TO GET DATA FROM: TRADES, TRADE_PARAMETERS
+    #TRADE NOTES, CHARTS TABLE.
+    #METHOD NEEDS TO GET A LIST OF PARAMETERS NAMES FOR THE TRADE. 
     def get_journal_entry(self, trade_id: int) -> JournalEntry:
         """READ AN ENTIRE JOURNAL ENTRY FROM DATABASE AT ONCE."""
 
@@ -304,7 +307,7 @@ class Journal:
 
         #DB METHOD ISN'T WRAPPED IN TRY/EXCEPT BLOCK SINCE IT'S
         #CONDITIONALLY CALLED, IT'S A LOOK UP METHOD WITH NO RISKS
-        #OFF DATABASEERRORS CONSULT THOUGH.
+        #OF DATABASEERRORS CONSULT THOUGH.
         if parameter_names:
             parameter_ids = self.db.get_parameter_ids(parameter_names)
 

@@ -1,6 +1,9 @@
 PRAGMA foreign_keys = ON;
 
---ADD DURATION, RESULT TO THE CALCULATED/DERIVED COLUMNS.
+--REMOVED ACCOUNT_BALANCE FROM TRADES TABLE SINCE IT'S A 
+--RELATIONAL DERIVED VALUE WHICH GETS STALE SOON AS ANYTHING
+--TOUCHING DOLLAR_AMOUNT GETS UPDATED.
+--BETTER TO COMPUTE IT ON DEMAND INSTEAD OF STORING IT.
 CREATE TABLE IF NOT EXISTS "trades" (
     "trade_id" INTEGER,
     "entry_price" NUMERIC NOT NULL,
@@ -19,12 +22,11 @@ CREATE TABLE IF NOT EXISTS "trades" (
     "asset" TEXT NOT NULL CHECK("asset" IN ('XAUUSD', 'XAGUSD', 'NQ', 'ES')),
     "direction" TEXT NOT NULL CHECK("direction" IN ('long', 'short')),
 
-    "dollar_amount" NUMERIC,  --calculated from trading_calculator.py
-    "duration" NUMERIC, --calculated from trading_calculator.py
-    "result" NUMERIC,    --calculated from trading_calculator.py
-    "rr_multiple" NUMERIC,       --calculated from trading_calculator.py
-    "account_balance" NUMERIC,
-    "risk_percent" NUMERIC,
+    "dollar_amount" NUMERIC,  --calculated from trade_calculator.py
+    "duration" NUMERIC,       --calculated from trade_calculator.py
+    "result" NUMERIC,         --calculated from trade_calculator.py
+    "rr_multiple" NUMERIC,    --calculated from trade_calculator.py
+    "risk_percent" NUMERIC,   --calculated from trade_calculator.py
     "overall_trade_grade" TEXT CHECK("overall_trade_grade" IN ('A', 'B', 'C', 'D', 'F') OR "overall_trade_grade" IS NULL),
     
     PRIMARY KEY("trade_id"),

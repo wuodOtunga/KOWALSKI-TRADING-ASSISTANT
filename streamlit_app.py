@@ -188,8 +188,6 @@ class Kowalski:
             st.number_input("POSITION SIZE", min_value=0.01, value=None, key= "position_size")
             st.selectbox("ASSET", list(TradeAsset), index=None, format_func=lambda a: a.value, key= "asset")
             st.radio("DIRECTION", list(TradeDirection), index=None, format_func=lambda d: d.value, key= "direction")
-            st.number_input("ACCOUNT BALANCE", value=None, key= "account_balance")
-            st.number_input("RISK PERCENT", value=None, key= "risk_percent")
 
             st.time_input("ENTRY TIME", value=None, key= "entry_time")
             st.time_input("EXIT TIME", value=None, key= "exit_time")
@@ -214,8 +212,6 @@ class Kowalski:
                     "position_size": st.session_state.position_size,
                     "asset": st.session_state.asset,
                     "direction": st.session_state.direction,
-                    "account_balance": st.session_state.account_balance,
-                    "risk_percent": st.session_state.risk_percent,
                     "entry_time": st.session_state.entry_time,
                     "exit_time": st.session_state.exit_time,
                     "date": st.session_state.date,
@@ -515,9 +511,12 @@ class Kowalski:
 
                 st.table(pd.DataFrame(accounts)) # type: ignore
 
+    #THINK ABOUT WHETHER YOU ACTUALLY WANT CLEAR_ON_SUBMIT PARAMETER.
+    #IN PRACTICE, I REALIZED THAT I WANT THE VALUES TO BE DISPLAYED.
+    #FIGURE OUT PROS AND CONS.
     def _render_trade_calculator_form(self):
         st.subheader("TRADING CALCULATOR")
-        with st.form("TRADING CALCULATOR", clear_on_submit= True, enter_to_submit= False):
+        with st.form("TRADING CALCULATOR", enter_to_submit= False):
             st.number_input("ENTRY PRICE", value= None, key="opening_price")
             st.number_input("EXIT PRICE", value= None, key= "closing_price")
             st.number_input("STOP LOSS", value= None, key= "loss_price")
@@ -526,7 +525,6 @@ class Kowalski:
             st.radio("DIRECTION", options= list(TradeDirection), index= None, format_func= lambda d: d.value, key= "trade_direction")
             st.number_input("POSITION SIZE", value= None, key= "lot_size")
             st.number_input("ACCOUNT BALANCE", value= None, key= "balance")
-            st.number_input("RISK PERCENT", value= None, key= "percent")
 
             submit = st.form_submit_button("SUBMIT")
             if submit:
@@ -539,7 +537,6 @@ class Kowalski:
                     "direction": st.session_state.trade_direction,
                     "position_size": st.session_state.lot_size,
                     "account_balance": st.session_state.balance,
-                    "risk_percent": st.session_state.percent,
                 }
                 st.session_state.setup_values = setup_values
                 results = s.run_calculator(st.session_state.setup_values)
@@ -568,7 +565,7 @@ class Kowalski:
                 st.write(f"{key}: {value}")
 
     def _render_position_sizing_form(self):
-        with st.form("POSITION SIZE", clear_on_submit= True, enter_to_submit= False):
+        with st.form("POSITION SIZE", enter_to_submit= False):
             st.number_input("ENTRY PRICE", value= None, key= "potential_entry")
             st.number_input("STOP LOSS", value= None, key= "potential_exit")
             st.radio("ASSET", options= list(TradeAsset), index= None, format_func= lambda a: a.value, key= "symbol")

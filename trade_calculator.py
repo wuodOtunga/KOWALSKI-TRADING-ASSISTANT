@@ -23,7 +23,6 @@ def _input_validation(setup: TradeSetup) -> TradeSetup:
         ("direction", setup.direction, TradeDirection, False),
         ("position_size", setup.position_size, (float, int), True),
         ("account_balance", setup.account_balance, (float, int), True),
-        ("risk_percent", setup.risk_percent, (float, int), True),
         ("entry_time", setup.entry_time, (time, type(None)), False),
         ("exit_time", setup.exit_time, (time, type(None)), False),
         ("date", setup.date, (date, type(None)), False)
@@ -78,20 +77,27 @@ def calculate_risk_reward_multiple(setup: TradeSetup) -> dict:
 
     risk_amount = risk_distance * valid_setup.position_size * contract_size
     profit_amount = profit_distance * valid_setup.position_size * contract_size
+    risk_percent = risk_amount / valid_setup.account_balance
 
     rr_multiple = round(profit_distance / risk_distance, 2)
 
     return {
         "RR_MULTIPLE" : rr_multiple,
+        "RISK_PERCENT": round(risk_percent, 2),
         "RISK_AMOUNT" : round(risk_amount, 2),
-        "REWARD_AMOUNT" : round(profit_amount, 2)
+        "REWARD_AMOUNT" : round(profit_amount, 2),
     }
 
 
+#THERE IS A PROPER DIFFERENCE BETWEEN WHAT I USE FOR LOT SIZE IN LIVE TRADING
+#AND WHAT THE TRADING CALCULATOR OFFERS AS THE OPTIMAL LOT SIZE.
+#THIS IS VALUABLE INSIGHT.
+#SHOULD I BE RECORDING THIS DIFFERENCE???
 def calculate_position_size(sizing: PositionSizing) -> float | int:
     #RETURNS LOT SIZE GIVEN INPUTS.
     #INPUTS: ENTRY_PRICE, STOP_LOSS, ASSET, ACCOUNT_BALANCE, RISK_PERCENT
     #CORE FORMULA: RISK_AMOUNT/(ENTRY_PRICE - STOP_LOSS) * CONTRACT_SIZE
+
     rules = [
         #(field_name, value, expected_type, positive_check)
         ("entry_price", sizing.entry_price, (float, int), True),
@@ -100,6 +106,7 @@ def calculate_position_size(sizing: PositionSizing) -> float | int:
         ("account_balance", sizing.account_balance, (float, int), True),
         ("risk_percent", sizing.risk_percent, (float, int), True),
     ]
+
     for field_name, value, expected_type, positive_check in rules:
         if not isinstance(value, expected_type):
             raise t.Trade_Validation_Error(f"{field_name} MUST BE OF TYPE {expected_type}. GOT {type(value).__name__}")
@@ -126,5 +133,5 @@ def calculate_trade_duration(setup: TradeSetup) -> timedelta:
     if exit_dt < entry_dt:
         raise t.Trade_Validation_Error("EXIT TIME CAN'T BE LESS THAN ENTRY TIME.")
 
-    return exit_dt - entry_dt
+    return exit_dt - entry_dt 
 

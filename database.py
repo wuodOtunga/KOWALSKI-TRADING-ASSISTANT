@@ -113,20 +113,17 @@ class Database:
         try:
             cursor.execute("INSERT INTO trades (entry_price, exit_price, take_profit, stop_loss, position_size, entry_time, exit_time," \
             "date, model_id, account_id, management_id, entry_execution_id, asset, direction, dollar_amount, duration, result, rr_multiple,\
-            account_balance, risk_percent, overall_trade_grade) VALUES"
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+            risk_percent, overall_trade_grade) VALUES"
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
             (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size, 
              trade.entry_time.strftime("%I:%M %p"), trade.exit_time.strftime("%I:%M %p"), trade.date.isoformat(), trade.model_id,
             trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
-            trade.duration.total_seconds(), trade.result, trade.rr_multiple, trade.account_balance, trade.risk_percent, trade.overall_trade_grade)) # type: ignore
+            trade.duration.total_seconds(), trade.result, trade.rr_multiple, trade.risk_percent, trade.overall_trade_grade)) # type: ignore
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
         
         return cursor.lastrowid # type: ignore
 
-    #ISSUE TO BE FIXED: WHEN WE PULL A TRADE FROM DB, SOME VALUES NEED REFORMATTING
-    #TO PASS VALIDATION SINCE THE TYPE STORED IN SQLITE IS DIFFERENT FROM PYTHON TYPES.
-    #EG. ENUM TYPES
     def get_by_id(self, trade_id: int) -> Trade:
         """GET TRADE DETAILS BY ID FROM DATABASE"""
         """RETURN TRADE ROW DETAILS FROM TRADES TABLE"""
@@ -323,6 +320,21 @@ class Database:
         if not exists:
             raise t.Invalid_Identifier_Error(f"{trade.entry_execution_id} DOESN'T MATCH ANY ARCHETYPE.")
 
+    def get_current_account_balance(self, account_id: int) -> float:
+        """CALCULATES LIVE VALUE OF ACCOUNT BALANCE WHEN NEEDED!"""
+
+        #check_foreign_keys() already validates that account_id is valid.
+
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT starting_balance FROM accounts WHERE account_id = ?", (account_id,))
+        row = cursor.fetchone()
+        starting_balance = row["starting_balance"]
+
+        cursor.execute("SELECT COALESCE(SUM(DOLLAR_AMOUNT), 0) FROM trades WHERE account_id = ?", (account_id,))
+        total_pnl = cursor.fetchone()[0]
+
+        return starting_balance + total_pnl
+
     def get_trading_accounts(self) -> list[Account]:
 
         cursor = self.conn.cursor()
@@ -381,6 +393,9 @@ class Database:
             parameter_names.append(row[0])
 
         return parameter_names
+
+    def get_global_stats_rows(self):
+        pass
 
     def _row_to_trade(self, row_dict: dict):
         """BUILDS TRADE OBJECT FROM SQLITE ROW VALUES"""

@@ -48,12 +48,11 @@ class Trade:
     entry_execution_id : int
     asset : TradeAsset
     direction : TradeDirection
-    dollar_amount : float | None
-    duration : timedelta | None
-    result : TradeResult | None
-    rr_multiple : float | None
-    account_balance : float
-    risk_percent : float
+    dollar_amount : float | None    #calculated from trade_calculator.py
+    duration : timedelta | None     #calculated from trade_calculator.py
+    result : TradeResult | None     #calculated from trade_calculator.py
+    rr_multiple : float | None      #calculated from trade_calculator.py
+    risk_percent : float | None     #calculated from trade_calculator.py
     overall_trade_grade : TradeGrade | None = None
 
 @dataclass
@@ -115,7 +114,6 @@ class TradeSetup:
     direction: TradeDirection
     position_size: float
     account_balance: float
-    risk_percent: float
     entry_time: time | None
     exit_time: time | None
     date: date | None

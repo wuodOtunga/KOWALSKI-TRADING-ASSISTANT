@@ -52,8 +52,7 @@ def submit_trade(trade_details: dict, journal: Journal) -> ServiceResult:
             duration= None,
             result= None,
             rr_multiple= None,
-            account_balance= float(trade_details["account_balance"]),
-            risk_percent= float(trade_details["risk_percent"]),
+            risk_percent= None,
             overall_trade_grade= None
         )
     except KeyError as e:
@@ -280,6 +279,7 @@ def view_trading_accounts(journal: Journal) -> ServiceResult:
 def delete_account_info():
     pass
 
+#SERVICE FUNCTIONS FOR STREAMLIT TRADE CALCULATOR FEATURE BUTTONS.
 def run_calculator(setup_values: dict) -> CalculatorResults:
     #USER WANTS TO CALCULATE PROFIT/LOSS, RISK_REWARD RATIO
     try:
@@ -292,7 +292,6 @@ def run_calculator(setup_values: dict) -> CalculatorResults:
             direction= TradeDirection(setup_values["direction"]),
             position_size= float(setup_values["position_size"]),
             account_balance= float(setup_values["account_balance"]),
-            risk_percent= float(setup_values["risk_percent"]),
             entry_time= None,
             exit_time= None,
             date= None,
