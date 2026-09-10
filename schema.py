@@ -1,0 +1,7 @@
+#MODULE FOR PYDANTIC SCHEMA MODELS
+
+from pydantic import BaseModel
+
+
+class TradeResponse(BaseModel):
+    """REPRESENTS THE FIELDS EXTERNAL CONSUMERS ARE ALLOWED TO SEE"""

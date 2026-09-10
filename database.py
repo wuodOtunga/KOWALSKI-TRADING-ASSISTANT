@@ -417,7 +417,6 @@ class Database:
         row_dict["duration"] = timedelta(seconds=row_dict["duration"])
         row_dict["result"] = TradeResult(row_dict["result"])
         row_dict["rr_multiple"] = float(row_dict["rr_multiple"])
-        row_dict["account_balance"] = float(row_dict["account_balance"])
         row_dict["risk_percent"] = float(row_dict["risk_percent"])
 
         if row_dict["overall_trade_grade"] is not None:
