@@ -56,7 +56,7 @@ def submit_trade(trade_details: dict, journal: Journal) -> ServiceResult:
             overall_trade_grade= None
         )
     except KeyError as e:
-        return ServiceResult(success= False, message= f"KEYERROR. VALUE ISN'T IN ST: {e}", data= None)
+        return ServiceResult(success= False, message= f"KEYERROR. VALUE ISN'T IN DICTIONARY: {e}", data= None)
     except ValueError as e:
         return ServiceResult(success= False, message= f"TYPE CASTING FAILED: {e}", data= None)
     
