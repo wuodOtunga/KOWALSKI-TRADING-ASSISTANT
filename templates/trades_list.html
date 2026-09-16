@@ -1,0 +1,32 @@
+{% extends "home.html" %}
+{% block content %}
+
+<div class="container py-4">
+    <table>
+        <tr><thead>
+            <th>TRADE ID</th>
+            <th>ENTRY PRICE</th>
+            <th>EXIT PRICE</th>
+            <th>POSITION SIZE</th>
+            <th>ASSET</th>
+            <th>DIRECTION</th>
+            <th>RESULT</th>
+            <th>DOLLAR AMOUNT</th>
+        </thead></tr>
+        <tbody>
+            {% for trade in trades %}
+                <tr>
+                    <td>trade.trade_id</td>
+                    <td>trade.entry_price</td>
+                    <td>trade.exit_price</td>
+                    <td>trade.position_size</td>
+                    <td>trade.asset.value</td>
+                    <td>trade.direction.value</td>
+                    <td>trade.result.value</td>
+                    <td>trade.dollar_amount</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}
