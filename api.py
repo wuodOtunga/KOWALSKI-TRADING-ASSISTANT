@@ -8,29 +8,56 @@
 #PYDANTIC VALIDATION BEFORE YOUR ENDPOINT CODE EVEN RUNS.
 #HTTP_404_NOT_FOUND IS FOR THE REQUEST IS WELL FORMED BUT IT POINTS TO A RESOURCE THAT DOESN'T EXIST.
 
-#THE FASTAPI COURSE BY COREY, HE IS HANDLING RESPONSES FOR THE API AND ALSO FOR THE HTML BROWSER.
-#WRITE THE HTML FOR KOWALSKI HOMEPAGE AND THEN POWER IT WITH THE FASTAPI SERVER.
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 import services as s
 from database import Database
 from journal import Journal
 from schemas import NewTrade, TradeResponse
 
-app = FastAPI()
 db = Database()
 journal = Journal(db= db)
 
-#CHECKLIST FOR THE HTTP ENDPOINTS DESIGN WORK.
-#STEP 1: READ THE SERVICE FUNCTION EXCEPTION HANDLING IN THE EXCEPT CLAUSES TO DO FAILURE MODE ENUMERATION.
-#STEP 2: DERIVE THE METHOD + PATH FROM THE ACTION'S SEMANTICS.
-#STEP 3: REQUEST SHAPE: WHAT DOES FASTAPI NEED TO PARSE FROM THE CLIENT? PATH PARAMETER, PATH QUERY, BODY?
-#WHERE DOES AUTOMATIC 422 ALREADY COVER YOU AND WHERE DO YOU NEED AN EXPLICIT PYDANTIC MODEL FOR VALIDATION FASTAPI CAN'T INFER.
-#STEP 4: RESPONSE SHAPE: BUILD A DEDICATED RESPONSE MODEL. EVERY FIELD'S PRESENCE IS A DECISION NOT A DEFAULT.
-#STEP 5: STATUS CODE PER FAILURE MODE. MAP EACH SPECIFIC EXCEPTION TYPE TO THE HTTP STATUS CODE THAT HONESTLY DESCRIBES THE KIND OF FAILURE.
-#STEP 6: ADVERSARIAL TEST. HIT /DOCS WITH GOOD INPUT, BAD INPUT, GOOD INPUT WITH NON EXISTENT INPUT AND CONFIRM EACH LANDS ON THE DESIGNED STATUS CODE.
 
+app = FastAPI()
+
+app.mount(path="/static", app=StaticFiles(directory="static"), name="static")
+
+templates = Jinja2Templates(directory="templates")
+
+#HTML PAGE ROUTES FOR RENDERING PROPER HTML FOR BROWSER CONSUMER
+@app.get(path="/", include_in_schema=False)
+def home(request: Request):
+    return templates.TemplateResponse(request= request, name="home.html")
+
+@app.get(path="/trades", include_in_schema=False)
+def trades_page(request: Request):
+    results = s.fetch_all_trades(journal= journal)
+
+    if not results.success:
+        raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail= "NO TRADES FOUND!")
+
+    trades = results.data
+    trade_responses = [TradeResponse.model_validate(trade, from_attributes=True) for trade in trades] # type: ignore
+
+    return templates.TemplateResponse(request= request, name="trades_list.html", context={"trades": trade_responses})
+        
+
+@app.get(path="/trades/{trade_id}", include_in_schema=False)
+def trade_page(trade_id: int, request: Request):
+    results = s.fetch_trade(trade_id= trade_id, journal= journal)
+
+    if not results.success:
+        raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail= "TRADE NOT FOUND!")
+
+    trade_response = TradeResponse.model_validate(results.data, from_attributes=True)
+
+    return templates.TemplateResponse(request= request, name="trade_detail.html", context={"trade": trade_response})
+
+#API ROUTES FOR RETURNING JSON DATA FOR PROGRAMMATIC ACCESS CONSUMER
 @app.get(path="/api/trades", response_model= list[TradeResponse])
 def get_all_trades():
     #SERVICE FUNCTION: FETCH_ALL_TRADES()
@@ -86,4 +113,5 @@ def get_trade(trade_id: int):
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail= "TRADE NOT FOUND: INVALID TRADE_ID")
 
     return trade
+
 

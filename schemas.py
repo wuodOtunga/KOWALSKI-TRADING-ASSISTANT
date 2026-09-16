@@ -11,7 +11,7 @@ from models import TradeAsset, TradeDirection, TradeResult
 #ACCOUNT_ID IS TRIVIAL INFO, ACCOUNT_NAME HOLDS MORE CONTEXT.
 
 #TRADE, NewTrade, TradeResponse
-class Trade(BaseModel):
+class TradeBase(BaseModel):
     """REPRESENTS THE TRADE BASE MODEL AS PARENT MODEL CLASS"""
 
     #FIELDS SHARED BETWEEN NewTrade AND TradeResponse
@@ -26,14 +26,14 @@ class Trade(BaseModel):
     asset: TradeAsset
     direction: TradeDirection
 
-class NewTrade(Trade):
+class NewTrade(TradeBase):
     """REPRESENTS THE REQUEST SHAPE FOR CREATING NEW TRADES"""
     model_id: int
     account_id: int
     management_id: int
     entry_execution_id: int
 
-class TradeResponse(Trade):
+class TradeResponse(TradeBase):
     """REPRESENTS SHAPE OF TRADE RESPONSE CLIENT GETS TO SEE"""
     model_config = ConfigDict(from_attributes=True)
 

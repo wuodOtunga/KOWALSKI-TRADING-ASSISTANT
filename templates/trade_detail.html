@@ -1,0 +1,29 @@
+{% extends "home.html" %}
+
+{% block content %}
+
+<div class="main_column_body">
+    <h2>TRADE DETAILS FOR TRADE #{{ trade.trade_id }}</h2>
+    <table>
+        <thead>
+            <tr><th>FIELD NAME</th><th>FIELD VALUE</th></tr>
+        </thead>
+        <tr><td>TRADE ID</td><td>{{ trade.trade_id }}</td></tr>
+        <tr><td>ENTRY PRICE</td><td>{{ trade.entry_price }}</td></tr>
+        <tr><td>EXIT PRICE</td><td>{{ trade.exit_price }}</td></tr>
+        <tr><td>STOP LOSS</td><td>{{ trade.stop_loss }}</td></tr>
+        <tr><td>TAKE PROFIT</td><td>{{ trade.take_profit }}</td></tr>
+        <tr><td>POSITION SIZE</td><td>{{ trade.position_size }}</td></tr>
+        <tr><td>ENTRY TIME</td><td>{{ trade.entry_time }}</td></tr>
+        <tr><td>EXIT TIME</td><td>{{ trade.exit_time }}</td></tr>
+        <tr><td>DATE</td><td>{{ trade.date }}</td></tr>
+        <tr><td>ASSET</td><td>{{ trade.asset.value }}</td></tr>
+        <tr><td>DIRECTION</td><td>{{ trade.direction.value }}</td></tr>
+        <tr><td>DOLLAR AMOUNT</td><td>{{ trade.dollar_amount }}</td></tr>
+        <tr><td>DURATION</td><td>{{ trade.duration }}</td></tr>
+        <tr><td>RESULT</td><td>{{ trade.result.value }}</td></tr>
+        <tr><td>RR MULTIPLE</td><td>{{ trade.rr_multiple }}</td></tr>
+        <tr><td>RISK PERCENT</td><td>{{ trade.risk_percent }}</td></tr>
+    </table>
+</div>
+{% endblock content %}
