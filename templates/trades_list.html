@@ -2,6 +2,7 @@
 {% block content %}
 
 <div class="container py-4">
+    <h2>ALL TRADES</h2>
     <table>
         <tr><thead>
             <th>TRADE ID</th>
@@ -16,14 +17,14 @@
         <tbody>
             {% for trade in trades %}
                 <tr>
-                    <td>trade.trade_id</td>
-                    <td>trade.entry_price</td>
-                    <td>trade.exit_price</td>
-                    <td>trade.position_size</td>
-                    <td>trade.asset.value</td>
-                    <td>trade.direction.value</td>
-                    <td>trade.result.value</td>
-                    <td>trade.dollar_amount</td>
+                    <td>{{ trade.trade_id }}</td>
+                    <td>{{ trade.entry_price }}</td>
+                    <td>{{ trade.exit_price }}</td>
+                    <td>{{ trade.position_size }}</td>
+                    <td>{{ trade.asset.value }}</td>
+                    <td>{{ trade.direction.value }}</td>
+                    <td>{{ trade.result.value }}</td>
+                    <td>{{ trade.dollar_amount }}</td>
                 </tr>
             {% endfor %}
         </tbody>
