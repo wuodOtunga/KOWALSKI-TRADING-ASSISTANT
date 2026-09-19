@@ -29,6 +29,13 @@ class TradeResult(str, Enum):
     """THIS CLASS REPRESENTS RESULT AS A TYPE"""
     PROFIT = "PROFIT"
     LOSS = "LOSS"
+
+class ServiceErrorType(str, Enum):
+    """REPRESENTS EXCEPTION TYPE TO RESPONSE SHAPE MAPPING FOR API CLIENTS"""
+    VALIDATION = "VALIDATION"
+    INTERNAL = "INTERNAL"
+    NOT_FOUND = "NOT_FOUND"
+    CONFLICT = "CONFLICT"
     
 @dataclass
 class Trade:
@@ -139,7 +146,8 @@ class ServiceResult:
     """MANAGES RETURN TYPES OF SERVICE FUNCTIONS"""
     success : bool
     message : str
-    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | None
+    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | None
+    error_type: ServiceErrorType | None = None
 
 @dataclass
 class ChartUploadOutcome:

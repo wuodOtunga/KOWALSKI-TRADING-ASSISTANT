@@ -66,6 +66,15 @@ class Account_Creation_Error(JournalingError):
 class Accounts_Not_Found_Error(JournalingError):
     """EXCEPTION CLASS FOR NO ACCOUNTS FOUND IN THE DATABASE"""
 
+class TradeAlreadyGradedError(JournalingError):
+    """EXCEPTION CLASS FOR TRYING TO GRADE A GRADED TRADE"""
+
+class ParametersJunctionTableConflict(JournalingError):
+    """EXCEPTION CLASS FOR JOINT PRIMARY KEY VIOLATION IN PARAMETERS TABLE"""
+
+class AccountNotFoundError(JournalingError):
+    """EXCEPTION CLASS FOR A MISSING ACCOUNT"""
+
 #SQLITE3 DATABASE DOMAIN ERRORS EXCEPTION CLASSES.
 #REVISIT WHY SQLITE3.DATABASEERRORS ARE NOT BEING CAUGHT.
 class DatabaseError(Exception):

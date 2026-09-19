@@ -1,6 +1,6 @@
 #MODULE FOR PYDANTIC SCHEMA MODELS
 
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -44,5 +44,54 @@ class TradeResponse(TradeBase):
     rr_multiple: float
     risk_percent: float
 
+class NewNotes(BaseModel):
+    """REPRESENTS REQUEST SHAPE FOR CREATING NEW NOTES"""
+    trade_id: Annotated[int, Field(gt=0)]
+    emotions: str
+    mistakes: str
+    lessons: str
+    general_notes: str
 
-    
+class NotesResponse(NewNotes):
+    """REPRESENTS SHAPE OF NOTES RESPONSE CLIENT GETS TO SEE"""
+    model_config = ConfigDict(from_attributes=True)
+
+class AccountBase(BaseModel):
+    """REPRESENTS THE ACCOUNT BASE MODEL AS PARENT MODEL CLASS"""
+    account_name: str
+    account_type: str
+    broker: str
+    starting_balance: int
+    is_active: bool
+
+class NewAccount(AccountBase):
+    """REPRESENTS REQUEST SHAPE FOR CREATING NEW ACCOUNTS"""
+
+class AccountResponse(AccountBase):
+    """REPRESENTS SHAPE OF ACCOUNT RESPONSE CLIENT GETS TO SEE"""
+    model_config = ConfigDict(from_attributes=True)
+    account_id: int
+
+class ParametersBase(BaseModel):
+    trade_id: int
+    parameters_list: list[str]
+
+class TradeParameters(ParametersBase):
+    pass
+
+class ParametersResponse(ParametersBase):
+    model_config = ConfigDict(from_attributes=True)
+
+class TradeChanges(BaseModel):
+    trade_id: int
+    column_name: str
+    new_value: float | str
+
+class NewChanges(TradeChanges):
+    pass
+
+class ChangesResponse(TradeChanges):
+    model_config = ConfigDict(from_attributes=True)
+    change_id: int
+    old_value: float | str
+    amended_at: datetime

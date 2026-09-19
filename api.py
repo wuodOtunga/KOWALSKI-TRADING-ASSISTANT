@@ -8,7 +8,18 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 import services as s
 from database import Database
 from journal import Journal
-from schemas import NewTrade, TradeResponse
+from schemas import (
+    AccountResponse,
+    ChangesResponse,
+    NewAccount,
+    NewChanges,
+    NewNotes,
+    NewTrade,
+    NotesResponse,
+    ParametersResponse,
+    TradeParameters,
+    TradeResponse,
+)
 
 #HTTP REQUEST IN -> API.PY CALLS A SERVICES.PY FUNCTION -> SERVICERESULT OUT -> HTTP RESPONSE OUT!
 #METHOD + PATH + REQUEST SHAPE + RESPONSE SHAPE + FAILURE MODE TO STATUS CODE MAPPING
@@ -57,59 +68,207 @@ def trade_page(trade_id: int, request: Request):
 #API ROUTES FOR RETURNING JSON DATA FOR PROGRAMMATIC ACCESS CONSUMER
 @app.get(path="/api/trades", response_model= list[TradeResponse])
 def get_all_trades():
-    #SERVICE FUNCTION: FETCH_ALL_TRADES()
-    #FAILURE MODE: TRADES_NOT_FOUND_ERROR
-    #STATUS CODE MAPPING: HTTP_404_NOT_FOUND
+
     results = s.fetch_all_trades(journal= journal)
 
-    if results.success:
-        trades = results.data
-    else:
+    if not results.success:
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail= "NO TRADES FOUND!")
 
-    return trades
+    return results.data
 
 @app.post(
         path="/api/trades",
         response_model=TradeResponse,
         status_code= status.HTTP_201_CREATED
 )
-def create_new_trade(new_trade: NewTrade):
-    #SERVICE FUNCTION: SUBMIT_TRADE()
-    #FAILURE MODES: KEYERROR, VALUEERROR, TRADE_RECORDING_ERROR, TRADE_VALIDATION_ERROR
-    #STATUS CODE MAPPING: {
-    # TRADE_VALIDATION_ERROR == HTTP_422_UNPROCESSABLE_CONTENT
-    # TRADE_RECORDING_ERROR == HTTP_500_INTERNAL_SERVER_ERROR
-    # VALUEERROR == HTTP_422_UNPROCESSABLE_CONTENT
-    # KEYERROR == HTTP_422_UNPROCESSABLE_CONTENT}
-    #PYDANTIC SCHEMA MODELS AND FASTAPI HANDLE ALL HTTP 422 ERRORS BEFORE EXECUTING API FUNCTION
-    #BY THE TIME SUBMIT_TRADE EXECUTES, THE REQUEST SHAPE IS VALID HENCE TRADE DATA IS VALID.
-    #MEANING ONLY UNHANDLED FAILURE MODE IS TRADE_RECORDING_ERROR WHICH MAPS TO HTTP_500.  
+def create_new_trade(new_trade: NewTrade): 
 
     trade_details = new_trade.model_dump()
     results = s.submit_trade(trade_details= trade_details, journal= journal)
 
-    if results.success:
-        saved_trade = results.data
-    else:
-        raise HTTPException(status_code= status.HTTP_500_INTERNAL_SERVER_ERROR, detail= "ERROR RECORDING NEW TRADE. TRY AGAIN")
+    if not results.success:
+        if results.error_type.value == "INTERNAL": # type: ignore
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="TRADE NOT SAVED TO JOURNAL")
+        elif results.error_type.value == "VALIDATION": # type: ignore
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="TRADE VALIDATION FAILED.")
 
-    return saved_trade
+    return results.data
 
 @app.get(path="/api/trades/{trade_id}", response_model=TradeResponse)
 def get_trade(trade_id: int):
-    #SERVICE FUNCTION: FETCH_TRADE()
-    #FAILURE MODE: INVALID_TRADEID_ERROR
-    #STATUS CODE MAPPING: HTTP_404_NOT_FOUND
 
     results = s.fetch_trade(trade_id= trade_id, journal= journal)
 
-    if results.success:
-        trade = results.data
-    else:
-        raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail= "TRADE NOT FOUND: INVALID TRADE_ID")
+    if not results.success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PROVIDED TRADE_ID IS INVALID")
 
-    return trade
+    return results.data
+
+@app.patch(path="/api/trades/{trade_id}", response_model=ChangesResponse)
+def update_trade_field(trade_id: int, changes: NewChanges):
+
+    #NO USE FOR EXCLUDE_UNSET = TRUE BECAUSE ALL FIELDS WILL BE PROVIDED
+    trade_changes = changes.model_dump()
+    results = s.submit_amendment(trade_amendment= trade_changes, journal= journal)
+
+    if not results.success:
+        if results.error_type.value == "INTERNAL": # type: ignore
+            raise HTTPException(
+                status_code= status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail= "DATABASE ERROR WHILE RECORDING TRADE CHANGES",
+            )
+
+        if results.error_type.value == "VALIDATION": # type: ignore
+            raise HTTPException(
+                status_code= status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="TRADE VALIDATION FAILED. INVALID INPUT VALUES",
+            )
+
+        if results.error_type.value == "CONFLICT": # type: ignore
+            raise HTTPException(
+                status_code= status.HTTP_409_CONFLICT,
+                detail= "RESTRICTED COLUMN NAME. COLUMN CAN'T BE CHANGED",
+            )
+
+    return ChangesResponse(
+        trade_id= trade_id,
+        column_name= changes.column_name,
+        new_value= changes.new_value,
+        change_id= results.data.amendment_id, # type: ignore
+        old_value= results.data.old_value, # type: ignore
+        amended_at= results.data.amended_at, # type: ignore
+    )
+
+@app.delete(path="/api/trades/{trade_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_trade_row(trade_id: int):
+    #THERE IS NO RESPONSE MODEL BECAUSE THERE IS NOTHING TO RETURN SINCE RESOURCE IS DELETED.
+    #204 NO CONTENT BECAUSE REQUEST IS SUCCESSFUL BUT THERE IS NO CONTENT TO RETURN.
+    #IMPLEMENT CASCADE DELETE FOR DELETED TRADES
+
+    results = s.delete_trade_from_db(trade_id= trade_id, journal= journal)
+
+    if not results.success:
+        raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="NO TRADE FOUND WITH THAT TRADE_ID")
+
+    
+@app.post(
+        path="/api/notes",
+        response_model=NotesResponse,
+        status_code=status.HTTP_201_CREATED
+)
+def create_trade_notes(notes: NewNotes):
+    #WE ARE NOT CHECKING FOR KEYERROR BECAUSE PYDANTIC VALIDATES NewNotes INSTANCE IS VALID
+
+    trade_notes: dict = notes.model_dump()
+
+    results = s.submit_trade_notes(trade_notes= trade_notes, journal= journal)
+    if not results.success:
+        raise HTTPException(
+            status_code= status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail= "DATABASE ERROR DETECTED WHILE RECORDING TRADE NOTES"
+        )
+
+    return results.data
+
+@app.get(path="/api/notes/{trade_id}", response_model= NotesResponse)
+def get_trade_notes(trade_id: int):
+    
+    results = s.view_trade_notes(trade_id= trade_id, journal= journal)
+    if not results.success:
+        raise HTTPException(
+            status_code= status.HTTP_404_NOT_FOUND,
+            detail= "TRADE NOTES WITH THAT TRADE_ID NOT FOUND"
+        )
+
+    return results.data
+
+@app.put(path="/api/notes/{trade_id}", response_model=NotesResponse)
+def update_trade_notes():
+    pass
+
+@app.post(
+        path= "/api/accounts",
+        response_model= AccountResponse,
+        status_code= status.HTTP_201_CREATED
+)
+def create_account(account: NewAccount):
+
+    account_details: dict = account.model_dump()
+    results = s.create_trading_account(account_info= account_details, journal= journal)
+
+    if not results.success:
+        raise HTTPException(
+            status_code= status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail= "ACCOUNT CREATION FAILED DUE TO A DATABASE ERROR"
+        )
+
+    return results.data
+
+@app.get(path= "/api/accounts", response_model= AccountResponse)
+def get_accounts():
+
+    results = s.view_trading_accounts(journal= journal)
+    if not results.success:
+        raise HTTPException(
+            status_code= status.HTTP_404_NOT_FOUND,
+            detail= "NO ACCOUNTS CREATED YET"
+        )
+
+    return results.data
+
+@app.delete(path="/api/accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_account(account_id: int):
+
+    results = s.delete_account_info(account_id= account_id, journal= journal)
+    if not results.success:
+        raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="ACCOUNT WITH THAT ID NOT FOUND!")
+
+
+@app.post(
+        path="/api/parameters",
+        response_model=ParametersResponse,
+        status_code=status.HTTP_201_CREATED,
+)
+def submit_parameters(parameters: TradeParameters):
+
+    parameters_present: dict = parameters.model_dump()
+    results = s.submit_trade_parameters(trade_parameters= parameters_present, journal= journal)
+
+    if not results.success:
+        if results.error_type.value == "NOT_FOUND": # type: ignore
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PROVIDED TRADE_ID IS INVALID")
+        if results.error_type.value == "CONFLICT": # type: ignore
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="TRADE ALREADY GRADED OR INVALID GRADE VALUE")
+        if results.error_type.value == "INTERNAL": # type: ignore
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="PARAMETERS VIOLATE JUNCTION TABLE JOINT PK CONSTRAINT")
+
+    #IS IT POSSIBLE FOR A FUNCTION TO RETURN NONE AND THE RESPONSE MODEL STILL DOES IT'S JOB?
+    return ParametersResponse(
+        trade_id= parameters.trade_id,
+        parameters_list= parameters.parameters_list,
+    )
+
+@app.get(path="/api/parameters/{trade_id}", response_model=ParametersResponse)
+def get_parameters(trade_id: int):
+
+    results = s.view_trade_parameters(trade_id= trade_id, journal= journal)
+
+    #THIS HTTP CODE ISN'T TECHNICALLY ACCURATE. FIX THIS LATER.
+    #WE CAN HAVE A VALID TRADE THAT DOESN'T HAVE ANY PARAMETERS TO IT.
+    if not results.success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="TRADE WITH THAT ID NOT FOUND")
+
+    #CAN'T JUST RETURN RESULTS.DATA BECAUSE TRADE_ID IS ALSO REQUIRED.
+    return ParametersResponse(
+        trade_id= trade_id,
+        parameters_list= results.data, # type: ignore
+    )
+    
+
+#CACHED RESOURCES. FETCHED ONCE AT APP STARTUP AND REUSED SINCE THE DATA DOESN'T CHANGE
+#MAYBE IT COULD BE POSSIBLE TO GET ALL THESE CACHED RESOURCES AT ONCE INSTEAD OF HAVING INDIVIDUAL ENDPOINTS.
+def get_cached_resources():
+    pass
 
 #PROBLEM: CURRENTLY, A HTTP 404 RESPONSE FOR A TRADE THAT DOESN'T EXIST RETURNS JSON FOR BOTH THE API ENDPOINT AND HTML PAGE ROUTES.
 #WE NEED TO RETURN AN ERROR HTML PAGE FOR TRADE NOT FOUND WHILE STILL RETURNING JSON FOR THE API ENDPOINT.

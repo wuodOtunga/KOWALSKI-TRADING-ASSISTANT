@@ -183,7 +183,6 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute("DELETE FROM trades WHERE trade_id = ?", (trade_id,))
         if cursor.rowcount == 0:
-            self.conn.rollback()
             raise t.Trade_Not_Found_Error(f"NO ROW MATCHES THE {trade_id}")
         
         self.conn.commit()
@@ -267,11 +266,12 @@ class Database:
 
         cursor = self.conn.cursor()
         cursor.execute("SELECT EXISTS(SELECT 1 FROM trades WHERE trade_id = ?)", (trade_id,))
+        
         exists = cursor.fetchone()[0]
         if not exists:
             raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} IS INVALID.")
-        else:
-            cursor.execute("SELECT * FROM trade_parameters WHERE trade_id = ?", (trade_id,))
+        
+        cursor.execute("SELECT * FROM trade_parameters WHERE trade_id = ?", (trade_id,))
 
         row = cursor.fetchall()
         parameter_ids = []
@@ -293,6 +293,14 @@ class Database:
             raise t.Constraint_Violation_Error(f"CHECK FOR COLUMN CONSTRAINT VIOLATION: {e}") from e
 
         return cursor.lastrowid # type: ignore
+
+    def delete_account_from_db(self, account_id: int):
+        cursor = self.conn.cursor()
+        cursor.execute("DELETE FROM accounts WHERE account_id = ?", (account_id,))
+        if cursor.rowcount == 0:
+            raise t.Invalid_Account_Error(f"NO ROW MATCHES THE {account_id}")
+                
+        self.conn.commit()
 
     def check_foreign_keys(self, trade: Trade) -> None:
         """CHECKS FOR EXISTENCE OF ACCOUNT_ID, MANAGEMENT_ID, 

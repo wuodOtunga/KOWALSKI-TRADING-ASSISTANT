@@ -165,7 +165,7 @@ class Journal:
         except t.Invalid_Grade_Error as e:
             raise t.Grading_Error(f"{trade_grade} IS INVALID. SHOULD BE BETWEEN (A - F), {e}") from e # type: ignore
         except t.Trade_Not_Found_Error as e:
-            raise t.Grading_Error(f"{trade.trade_id} IS INVALID. PROVIDE VALID TRADE_ID, {e}") from e
+            raise t.Invalid_TradeID_Error(f"{trade.trade_id} IS INVALID. PROVIDE VALID TRADE_ID, {e}") from e
 
         return trade
 
@@ -233,7 +233,7 @@ class Journal:
 #WITH THE GIVEN STREAMLIT CODE PATH, THERE IS NO USE FOR THE JOURNAL METHOD.
 #IN THE FUTURE IF NEED ARISES, YOU CAN REWRITE IT.
 
-    def amend_trade_entry(self, trade_id: int, amendment: Amendments) -> Trade:
+    def amend_trade_entry(self, trade_id: int, amendment: Amendments) -> Amendments:
         forbidden_columns = ["dollar_amount", "duration", "result", "rr_multiple", "overall_trade_grade"]
         if amendment.column_name in forbidden_columns:
             raise t.Invalid_Column_Name_Error(f"CAN'T AMEND COLUMN: {amendment.column_name}")
@@ -293,7 +293,7 @@ class Journal:
                 recompute_method(trade)
 
             valid_trade = validate_trade_data(trade)
-            self.db.update_trade_field(trade_id, amendment.column_name, amendment.new_value)
+            self.db.update_trade_field(valid_trade.trade_id, amendment.column_name, amendment.new_value) # type: ignore
             amendment.amended_at = datetime.now()  # noqa: DTZ005
             amendment.amendment_id = self.db.add_trade_amendments(trade_id, amendment)
             self.db.commit()
@@ -301,7 +301,7 @@ class Journal:
             self.db.rollback()
             raise t.Trade_Recording_Error(f"COULDN'T RECORD NEW TRADE UPDATE: {e}") from e
 
-        return valid_trade
+        return amendment
 
     def finalize_grade(self, trade_id: int, parameter_names: list) -> Trade:
 
@@ -318,11 +318,13 @@ class Journal:
             if trade.overall_trade_grade is None:
                 graded_trade = self.grade_trade(trade)
             else:
-                raise t.Grading_Error("GRADING ERROR: TRADE HAS ALREADY BEEN GRADED")
+                raise t.TradeAlreadyGradedError("GRADING ERROR: TRADE HAS ALREADY BEEN GRADED")
             self.db.commit()
-        except t.DatabaseError as e:
+        except t.Constraint_Violation_Error as e:
             self.db.rollback()
-            raise t.Grading_Error(f"ERROR FINALIZING GRADE: {e}") from e
+            raise t.ParametersJunctionTableConflict(f"PARAMETERS VIOLATE JUNCTION TABLE JOINT PK CONSTRAINT: {e}") from e
+        except t.Trade_Not_Found_Error:
+            raise t.Invalid_TradeID_Error("PROVIDED TRADE_ID IS INVALID")
 
         return graded_trade
 
@@ -344,3 +346,41 @@ class Journal:
             raise t.Accounts_Not_Found_Error(f"ERROR! EMPTY ACCOUNTS TABLE: {e}") from e
 
         return accounts
+
+    def delete_trading_account(self, account_id: int) -> None:
+        try:
+            self.db.delete_account_from_db(account_id)
+        except t.Invalid_Account_Error:
+            raise t.AccountNotFoundError("INVALID ACCOUNT_ID. NO ACCOUNT MATCHES!")
+
+    def fetch_trade_notes(self, trade_id: int):
+
+        try:
+            notes = self.db.get_trade_notes(trade_id)
+        except t.Trade_Not_Found_Error as e:
+            raise t.Invalid_TradeID_Error(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
+
+        return notes
+
+    def fetch_present_parameters(self, trade_id: int):
+        #CHECK TO SEE IF THE TRADE_ID EXISTS.
+        #TRADE CAN HAVE ZERO PARAMETERS ATTACHED TO IT. FIX THIS
+
+        try:
+            parameter_ids = self.db.get_trade_parameters(trade_id)
+        except t.Trade_Not_Found_Error as e:
+            raise t.Invalid_TradeID_Error(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
+
+        if parameter_ids:
+            parameter_names: list[str] = self.db.get_parameter_names(parameter_ids)
+
+        return parameter_names  # type: ignore POSSIBLY UNBOUND
+
+    def delete_trade_entry(self, trade_id: int) -> None:
+
+        try:
+            self.db.delete_trade(trade_id)
+        except t.Trade_Not_Found_Error as e:
+            raise t.Invalid_TradeID_Error(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}")
+
+        
