@@ -52,7 +52,7 @@ def trades_page(request: Request):
     trade_responses = [TradeResponse.model_validate(trade, from_attributes=True) for trade in trades] # type: ignore
 
     return templates.TemplateResponse(request= request, name="trades_list.html", context={"trades": trade_responses})
-        
+
 
 @app.get(path="/trades/{trade_id}", include_in_schema=False)
 def trade_page(trade_id: int, request: Request):
@@ -81,7 +81,7 @@ def get_all_trades():
         response_model=TradeResponse,
         status_code= status.HTTP_201_CREATED
 )
-def create_new_trade(new_trade: NewTrade): 
+def create_new_trade(new_trade: NewTrade):
 
     trade_details = new_trade.model_dump()
     results = s.submit_trade(trade_details= trade_details, journal= journal)
@@ -108,10 +108,17 @@ def get_trade(trade_id: int):
 def update_trade_field(trade_id: int, changes: NewChanges):
 
     #NO USE FOR EXCLUDE_UNSET = TRUE BECAUSE ALL FIELDS WILL BE PROVIDED
-    trade_changes = changes.model_dump()
+    trade_changes: dict = changes.model_dump()
+    trade_changes["trade_id"] = trade_id
     results = s.submit_amendment(trade_amendment= trade_changes, journal= journal)
 
     if not results.success:
+        if results.error_type.value == "NOT_FOUND": # type: ignore
+            raise HTTPException(
+                status_code= status.HTTP_404_NOT_FOUND,
+                detail= "TRADE WITH THAT ID NOT FOUND!",
+            )
+
         if results.error_type.value == "INTERNAL": # type: ignore
             raise HTTPException(
                 status_code= status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -150,7 +157,7 @@ def delete_trade_row(trade_id: int):
     if not results.success:
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="NO TRADE FOUND WITH THAT TRADE_ID")
 
-    
+
 @app.post(
         path="/api/notes",
         response_model=NotesResponse,
@@ -164,15 +171,15 @@ def create_trade_notes(notes: NewNotes):
     results = s.submit_trade_notes(trade_notes= trade_notes, journal= journal)
     if not results.success:
         raise HTTPException(
-            status_code= status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail= "DATABASE ERROR DETECTED WHILE RECORDING TRADE NOTES"
+            status_code= status.HTTP_404_NOT_FOUND,
+            detail= "INVALID TRADE_ID. NO TRADE MATCHES"
         )
 
     return results.data
 
 @app.get(path="/api/notes/{trade_id}", response_model= NotesResponse)
 def get_trade_notes(trade_id: int):
-    
+
     results = s.view_trade_notes(trade_id= trade_id, journal= journal)
     if not results.success:
         raise HTTPException(
@@ -183,8 +190,24 @@ def get_trade_notes(trade_id: int):
     return results.data
 
 @app.put(path="/api/notes/{trade_id}", response_model=NotesResponse)
-def update_trade_notes():
-    pass
+def update_trade_notes(trade_id: int, notes: NewNotes):
+
+    new_notes: dict = notes.model_dump()
+    results = s.amend_trade_notes(updated_notes= new_notes, journal= journal)
+
+    if not results.success and results.error_type.value == "NOT_FOUND": # type: ignore
+        raise HTTPException(
+            status_code= status.HTTP_404_NOT_FOUND,
+            detail= "TRADE WITH THAT TRADE_ID NOT FOUND"
+        )
+
+    return NotesResponse(
+        trade_id= trade_id,
+        emotions= notes.emotions,
+        mistakes= notes.mistakes,
+        lessons= notes.lessons,
+        general_notes= notes.general_notes
+    )
 
 @app.post(
         path= "/api/accounts",
@@ -204,7 +227,7 @@ def create_account(account: NewAccount):
 
     return results.data
 
-@app.get(path= "/api/accounts", response_model= AccountResponse)
+@app.get(path= "/api/accounts", response_model= list[AccountResponse])
 def get_accounts():
 
     results = s.view_trading_accounts(journal= journal)
@@ -235,10 +258,14 @@ def submit_parameters(parameters: TradeParameters):
     results = s.submit_trade_parameters(trade_parameters= parameters_present, journal= journal)
 
     if not results.success:
+        #THE 422 RAISED HERE IS INTERESTING BECAUSE THE USER DOESN'T PROVIDE GRADES
+        #IF THE GRADE FAILS VALIDATION, THEN THAT IS AN INTERNAL SERVER ERROR. DISCUSS.
+        if results.error_type.value == "VALIDATION": # type: ignore
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="TRADE GRADE VALIDATION FAILED")
         if results.error_type.value == "NOT_FOUND": # type: ignore
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PROVIDED TRADE_ID IS INVALID")
         if results.error_type.value == "CONFLICT": # type: ignore
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="TRADE ALREADY GRADED OR INVALID GRADE VALUE")
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="TRADE ALREADY GRADED")
         if results.error_type.value == "INTERNAL": # type: ignore
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="PARAMETERS VIOLATE JUNCTION TABLE JOINT PK CONSTRAINT")
 
@@ -263,7 +290,7 @@ def get_parameters(trade_id: int):
         trade_id= trade_id,
         parameters_list= results.data, # type: ignore
     )
-    
+
 
 #CACHED RESOURCES. FETCHED ONCE AT APP STARTUP AND REUSED SINCE THE DATA DOESN'T CHANGE
 #MAYBE IT COULD BE POSSIBLE TO GET ALL THESE CACHED RESOURCES AT ONCE INSTEAD OF HAVING INDIVIDUAL ENDPOINTS.
@@ -272,7 +299,7 @@ def get_cached_resources():
 
 #PROBLEM: CURRENTLY, A HTTP 404 RESPONSE FOR A TRADE THAT DOESN'T EXIST RETURNS JSON FOR BOTH THE API ENDPOINT AND HTML PAGE ROUTES.
 #WE NEED TO RETURN AN ERROR HTML PAGE FOR TRADE NOT FOUND WHILE STILL RETURNING JSON FOR THE API ENDPOINT.
-#YOU NEED TO DIFFERENTIATE BETWEEN THE TWO SO WE NEED AN EXCEPTION HANDLER FUNCTION THAT DIFFERENTIATES BETWEEN THE TWO AND 
+#YOU NEED TO DIFFERENTIATE BETWEEN THE TWO SO WE NEED AN EXCEPTION HANDLER FUNCTION THAT DIFFERENTIATES BETWEEN THE TWO AND
 #RETURNS THE APPROPRIATE RESPONSE FOR THE CLIENT WHETHER IT'S AN API CLIENT OR HTML BROWSER CLIENT.
 
 #SOME QUESTIONS: WHY DO WE NEED TO IMPORT REQUESTVALIDATIONERROR IF FASTAPI THROUGH PYDANTIC HANDLES VALIDATION ERRORS BEFORE CALLING THE ENDPOINT FUNCTION?
@@ -317,10 +344,10 @@ def validation_exception_handler(request: Request, exception: RequestValidationE
     #VALIDATION EXCEPTIONS DON'T HAVE A SINGLE MESSAGE VALUE. IT'S A LIST OF ERROR DETAILS.
     #EXCEPTION.ERRORS() RETURNS THIS LIST OF ERROR DETAILS.
     #VALIDATION ERRORS DON'T HAVE A STATUS_CODE ATTRIBUTE SINCE THE CODE IS ALWAYS A HTTP_422_UNPROCESSABLE_CONTENT.
-    
+
     if request.url.path.startswith("/api"):
         return JSONResponse(
-            content={"detail" : exception.errors()},
+            content={"details" : exception.errors()},
             status_code= status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
 

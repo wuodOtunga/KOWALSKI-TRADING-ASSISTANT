@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import datetime
 
 import exceptions as t
 import trade_calculator as y
@@ -23,7 +23,7 @@ class Journal:
 
     def __init__(self, db: Database):
         self.db = db
- 
+
     def record_trade(self, trade: Trade) -> Trade:
         """RECORDS A TRADE IN THE JOURNAL"""
 
@@ -64,7 +64,7 @@ class Journal:
             result = TradeResult.LOSS
 
         trade.result = result
-        
+
         values = y.calculate_risk_reward_multiple(setup)
         rr_multiple = values["RR_MULTIPLE"]
         trade.rr_multiple = rr_multiple
@@ -93,10 +93,10 @@ class Journal:
         )
 
         return setup
-        
+
 #ASSEMBLE/DERIVE DATA AND VALIDATE DATA GETS HANDLED BY STREAMLIT.
 #STREAMLIT OWNS THE COLLECTION OF CHARTS DATA LOGIC.
-#ATTACH CHART RECEIVES A VALID, FULLY CONSTRUCTED CHARTS DATA. 
+#ATTACH CHART RECEIVES A VALID, FULLY CONSTRUCTED CHARTS DATA.
     def attach_charts(self, chart: TradeChart):
 
         #TRADE_ID ISN'T BEING VERIFIED ANYWHERE
@@ -111,7 +111,7 @@ class Journal:
 
         #4: RETURN SOMETHING MEANINGFUL.
         return chart
-  
+
     def evaluate_trade(self, trade: Trade) -> dict:
 
         #3: GET POINTS DATA FROM RELEVANT TABLES USING IDENTIFIERS.
@@ -132,7 +132,7 @@ class Journal:
             "management_score" : management_score,
             "parameters_score" : parameters_score,
         }
-    
+
     def grade_trade(self, trade: Trade) -> Trade:
 
         #CALCULATE TRADE_POINTS.
@@ -150,9 +150,9 @@ class Journal:
 
         #GRADING OF TRADE BASED ON TRADE_POINTS.
         #(POINTS, GRADE) -> (8, A), (6/7, A), (5, B), (4, C), (3, D) (<3, F)
-        grading_system = [(8, TradeGrade.A), (7, TradeGrade.A), 
-                          (6, TradeGrade.A), (5, TradeGrade.B), 
-                          (4, TradeGrade.C), (3, TradeGrade.D), 
+        grading_system = [(8, TradeGrade.A), (7, TradeGrade.A),
+                          (6, TradeGrade.A), (5, TradeGrade.B),
+                          (4, TradeGrade.C), (3, TradeGrade.D),
                           (2, TradeGrade.F), (1, TradeGrade.F), (0, TradeGrade.F)]
         for points, grade in grading_system:
             if trade_points == points:
@@ -202,7 +202,7 @@ class Journal:
     #THE TRADER/USER WANTS TO SEE THE ENTIRE RECORDED JOURNAL ENTRY.
     #METHOD NEEDS TO GET DATA FROM: TRADES, TRADE_PARAMETERS
     #TRADE NOTES, CHARTS TABLE.
-    #METHOD NEEDS TO GET A LIST OF PARAMETERS NAMES FOR THE TRADE. 
+    #METHOD NEEDS TO GET A LIST OF PARAMETERS NAMES FOR THE TRADE.
     def get_journal_entry(self, trade_id: int) -> JournalEntry:
         """READ AN ENTIRE JOURNAL ENTRY FROM DATABASE AT ONCE."""
 
@@ -234,7 +234,7 @@ class Journal:
 #IN THE FUTURE IF NEED ARISES, YOU CAN REWRITE IT.
 
     def amend_trade_entry(self, trade_id: int, amendment: Amendments) -> Amendments:
-        forbidden_columns = ["dollar_amount", "duration", "result", "rr_multiple", "overall_trade_grade"]
+        forbidden_columns = ["dollar_amount", "duration", "result", "rr_multiple", "overall_trade_grade", "risk_percent"]
         if amendment.column_name in forbidden_columns:
             raise t.Invalid_Column_Name_Error(f"CAN'T AMEND COLUMN: {amendment.column_name}")
 
@@ -244,45 +244,35 @@ class Journal:
             "take_profit" : self._compute_derived_fields,
             "stop_loss" : self._compute_derived_fields,
             "position_size" : self._compute_derived_fields,
-            "entry_time" : self._compute_derived_fields,
-            "exit_time" : self._compute_derived_fields,
-            "date" : self._compute_derived_fields,
             "management_id" : self.grade_trade,
             "entry_execution_id" : self.grade_trade,
             "asset" : self._compute_derived_fields,
             "direction" : self._compute_derived_fields,
-            "account_balance" : self._compute_derived_fields,
-            "risk_percent" : self._compute_derived_fields,
         }
 
         #LOOK UP TABLE FOR TYPE CASTING OF NEW_VALUE GIVEN COLUMN_NAME
-        column_types = {
-            "entry_price": float,
-            "exit_price": float,
-            "take_profit": float,
-            "stop_loss": float,
-            "position_size": float,
-            "entry_time": time,
-            "exit_time": time,
-            "date": date,
-            "model_id": int,
-            "account_id": int,
-            "management_id": int,
-            "entry_execution_id": int,
-            "asset": TradeAsset,
-            "direction": TradeDirection,
-            "account_balance": float,
-            "risk_percent": float,
-        }
-        #THE CASTING WON'T WORK FOR DATE/TIME VALUES.
-        #STREAMLIT ALREADY RETURNS AS A DATETIME OBJECT.
-        caster = column_types[amendment.column_name]
-        typed_value = caster(amendment.new_value)
-        amendment.new_value = typed_value
 
-    #.GET() METHOD RETURNS NONE IF VALUE ISN'T IN THE DICTIONARY.
-    #MEANING HAVING MODEL_ID, ACCOUNT_ID IN THE DICTIONARY IS REDUNDANT.
-    #YOU STILL NEED TO CHECK FOR IF RECOMPUTE BECAUSE IT CAN STILL BE NONE.
+        try:
+            column_types = {
+                "entry_price": float,
+                "exit_price": float,
+                "take_profit": float,
+                "stop_loss": float,
+                "position_size": float,
+                "model_id": int,
+                "account_id": int,
+                "management_id": int,
+                "entry_execution_id": int,
+                "asset": TradeAsset,
+                "direction": TradeDirection,
+            }
+
+            caster = column_types[amendment.column_name]
+            typed_value = caster(amendment.new_value)
+            amendment.new_value = typed_value
+        except (KeyError, ValueError):
+            raise t.Trade_Validation_Error("TRADE VALIDATION FAILED")
+
         try:
             trade = self.db.get_by_id(trade_id)
             amendment.old_value = getattr(trade, amendment.column_name)
@@ -292,12 +282,17 @@ class Journal:
             if recompute_method:
                 recompute_method(trade)
 
+            #MAJOR BUG IN THE CODE: NONE OF THE RECOMPUTED VALUES ARE STORED BACK TO THE DATABASE.
+            #ONLY THE AMENDED COLUMN IS STORED IN THE DATABASE. THE RECOMPUTES GO STALE.
             valid_trade = validate_trade_data(trade)
             self.db.update_trade_field(valid_trade.trade_id, amendment.column_name, amendment.new_value) # type: ignore
             amendment.amended_at = datetime.now()  # noqa: DTZ005
             amendment.amendment_id = self.db.add_trade_amendments(trade_id, amendment)
             self.db.commit()
-        except t.DatabaseError as e:
+        except t.Trade_Not_Found_Error as e:
+            self.db.rollback()
+            raise t.Invalid_TradeID_Error(f"TRADE WITH THAT ID DOESN'T EXIST: {e}")
+        except t.Constraint_Violation_Error as e:
             self.db.rollback()
             raise t.Trade_Recording_Error(f"COULDN'T RECORD NEW TRADE UPDATE: {e}") from e
 
@@ -305,25 +300,25 @@ class Journal:
 
     def finalize_grade(self, trade_id: int, parameter_names: list) -> Trade:
 
-        #DB METHOD ISN'T WRAPPED IN TRY/EXCEPT BLOCK SINCE IT'S
-        #CONDITIONALLY CALLED, IT'S A LOOK UP METHOD WITH NO RISKS
-        #OF DATABASEERRORS CONSULT THOUGH.
         if parameter_names:
             parameter_ids = self.db.get_parameter_ids(parameter_names)
 
+        #TRADE IS ALREADY GRADED AND CLIENT RESUBMITS SAME PARENTERS. = INTERNAL
+        #TRADE_ID DOESN'T EXIST, FK CONSTRAINT FAILS == INTERNAL
         try:
-            for parameter in parameter_ids: # type: ignore
-                self.db.add_trade_parameters(trade_id, parameter)
             trade = self.db.get_by_id(trade_id)
             if trade.overall_trade_grade is None:
                 graded_trade = self.grade_trade(trade)
             else:
                 raise t.TradeAlreadyGradedError("GRADING ERROR: TRADE HAS ALREADY BEEN GRADED")
+            for parameter in parameter_ids: # type: ignore
+                self.db.add_trade_parameters(trade_id, parameter)
             self.db.commit()
         except t.Constraint_Violation_Error as e:
             self.db.rollback()
             raise t.ParametersJunctionTableConflict(f"PARAMETERS VIOLATE JUNCTION TABLE JOINT PK CONSTRAINT: {e}") from e
         except t.Trade_Not_Found_Error:
+            self.db.rollback()
             raise t.Invalid_TradeID_Error("PROVIDED TRADE_ID IS INVALID")
 
         return graded_trade
@@ -383,4 +378,10 @@ class Journal:
         except t.Trade_Not_Found_Error as e:
             raise t.Invalid_TradeID_Error(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}")
 
-        
+    def update_trading_notes(self, trade_notes: TradeNotes) -> None:
+
+        try:
+            self.db.update_trading_notes(trade_notes)
+        except t.Trade_Not_Found_Error as e:
+            raise t.Invalid_TradeID_Error(f"TRADE NOT FOUND: {e}") from e
+

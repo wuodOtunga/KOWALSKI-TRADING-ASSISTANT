@@ -62,7 +62,7 @@ def submit_trade(trade_details: dict, journal: Journal) -> ServiceResult:
         return ServiceResult(success= False, message= f"KEYERROR. VALUE ISN'T IN DICTIONARY: {e}", data= None, error_type=SET.VALIDATION)
     except ValueError as e:
         return ServiceResult(success= False, message= f"TYPE CASTING FAILED: {e}", data= None, error_type=SET.VALIDATION)
-    
+
     #STEP #3: CALL JOURNAL.PY METHOD # #STEP #4: CATCH/TRANSLATE ERRORS
     try:
         recorded_trade = journal.record_trade(trade)
@@ -90,7 +90,7 @@ def submit_trade_notes(trade_notes: dict, journal: Journal) -> ServiceResult:
     try:
         journal.add_reflection_notes(trading_notes)
     except t.Notes_Recording_Error as e:
-        return ServiceResult(success= False, message= f"ERROR OCCURRED WHILE RECORDING NOTES: {e}", data= None, error_type=SET.INTERNAL)
+        return ServiceResult(success= False, message= f"ERROR OCCURRED WHILE RECORDING NOTES: {e}", data= None, error_type=SET.NOT_FOUND)
 
     return ServiceResult(success= True, message= "TRADE NOTES RECORDED SUCCESSFULLY!", data= trading_notes, error_type=None)
 
@@ -109,7 +109,7 @@ def submit_trade_parameters(trade_parameters: dict, journal: Journal) -> Service
     except t.Invalid_TradeID_Error:  #WE DON'T NEED AS e BECAUSE THE ERROR MESSAGE IS SIMILAR TO .message
         return ServiceResult(success= False, message= f"PROVIDED TRADE_ID IS INVALID. GOT {trade_id}", data= None, error_type=SET.NOT_FOUND)
     except t.Grading_Error as e:
-        return ServiceResult(success= False, message= f"PROVIDED GRADE IS INVALID: {e}", data= None, error_type=SET.CONFLICT)
+        return ServiceResult(success= False, message= f"PROVIDED GRADE IS INVALID: {e}", data= None, error_type=SET.VALIDATION)
     except t.TradeAlreadyGradedError:
         return ServiceResult(
             success=False,
@@ -130,7 +130,7 @@ def submit_trade_parameters(trade_parameters: dict, journal: Journal) -> Service
 
 def submit_trade_charts(trade_charts: dict, journal: Journal) -> ChartsBatchResult:
     #FROM STREAMLIT DOCS
-    #The UploadedFile class is a subclass of BytesIO, and therefore is "file-like". 
+    #The UploadedFile class is a subclass of BytesIO, and therefore is "file-like".
     #This means you can pass an instance of it anywhere a file is expected.
 
     trade_id = trade_charts["trade_id"]
@@ -138,13 +138,13 @@ def submit_trade_charts(trade_charts: dict, journal: Journal) -> ChartsBatchResu
 
     if not uploaded_files:
         return ChartsBatchResult(outcomes=[])
-    
+
     #CHECK LEGITIMACY OF TRADE_ID BEFORE BATCH LOOPING OPERATIONS
     try:
         journal.get_trade(trade_id)
     except t.Invalid_TradeID_Error:
         return ChartsBatchResult(outcomes=[
-            ChartUploadOutcome(filename= f.name, success= False, 
+            ChartUploadOutcome(filename= f.name, success= False,
                                chart= None, error_message= f"TRADE_ID {trade_id} INVALID")
                                for f in uploaded_files
         ])
@@ -227,6 +227,8 @@ def submit_amendment(trade_amendment: dict, journal: Journal) -> ServiceResult:
 
     try:
         changes = journal.amend_trade_entry(amendment.trade_id, amendment)
+    except t.Invalid_TradeID_Error as e:
+        return ServiceResult(success= False, message= f"TRADE NOT FOUND: {e}", data=None, error_type=SET.NOT_FOUND)
     except t.Trade_Recording_Error as e:
         return ServiceResult(success= False, message= f"ERROR RECORDING AMENDMENT: {e}", data= None, error_type=SET.INTERNAL)
     except t.Trade_Validation_Error as e:
@@ -243,7 +245,7 @@ def fetch_trade(trade_id: int, journal: Journal) -> ServiceResult:
         trade = journal.get_trade(trade_id)
     except t.Invalid_TradeID_Error as e:
         return ServiceResult(success= False, message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}, {e}", data= None, error_type=SET.NOT_FOUND)
-    
+
     return ServiceResult(success= True, message= "TRADE FETCHED SUCCESSFULLY!", data= trade, error_type=None)
 
 def fetch_all_trades(journal: Journal) -> ServiceResult:
@@ -280,6 +282,41 @@ def view_trade_notes(trade_id: int, journal: Journal) -> ServiceResult:
         message= "TRADE NOTES RETRIEVED SUCCESSFULLY!",
         data= trade_notes,
         error_type=None,
+    )
+
+def amend_trade_notes(updated_notes: dict, journal: Journal) -> ServiceResult:
+
+    try:
+        notes = TradeNotes(
+            trade_id= updated_notes["trade_id"],
+            emotions= updated_notes["emotions"],
+            mistakes= updated_notes["mistakes"],
+            lessons= updated_notes["lessons"],
+            general_notes= updated_notes["general_notes"],
+        )
+    except KeyError as e:
+        return ServiceResult(
+            success= False,
+            message= f"SOME INPUT VALUES ARE MISSING. CHECK INPUTS: {e}",
+            data= None,
+            error_type= SET.VALIDATION
+        )
+
+    try:
+        journal.update_trading_notes(trade_notes= notes)
+    except t.Invalid_TradeID_Error as e:
+        return ServiceResult(
+            success= False,
+            message= f"TRADE NOT FOUND. INVALID TRADE_ID: {e}",
+            data= None,
+            error_type= SET.NOT_FOUND
+        )
+
+    return ServiceResult(
+        success= True,
+        message= "TRADE NOTES UPDATED SUCCESSFULLY!",
+        data= None,
+        error_type= None
     )
 
 def view_trade_parameters(trade_id: int, journal: Journal) -> ServiceResult:
@@ -388,7 +425,7 @@ def run_calculator(setup_values: dict) -> CalculatorResults:
         )
     except ValueError as e:
         return CalculatorResults(
-            success= False, 
+            success= False,
             message= f"TYPE VALIDATION FAILED. CHECK INPUT TYPES: {e}",
             profit_loss= None,
             risk_reward= None,

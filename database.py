@@ -72,12 +72,12 @@ class Database:
         if cursor.fetchone()[0] == 0:
             cursor.executemany("INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES (?, ?, ?, ?, ?)", accounts)
 
-        self.conn.commit()  
+        self.conn.commit()
 
     def commit(self):
         """DATABASE COMMITS"""
         self.conn.commit()
-        
+
     def rollback(self):
         """DATABASE ROLLBACKS"""
         self.conn.rollback()
@@ -114,20 +114,20 @@ class Database:
             cursor.execute("INSERT INTO trades (entry_price, exit_price, take_profit, stop_loss, position_size, entry_time, exit_time," \
             "date, model_id, account_id, management_id, entry_execution_id, asset, direction, dollar_amount, duration, result, rr_multiple,\
             risk_percent, overall_trade_grade) VALUES"
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-            (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size, 
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size,
              trade.entry_time.strftime("%I:%M %p"), trade.exit_time.strftime("%I:%M %p"), trade.date.isoformat(), trade.model_id,
             trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
             trade.duration.total_seconds(), trade.result, trade.rr_multiple, trade.risk_percent, trade.overall_trade_grade)) # type: ignore
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
-        
+
         return cursor.lastrowid # type: ignore
 
     def get_by_id(self, trade_id: int) -> Trade:
         """GET TRADE DETAILS BY ID FROM DATABASE"""
         """RETURN TRADE ROW DETAILS FROM TRADES TABLE"""
-        
+
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM trades WHERE trade_id = ?", (trade_id,))
         row = cursor.fetchone()
@@ -156,21 +156,21 @@ class Database:
             trades_list.append(trade)
 
         return trades_list
-    
+
     def update_trade_grade(self, trade_id: int, overall_trade_grade: TradeGrade) -> None:
         """UPDATES OVERALL_TRADE_GRADE TO DATABASE"""
         if not isinstance(overall_trade_grade, TradeGrade):
             raise t.Invalid_Grade_Error(f"{overall_trade_grade} IS INVALID.")
-        
+
         cursor = self.conn.cursor()
         cursor.execute("UPDATE trades SET overall_trade_grade = ? WHERE trade_id = ?", (overall_trade_grade, trade_id))
         if cursor.rowcount == 0:
             raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} NOT FOUND.")
-        
-#A GENERAL UPDATE METHOD TO UPDATE MORE DYNAMIC TRADE FIELDS. 
+
+#A GENERAL UPDATE METHOD TO UPDATE MORE DYNAMIC TRADE FIELDS.
     def update_trade_field(self, trade_id: int, column: str, value) -> None:
         """UPDATES A DYNAMIC TRADE COLUMN BASED ON TRADER PREFERENCE"""
-        
+
         sql = f"UPDATE trades SET {column} = ? WHERE trade_id = ?"
         cursor = self.conn.cursor()
         cursor.execute(sql, (value, trade_id))
@@ -184,7 +184,7 @@ class Database:
         cursor.execute("DELETE FROM trades WHERE trade_id = ?", (trade_id,))
         if cursor.rowcount == 0:
             raise t.Trade_Not_Found_Error(f"NO ROW MATCHES THE {trade_id}")
-        
+
         self.conn.commit()
 
     def add_chart(self, chart: TradeChart) -> int:
@@ -196,9 +196,9 @@ class Database:
                             (chart.trade_id, chart.filepath, chart.filename, chart.upload_date))
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
-        
+
         return cursor.lastrowid # type: ignore
-        
+
     def add_trade_notes(self, trade_notes: TradeNotes) -> None:
         """ATTACH TRADE NOTES TO DATABASE"""
         """TRADE NOTES INCLUDE EMOTIONS, MISTAKES, LESSONS"""
@@ -210,6 +210,23 @@ class Database:
             "(?, ?, ?, ?, ?)", (trade_notes.trade_id, trade_notes.emotions, trade_notes.mistakes, trade_notes.lessons, trade_notes.general_notes))
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
+
+    def update_trading_notes(self, trade_notes: TradeNotes) -> None:
+        """UPDATES FULL ROW ON TRADE NOTES DATABASE TABLE"""
+
+        cursor = self.conn.cursor()
+
+        cursor.execute(
+            """
+            UPDATE trade_notes
+            SET emotions = ?, mistakes = ?, lessons = ?, general_notes = ?
+            WHERE trade_id = ?
+            (?, ?, ?, ?, ?)
+            """,
+            (trade_notes.emotions, trade_notes.mistakes, trade_notes.lessons, trade_notes.general_notes, trade_notes.trade_id)
+        )
+        if cursor.rowcount == 0:
+            raise t.Trade_Not_Found_Error("TRADE_ID IS INVALID. NO TRADE MATCHES")
 
 #FIX THE DATETIME CONVERSION TO ISO 8601 TEXT
     def add_trade_amendments(self, trade_id, amendment: Amendments) -> int:
@@ -233,20 +250,20 @@ class Database:
         row = cursor.fetchone()
         if row is None:
             raise t.Invalid_Identifier_Error(f"ENTRY EXECUTION ID {entry_execution_id} NOT FOUND.")
-        
+
         return row["points"]
 
     def get_trade_management_points(self, management_id: int) -> int:
         """GET MANAGEMENT POINTS FROM DATABASE"""
         """ARGS: MANAGEMENT_ID FROM TRADE OBJECT"""
         """RETURNS AN INT AS NUMBER OF POINTS SCORED BY TRADE"""
-        
+
         cursor = self.conn.cursor()
         cursor.execute("SELECT points FROM trade_management WHERE management_id = ?", (management_id,))
         row = cursor.fetchone()
         if row is None:
             raise t.Invalid_Identifier_Error(f"MANAGEMENT ID {management_id} NOT FOUND.")
-        
+
         return row["points"]
 
     def add_trade_parameters(self, trade_id: int, parameter_id: int) -> None:
@@ -258,7 +275,7 @@ class Database:
             cursor.execute("INSERT INTO trade_parameters (trade_id, parameter_id) VALUES (?, ?)", (trade_id, parameter_id))
         except sqlite3.IntegrityError as e:
             raise t.Constraint_Violation_Error(f"CAN'T LINK {trade_id} TO {parameter_id} : {e}") from e
-    
+
     def get_trade_parameters(self, trade_id: int) -> list:
         """FIND HOW MANY PARAMETER POINTS THE TRADE HAS"""
         """ARGS: TRADE_ID ROW IDENTIFIER"""
@@ -266,25 +283,25 @@ class Database:
 
         cursor = self.conn.cursor()
         cursor.execute("SELECT EXISTS(SELECT 1 FROM trades WHERE trade_id = ?)", (trade_id,))
-        
+
         exists = cursor.fetchone()[0]
         if not exists:
             raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} IS INVALID.")
-        
+
         cursor.execute("SELECT * FROM trade_parameters WHERE trade_id = ?", (trade_id,))
 
         row = cursor.fetchall()
         parameter_ids = []
         for _, parameter_id in row:
             parameter_ids.append(parameter_id)
-            
+
         return parameter_ids
 
     def create_trading_account(self, account: Account) -> int:
         """STORE TRADING ACCOUNT DETAILS TO DATABASE"""
         """ARGS: ACCOUNT OBJECT."""
         """RETURNS INT AS THE ACCOUNT ID FOR THAT ACCOUNT."""
-    
+
         cursor = self.conn.cursor()
         try:
             cursor.execute("INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES" \
@@ -299,11 +316,11 @@ class Database:
         cursor.execute("DELETE FROM accounts WHERE account_id = ?", (account_id,))
         if cursor.rowcount == 0:
             raise t.Invalid_Account_Error(f"NO ROW MATCHES THE {account_id}")
-                
+
         self.conn.commit()
 
     def check_foreign_keys(self, trade: Trade) -> None:
-        """CHECKS FOR EXISTENCE OF ACCOUNT_ID, MANAGEMENT_ID, 
+        """CHECKS FOR EXISTENCE OF ACCOUNT_ID, MANAGEMENT_ID,
         ENTRY_EXECUTION_ID, MODEL_ID"""
 
         cursor = self.conn.cursor()
@@ -439,5 +456,5 @@ class Database:
         self.conn.close()
 
 
-    
-        
+
+

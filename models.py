@@ -36,7 +36,7 @@ class ServiceErrorType(str, Enum):
     INTERNAL = "INTERNAL"
     NOT_FOUND = "NOT_FOUND"
     CONFLICT = "CONFLICT"
-    
+
 @dataclass
 class Trade:
     """THIS CLASS MANAGES TRADE DATA"""
@@ -146,7 +146,7 @@ class ServiceResult:
     """MANAGES RETURN TYPES OF SERVICE FUNCTIONS"""
     success : bool
     message : str
-    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | None
+    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | list[Account] | None
     error_type: ServiceErrorType | None = None
 
 @dataclass

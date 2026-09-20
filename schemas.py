@@ -1,7 +1,7 @@
 #MODULE FOR PYDANTIC SCHEMA MODELS
 
 from datetime import date, datetime, time, timedelta
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -82,9 +82,13 @@ class TradeParameters(ParametersBase):
 class ParametersResponse(ParametersBase):
     model_config = ConfigDict(from_attributes=True)
 
+AmendableColumns = Literal[
+    "entry_price", "exit_price", "take_profit", "stop_loss", "position_size", "asset",
+    "direction", "model_id", "account_id", "management_id", "entry_execution_id",
+]
+
 class TradeChanges(BaseModel):
-    trade_id: int
-    column_name: str
+    column_name: AmendableColumns
     new_value: float | str
 
 class NewChanges(TradeChanges):
@@ -92,6 +96,8 @@ class NewChanges(TradeChanges):
 
 class ChangesResponse(TradeChanges):
     model_config = ConfigDict(from_attributes=True)
+
+    trade_id: int
     change_id: int
     old_value: float | str
     amended_at: datetime
