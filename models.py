@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from enum import Enum
+from typing import Literal
 
 
 #The column names returned by SQL must match the dataclass field names.
@@ -36,6 +37,11 @@ class ServiceErrorType(str, Enum):
     INTERNAL = "INTERNAL"
     NOT_FOUND = "NOT_FOUND"
     CONFLICT = "CONFLICT"
+
+AmendableColumns = Literal[
+    "entry_price", "exit_price", "take_profit", "stop_loss", "position_size", "asset",
+    "direction", "model_id", "account_id", "management_id", "entry_execution_id",
+]
 
 @dataclass
 class Trade:

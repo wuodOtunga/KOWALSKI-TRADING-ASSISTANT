@@ -1,11 +1,11 @@
-#MODULE FOR PYDANTIC SCHEMA MODELS
+"""MODULE FOR THE PYDANTIC SCHEMA MODELS THAT DEFINE THE REQUESTS AND RESPONSES SHAPE FOR OUR FASTAPI API CONTRACT"""
 
 from datetime import date, datetime, time, timedelta
-from typing import Annotated, Literal
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from models import TradeAsset, TradeDirection, TradeResult
+from models import AmendableColumns, TradeAsset, TradeDirection, TradeResult
 
 #DEBATE ON WHETHER YOU WANT ACCOUNT_ID OR ACCOUNT_NAME IN THE MODEL.
 #ACCOUNT_ID IS TRIVIAL INFO, ACCOUNT_NAME HOLDS MORE CONTEXT.
@@ -82,10 +82,6 @@ class TradeParameters(ParametersBase):
 class ParametersResponse(ParametersBase):
     model_config = ConfigDict(from_attributes=True)
 
-AmendableColumns = Literal[
-    "entry_price", "exit_price", "take_profit", "stop_loss", "position_size", "asset",
-    "direction", "model_id", "account_id", "management_id", "entry_execution_id",
-]
 
 class TradeChanges(BaseModel):
     column_name: AmendableColumns

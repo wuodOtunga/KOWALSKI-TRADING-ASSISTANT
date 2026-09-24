@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS "trades" (
     "rr_multiple" NUMERIC,    --calculated from trade_calculator.py
     "risk_percent" NUMERIC,   --calculated from trade_calculator.py
     "overall_trade_grade" TEXT CHECK("overall_trade_grade" IN ('A', 'B', 'C', 'D', 'F') OR "overall_trade_grade" IS NULL),
-    
+
     PRIMARY KEY("trade_id"),
     FOREIGN KEY("model_id") REFERENCES "models"("model_id"),
     FOREIGN KEY("account_id") REFERENCES "accounts"("account_id"),
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS "entry_execution" (
     "archetype" TEXT NOT NULL UNIQUE,
     "description" TEXT,
     "points" INTEGER NOT NULL CHECK("points" BETWEEN 1 AND 5),
-    "grade" TEXT NOT NULL CHECK("grade" IN ("A+", "B", "C", "D", "F")),
+    "grade" TEXT NOT NULL CHECK("grade" IN ('A+', 'B', 'C', 'D', 'F')),
     PRIMARY KEY("entry_execution_id")
 );
 
