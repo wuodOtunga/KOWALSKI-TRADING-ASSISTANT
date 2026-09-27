@@ -38,25 +38,13 @@ class TradeModel(Base):
     take_profit: Mapped[float] = mapped_column(nullable=False)
     stop_loss: Mapped[float] = mapped_column(nullable=False)
     position_size: Mapped[float] = mapped_column(nullable=False)
-    entry_time: Mapped[time] = mapped_column(
-        Time, nullable=False
-    )  # FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
-    exit_time: Mapped[time] = mapped_column(
-        Time, nullable=False
-    )  # FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
-    date: Mapped[date] = mapped_column(
-        Date, nullable=False
-    )  # FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
+    entry_time: Mapped[time] = mapped_column(Time, nullable=False)  # FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
+    exit_time: Mapped[time] = mapped_column(Time, nullable=False)  # FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
+    date: Mapped[date] = mapped_column(Date, nullable=False)  # FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
     model_id: Mapped[int] = mapped_column(ForeignKey("models.model_id"), nullable=False)
-    account_id: Mapped[int] = mapped_column(
-        ForeignKey("accounts.account_id"), nullable=False
-    )
-    management_id: Mapped[int] = mapped_column(
-        ForeignKey("trade_management.management_id"), nullable=False
-    )
-    entry_execution_id: Mapped[int] = mapped_column(
-        ForeignKey("entry_execution.entry_execution_id"), nullable=False
-    )
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.account_id"), nullable=False)
+    management_id: Mapped[int] = mapped_column(ForeignKey("trade_management.management_id"), nullable=False)
+    entry_execution_id: Mapped[int] = mapped_column(ForeignKey("entry_execution.entry_execution_id"), nullable=False)
     asset: Mapped[TradeAsset] = mapped_column(
         Enum(
             TradeAsset,
@@ -105,8 +93,8 @@ class TradeModel(Base):
     management: Mapped[TradeManagement] = relationship(back_populates="trades")
     execution: Mapped[EntryExecutionModel] = relationship(back_populates="trades")
 
-    notes: Mapped[TradeNotesModel] = relationship(back_populates="trade")
-    charts: Mapped[list[ChartsModel]] = relationship(back_populates="trade")
+    notes: Mapped[TradeNotesModel] = relationship(back_populates="trade", cascade="all, delete-orphan")
+    charts: Mapped[list[ChartsModel]] = relationship(back_populates="trade", cascade="all, delete-orphan")
     amendment: Mapped[list[TradeAmendmentsModel]] = relationship(back_populates="trade")
     parameters: Mapped[list[ParametersModel]] = relationship(
         secondary="trade_parameters", back_populates="trades"
@@ -236,7 +224,7 @@ class TradeAmendmentsModel(Base):
     __tablename__ = "trade_amendments"
 
     amendment_id: Mapped[int] = mapped_column(primary_key=True)
-    trade_id: Mapped[int] = mapped_column(ForeignKey("trades.trade_id"))
+    trade_id: Mapped[int | None] = mapped_column(ForeignKey("trades.trade_id"))
     column_name: Mapped[AmendableColumns] = mapped_column(nullable=False)
     old_value: Mapped[str] = mapped_column(Text, nullable=False)
     new_value: Mapped[str] = mapped_column(Text, nullable=False)
