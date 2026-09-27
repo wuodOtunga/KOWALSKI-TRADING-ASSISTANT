@@ -30,10 +30,10 @@ def _input_validation(setup: TradeSetup) -> TradeSetup:
 
     for field_name, value, expected_type, positive_check in valid_types:
         if not isinstance(value, expected_type):
-            raise t.Trade_Validation_Error(f"{field_name} MUST BE OF TYPE {expected_type}. GOT {type(value).__name__}")
+            raise t.TradeValidationError(f"{field_name} MUST BE OF TYPE {expected_type}. GOT {type(value).__name__}")
 
         if positive_check and value <= 0:
-            raise t.Trade_Validation_Error(f"{field_name} MUST BE GREATER THAN 0. GOT {value}.")
+            raise t.TradeValidationError(f"{field_name} MUST BE GREATER THAN 0. GOT {value}.")
 
     return setup
 
@@ -64,7 +64,7 @@ def calculate_risk_reward_multiple(setup: TradeSetup) -> dict:
     valid_setup = _input_validation(setup)
 
     if valid_setup.entry_price in (valid_setup.take_profit, valid_setup.stop_loss):
-        raise t.Trade_Validation_Error("ENTRY PRICE CAN'T BE EQUAL TO TAKE PROFIT OR STOP LOSS")
+        raise t.TradeValidationError("ENTRY PRICE CAN'T BE EQUAL TO TAKE PROFIT OR STOP LOSS")
 
     contract_size = INSTRUMENT_SPECS[valid_setup.asset]["contract_size"]
 
@@ -72,7 +72,7 @@ def calculate_risk_reward_multiple(setup: TradeSetup) -> dict:
         profit_distance = abs(valid_setup.take_profit - valid_setup.entry_price)
     else:
         profit_distance = abs(valid_setup.exit_price - valid_setup.entry_price)
-    
+
     risk_distance = abs(valid_setup.stop_loss - valid_setup.entry_price)
 
     risk_amount = risk_distance * valid_setup.position_size * contract_size
@@ -109,14 +109,14 @@ def calculate_position_size(sizing: PositionSizing) -> float | int:
 
     for field_name, value, expected_type, positive_check in rules:
         if not isinstance(value, expected_type):
-            raise t.Trade_Validation_Error(f"{field_name} MUST BE OF TYPE {expected_type}. GOT {type(value).__name__}")
+            raise t.TradeValidationError(f"{field_name} MUST BE OF TYPE {expected_type}. GOT {type(value).__name__}")
 
         if positive_check and value <= 0:
-            raise t.Trade_Validation_Error(f"{field_name} MUST BE GREATER THAN 0. GOT {value}.")
-        
+            raise t.TradeValidationError(f"{field_name} MUST BE GREATER THAN 0. GOT {value}.")
+
     if sizing.entry_price == sizing.stop_loss:
-        raise t.Trade_Validation_Error("ENTRY PRICE CAN'T EQUAL STOP LOSS")
-    
+        raise t.TradeValidationError("ENTRY PRICE CAN'T EQUAL STOP LOSS")
+
     contract_size = INSTRUMENT_SPECS[sizing.asset]["contract_size"]
     risk_distance = abs(sizing.entry_price - sizing.stop_loss)
     risk_amount = sizing.account_balance * (sizing.risk_percent/100)
@@ -131,7 +131,7 @@ def calculate_trade_duration(setup: TradeSetup) -> timedelta:
     exit_dt = datetime.combine(valid_setup.date, valid_setup.exit_time) # type: ignore
 
     if exit_dt < entry_dt:
-        raise t.Trade_Validation_Error("EXIT TIME CAN'T BE LESS THAN ENTRY TIME.")
+        raise t.TradeValidationError("EXIT TIME CAN'T BE LESS THAN ENTRY TIME.")
 
-    return exit_dt - entry_dt 
+    return exit_dt - entry_dt
 

@@ -43,7 +43,7 @@ class Journal:
             self.db.commit()
         except t.DatabaseError as e:
             self.db.rollback()
-            raise t.Trade_Recording_Error(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}") from e
+            raise t.TradeRecordingError(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}") from e
 
         #5: RETURN SOMETHING MEANINGFUL.
         return trade
@@ -105,9 +105,9 @@ class Journal:
             chart_id = self.db.add_chart(chart)
             chart.chart_id = chart_id
             self.db.commit()
-        except t.Constraint_Violation_Error as e:
+        except t.ConstraintViolationError as e:
             self.db.rollback()
-            raise t.Chart_Upload_Error(f"TRADE_ID PROVIDED {chart.trade_id} DOESN'T EXIST: {e}") from e
+            raise t.ChartUploadError(f"TRADE_ID PROVIDED {chart.trade_id} DOESN'T EXIST: {e}") from e
 
         #4: RETURN SOMETHING MEANINGFUL.
         return chart
@@ -120,10 +120,10 @@ class Journal:
             entry_score = self.db.get_entry_execution_points(trade.entry_execution_id)
             management_score = self.db.get_trade_management_points(trade.management_id)
             trade_parameters = self.db.get_trade_parameters(trade.trade_id) # type: ignore
-        except t.Invalid_Identifier_Error as e:
-            raise t.Grading_Error(f"PROVIDED IDs ARE INVALID: {e}") from e
-        except t.Trade_Not_Found_Error as e:
-            raise t.Grading_Error(f"TRADE_ID {trade.trade_id} IS INVALID: {e}") from e
+        except t.InvalidIdentifierError as e:
+            raise t.GradingError(f"PROVIDED IDs ARE INVALID: {e}") from e
+        except t.TradeNotFoundError as e:
+            raise t.GradingError(f"TRADE_ID {trade.trade_id} IS INVALID: {e}") from e
 
         parameters_score = len(trade_parameters)
         #5. RETURN SOMETHING MEANINGFUL.
@@ -162,10 +162,10 @@ class Journal:
         #UPDATE THE GRADE OF THE TRADE FROM NONE TO TRADE_GRADE
         try:
             self.db.update_trade_grade(trade.trade_id, trade_grade) # type: ignore
-        except t.Invalid_Grade_Error as e:
-            raise t.Grading_Error(f"{trade_grade} IS INVALID. SHOULD BE BETWEEN (A - F), {e}") from e # type: ignore
-        except t.Trade_Not_Found_Error as e:
-            raise t.Invalid_TradeID_Error(f"{trade.trade_id} IS INVALID. PROVIDE VALID TRADE_ID, {e}") from e
+        except t.InvalidGradeError as e:
+            raise t.GradingError(f"{trade_grade} IS INVALID. SHOULD BE BETWEEN (A - F), {e}") from e # type: ignore
+        except t.TradeNotFoundError as e:
+            raise t.InvalidTradeIDError(f"{trade.trade_id} IS INVALID. PROVIDE VALID TRADE_ID, {e}") from e
 
         return trade
 
@@ -175,9 +175,9 @@ class Journal:
         try:
             self.db.add_trade_notes(trade_notes)
             self.db.commit()
-        except t.Constraint_Violation_Error as e:
+        except t.ConstraintViolationError as e:
             self.db.rollback()
-            raise t.Notes_Recording_Error(f"TRADE_ID {trade_notes.trade_id} IS INVALID, {e}") from e
+            raise t.NotesRecordingError(f"TRADE_ID {trade_notes.trade_id} IS INVALID, {e}") from e
 
         return trade_notes
 
@@ -186,8 +186,8 @@ class Journal:
         #THIN WRAPPER METHOD, ONLY SERVES TO TRANSLATES ERRORS.
         try:
             trade = self.db.get_by_id(trade_id)
-        except t.Trade_Not_Found_Error as e:
-            raise t.Invalid_TradeID_Error(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
+        except t.TradeNotFoundError as e:
+            raise t.InvalidTradeIDError(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
 
         return trade
 
@@ -196,8 +196,8 @@ class Journal:
         try:
             trades = self.db.get_all_trade_rows()
             return trades
-        except t.Empty_Trades_Table_Error as e:
-            raise t.Trades_Not_Found_Error(f"EMPTY TRADES DATABASE TABLE: {e}") from e
+        except t.EmptyTradesTableError as e:
+            raise t.TradesNotFoundError(f"EMPTY TRADES DATABASE TABLE: {e}") from e
 
     #THE TRADER/USER WANTS TO SEE THE ENTIRE RECORDED JOURNAL ENTRY.
     #METHOD NEEDS TO GET DATA FROM: TRADES, TRADE_PARAMETERS
@@ -214,7 +214,7 @@ class Journal:
             if parameter_ids:
                 parameter_names = self.db.get_parameter_names(parameter_ids)
         except t.DatabaseError as e:
-            raise t.Journal_Entry_Error(f"JOURNAL ENTRY CAN'T BE RETRIEVED DUE TO DATABASE ERRORS: {e}") from e
+            raise t.JournalEntryError(f"JOURNAL ENTRY CAN'T BE RETRIEVED DUE TO DATABASE ERRORS: {e}") from e
 
         return JournalEntry(
             trade= trade,
@@ -236,7 +236,7 @@ class Journal:
     def amend_trade_entry(self, trade_id: int, amendment: Amendments) -> Amendments:
         forbidden_columns = ["dollar_amount", "duration", "result", "rr_multiple", "overall_trade_grade", "risk_percent"]
         if amendment.column_name in forbidden_columns:
-            raise t.Invalid_Column_Name_Error(f"CAN'T AMEND COLUMN: {amendment.column_name}")
+            raise t.InvalidColumnNameError(f"CAN'T AMEND COLUMN: {amendment.column_name}")
 
         recompute_values = {
             "entry_price" : self._compute_derived_fields,
@@ -271,7 +271,7 @@ class Journal:
             typed_value = caster(amendment.new_value)
             amendment.new_value = typed_value
         except (KeyError, ValueError):
-            raise t.Trade_Validation_Error("TRADE VALIDATION FAILED")
+            raise t.TradeValidationError("TRADE VALIDATION FAILED")
 
         try:
             trade = self.db.get_by_id(trade_id)
@@ -289,12 +289,12 @@ class Journal:
             amendment.amended_at = datetime.now()  # noqa: DTZ005
             amendment.amendment_id = self.db.add_trade_amendments(trade_id, amendment)
             self.db.commit()
-        except t.Trade_Not_Found_Error as e:
+        except t.TradeNotFoundError as e:
             self.db.rollback()
-            raise t.Invalid_TradeID_Error(f"TRADE WITH THAT ID DOESN'T EXIST: {e}")
-        except t.Constraint_Violation_Error as e:
+            raise t.InvalidTradeIDError(f"TRADE WITH THAT ID DOESN'T EXIST: {e}")
+        except t.ConstraintViolationError as e:
             self.db.rollback()
-            raise t.Trade_Recording_Error(f"COULDN'T RECORD NEW TRADE UPDATE: {e}") from e
+            raise t.TradeRecordingError(f"COULDN'T RECORD NEW TRADE UPDATE: {e}") from e
 
         return amendment
 
@@ -314,12 +314,12 @@ class Journal:
             for parameter in parameter_ids: # type: ignore
                 self.db.add_trade_parameters(trade_id, parameter)
             self.db.commit()
-        except t.Constraint_Violation_Error as e:
+        except t.ConstraintViolationError as e:
             self.db.rollback()
             raise t.ParametersJunctionTableConflict(f"PARAMETERS VIOLATE JUNCTION TABLE JOINT PK CONSTRAINT: {e}") from e
-        except t.Trade_Not_Found_Error:
+        except t.TradeNotFoundError:
             self.db.rollback()
-            raise t.Invalid_TradeID_Error("PROVIDED TRADE_ID IS INVALID")
+            raise t.InvalidTradeIDError("PROVIDED TRADE_ID IS INVALID")
 
         return graded_trade
 
@@ -328,8 +328,8 @@ class Journal:
         try:
             account_id = self.db.create_trading_account(account)
             account.account_id = account_id
-        except t.Constraint_Violation_Error as e:
-            raise t.Account_Creation_Error(f"ACCOUNT COULDN'T BE CREATED DUE TO DB ERROR: {e}") from e
+        except t.ConstraintViolationError as e:
+            raise t.AccountCreationError(f"ACCOUNT COULDN'T BE CREATED DUE TO DB ERROR: {e}") from e
 
         return account
 
@@ -337,23 +337,23 @@ class Journal:
 
         try:
             accounts = self.db.get_trading_accounts()
-        except t.Empty_Accounts_Table_Error as e:
-            raise t.Accounts_Not_Found_Error(f"ERROR! EMPTY ACCOUNTS TABLE: {e}") from e
+        except t.EmptyAccountsTableError as e:
+            raise t.AccountsNotFoundError(f"ERROR! EMPTY ACCOUNTS TABLE: {e}") from e
 
         return accounts
 
     def delete_trading_account(self, account_id: int) -> None:
         try:
             self.db.delete_account_from_db(account_id)
-        except t.Invalid_Account_Error:
+        except t.InvalidAccountError:
             raise t.AccountNotFoundError("INVALID ACCOUNT_ID. NO ACCOUNT MATCHES!")
 
     def fetch_trade_notes(self, trade_id: int):
 
         try:
             notes = self.db.get_trade_notes(trade_id)
-        except t.Trade_Not_Found_Error as e:
-            raise t.Invalid_TradeID_Error(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
+        except t.TradeNotFoundError as e:
+            raise t.InvalidTradeIDError(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
 
         return notes
 
@@ -363,8 +363,8 @@ class Journal:
 
         try:
             parameter_ids = self.db.get_trade_parameters(trade_id)
-        except t.Trade_Not_Found_Error as e:
-            raise t.Invalid_TradeID_Error(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
+        except t.TradeNotFoundError as e:
+            raise t.InvalidTradeIDError(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
 
         if parameter_ids:
             parameter_names: list[str] = self.db.get_parameter_names(parameter_ids)
@@ -375,13 +375,13 @@ class Journal:
 
         try:
             self.db.delete_trade(trade_id)
-        except t.Trade_Not_Found_Error as e:
-            raise t.Invalid_TradeID_Error(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}")
+        except t.TradeNotFoundError as e:
+            raise t.InvalidTradeIDError(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}")
 
     def update_trading_notes(self, trade_notes: TradeNotes) -> None:
 
         try:
             self.db.update_trading_notes(trade_notes)
-        except t.Trade_Not_Found_Error as e:
-            raise t.Invalid_TradeID_Error(f"TRADE NOT FOUND: {e}") from e
+        except t.TradeNotFoundError as e:
+            raise t.InvalidTradeIDError(f"TRADE NOT FOUND: {e}") from e
 

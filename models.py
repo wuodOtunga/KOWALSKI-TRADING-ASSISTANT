@@ -85,7 +85,7 @@ class TradeChart:
     trade_id : int
     filepath : str
     filename : str
-    upload_date: datetime | str
+    upload_date: datetime
 
 @dataclass
 class TradeNotes:

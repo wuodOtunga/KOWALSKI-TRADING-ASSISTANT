@@ -61,19 +61,19 @@ def type_validation(trade: Trade) -> None:
 
     for name, value, expected_type, positive_check in valid_types:
         if not isinstance(value, expected_type):
-            raise t.Trade_Validation_Error(f"{name} MUST BE {expected_type}. GOT {type(value).__name__}")
+            raise t.TradeValidationError(f"{name} MUST BE {expected_type}. GOT {type(value).__name__}")
 
         if positive_check and value <= 0:
-            raise t.Trade_Validation_Error(f"{name} MUST EXCEED ZERO. GOT {value} WHICH IS <= 0.")
+            raise t.TradeValidationError(f"{name} MUST EXCEED ZERO. GOT {value} WHICH IS <= 0.")
 
 def validate_price_logic(trade: Trade) -> None:
     """RESPONSIBLE FOR CROSS FIELD VALIDATION."""
     """BUSINESS RULES LOGIC VALIDATION."""
-    
+
     islong = trade.direction == TradeDirection.LONG
-    
+
     #DECLARATIVE RULE TABLE: RULES AS DATA: CROSS FIELD VALIDATION RULES.
-    
+
     rules = [
         (trade.entry_time >= trade.exit_time, "ENTRY TIME CAN'T EXCEED OR BE EQUAL TO EXIT TIME."),
         (islong and trade.exit_price > trade.take_profit, "LONG EXIT PRICE CAN'T EXCEED TAKE PROFIT."),
@@ -86,7 +86,7 @@ def validate_price_logic(trade: Trade) -> None:
         (not islong and trade.take_profit > trade.exit_price, "SHORT TAKE PROFIT CAN'T EXCEED EXIT PRICE."),
         (trade.entry_price in (trade.take_profit, trade.stop_loss), "ENTRY PRICE CAN'T EQUAL TAKE PROFIT OR STOP LOSS."),
     ]
-    
+
     for condition, message in rules:
         if condition:
-            raise t.Trade_Validation_Error(message)
+            raise t.TradeValidationError(message)

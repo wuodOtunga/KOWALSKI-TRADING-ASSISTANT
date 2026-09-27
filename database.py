@@ -94,9 +94,9 @@ class Database:
 
     #UPDATE THIS METHOD WITH THE NEW ENUM TYPES FROM MODELS.
         if trade.asset not in ["XAUUSD", "XAGUSD", "NQ", "ES"]:
-            raise t.Invalid_Asset_Error(f"INVALID ASSET DETECTED {trade.asset}")
+            raise t.InvalidAssetError(f"INVALID ASSET DETECTED {trade.asset}")
         if trade.direction not in ["long", "short"]:
-            raise t.Invalid_Direction_Error(f"INVALID DIRECTION DETECTED {trade.direction}")
+            raise t.InvalidDirectionError(f"INVALID DIRECTION DETECTED {trade.direction}")
         self.check_foreign_keys(trade)
 
         cursor = self.conn.cursor()
@@ -120,7 +120,7 @@ class Database:
             trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
             trade.duration.total_seconds(), trade.result, trade.rr_multiple, trade.risk_percent, trade.overall_trade_grade)) # type: ignore
         except sqlite3.IntegrityError as e:
-            raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
+            raise t.ConstraintViolationError(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
         return cursor.lastrowid # type: ignore
 
@@ -132,7 +132,7 @@ class Database:
         cursor.execute("SELECT * FROM trades WHERE trade_id = ?", (trade_id,))
         row = cursor.fetchone()
         if row is None:
-            raise t.Trade_Not_Found_Error(f"TRADEID {trade_id} NOT FOUND.")
+            raise t.TradeNotFoundError(f"TRADEID {trade_id} NOT FOUND.")
 
     #WE ARE IGNORING THE NOQA: DTZ007 BECAUSE WE DON'T NEED TIMEZONE INFO.
     #NAIVE DATETIME OBJECTS ARE FINE FOR NOW, MIGHT CHANGE LATER IF WE NEED
@@ -147,7 +147,7 @@ class Database:
         cursor.execute("SELECT * FROM trades")
         rows = cursor.fetchall()
         if not rows:
-            raise t.Empty_Trades_Table_Error("TRADES TABLE IS EMPTY!")
+            raise t.EmptyTradesTableError("TRADES TABLE IS EMPTY!")
 
         trades_list = []
         for row in rows:
@@ -160,12 +160,12 @@ class Database:
     def update_trade_grade(self, trade_id: int, overall_trade_grade: TradeGrade) -> None:
         """UPDATES OVERALL_TRADE_GRADE TO DATABASE"""
         if not isinstance(overall_trade_grade, TradeGrade):
-            raise t.Invalid_Grade_Error(f"{overall_trade_grade} IS INVALID.")
+            raise t.InvalidGradeError(f"{overall_trade_grade} IS INVALID.")
 
         cursor = self.conn.cursor()
         cursor.execute("UPDATE trades SET overall_trade_grade = ? WHERE trade_id = ?", (overall_trade_grade, trade_id))
         if cursor.rowcount == 0:
-            raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} NOT FOUND.")
+            raise t.TradeNotFoundError(f"TRADE_ID {trade_id} NOT FOUND.")
 
 #A GENERAL UPDATE METHOD TO UPDATE MORE DYNAMIC TRADE FIELDS.
     def update_trade_field(self, trade_id: int, column: str, value) -> None:
@@ -175,7 +175,7 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute(sql, (value, trade_id))
         if cursor.rowcount == 0:
-            raise t.Trade_Not_Found_Error(f"NO ROW MATCHES THE {trade_id}.")
+            raise t.TradeNotFoundError(f"NO ROW MATCHES THE {trade_id}.")
 
     def delete_trade(self, trade_id: int) -> None:
         """DELETE TRADE ROW DETAILS FROM DATABASE"""
@@ -183,7 +183,7 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute("DELETE FROM trades WHERE trade_id = ?", (trade_id,))
         if cursor.rowcount == 0:
-            raise t.Trade_Not_Found_Error(f"NO ROW MATCHES THE {trade_id}")
+            raise t.TradeNotFoundError(f"NO ROW MATCHES THE {trade_id}")
 
         self.conn.commit()
 
@@ -195,7 +195,7 @@ class Database:
             cursor.execute("INSERT INTO charts (trade_id, filepath, filename, upload_date) VALUES (?, ?, ?, ?)",
                             (chart.trade_id, chart.filepath, chart.filename, chart.upload_date))
         except sqlite3.IntegrityError as e:
-            raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
+            raise t.ConstraintViolationError(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
         return cursor.lastrowid # type: ignore
 
@@ -209,7 +209,7 @@ class Database:
             cursor.execute("INSERT INTO trade_notes (trade_id, emotions, mistakes, lessons, general_notes) VALUES" \
             "(?, ?, ?, ?, ?)", (trade_notes.trade_id, trade_notes.emotions, trade_notes.mistakes, trade_notes.lessons, trade_notes.general_notes))
         except sqlite3.IntegrityError as e:
-            raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
+            raise t.ConstraintViolationError(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
     def update_trading_notes(self, trade_notes: TradeNotes) -> None:
         """UPDATES FULL ROW ON TRADE NOTES DATABASE TABLE"""
@@ -226,7 +226,7 @@ class Database:
             (trade_notes.emotions, trade_notes.mistakes, trade_notes.lessons, trade_notes.general_notes, trade_notes.trade_id)
         )
         if cursor.rowcount == 0:
-            raise t.Trade_Not_Found_Error("TRADE_ID IS INVALID. NO TRADE MATCHES")
+            raise t.TradeNotFoundError("TRADE_ID IS INVALID. NO TRADE MATCHES")
 
 #FIX THE DATETIME CONVERSION TO ISO 8601 TEXT
     def add_trade_amendments(self, trade_id, amendment: Amendments) -> int:
@@ -236,7 +236,7 @@ class Database:
             cursor.execute("INSERT INTO trade_amendments (trade_id, column_name, old_value, new_value, amended_at) VALUES " \
             "(?, ?, ?, ?, ?)", (trade_id, amendment.column_name, amendment.old_value, amendment.new_value, amendment.amended_at))
         except sqlite3.IntegrityError as e:
-            raise t.Constraint_Violation_Error(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
+            raise t.ConstraintViolationError(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
         return cursor.lastrowid # type: ignore
 
@@ -249,7 +249,7 @@ class Database:
         cursor.execute("SELECT points FROM entry_execution WHERE entry_execution_id = ?", (entry_execution_id,))
         row = cursor.fetchone()
         if row is None:
-            raise t.Invalid_Identifier_Error(f"ENTRY EXECUTION ID {entry_execution_id} NOT FOUND.")
+            raise t.InvalidIdentifierError(f"ENTRY EXECUTION ID {entry_execution_id} NOT FOUND.")
 
         return row["points"]
 
@@ -262,7 +262,7 @@ class Database:
         cursor.execute("SELECT points FROM trade_management WHERE management_id = ?", (management_id,))
         row = cursor.fetchone()
         if row is None:
-            raise t.Invalid_Identifier_Error(f"MANAGEMENT ID {management_id} NOT FOUND.")
+            raise t.InvalidIdentifierError(f"MANAGEMENT ID {management_id} NOT FOUND.")
 
         return row["points"]
 
@@ -274,7 +274,7 @@ class Database:
         try:
             cursor.execute("INSERT INTO trade_parameters (trade_id, parameter_id) VALUES (?, ?)", (trade_id, parameter_id))
         except sqlite3.IntegrityError as e:
-            raise t.Constraint_Violation_Error(f"CAN'T LINK {trade_id} TO {parameter_id} : {e}") from e
+            raise t.ConstraintViolationError(f"CAN'T LINK {trade_id} TO {parameter_id} : {e}") from e
 
     def get_trade_parameters(self, trade_id: int) -> list:
         """FIND HOW MANY PARAMETER POINTS THE TRADE HAS"""
@@ -286,7 +286,7 @@ class Database:
 
         exists = cursor.fetchone()[0]
         if not exists:
-            raise t.Trade_Not_Found_Error(f"TRADE_ID {trade_id} IS INVALID.")
+            raise t.TradeNotFoundError(f"TRADE_ID {trade_id} IS INVALID.")
 
         cursor.execute("SELECT * FROM trade_parameters WHERE trade_id = ?", (trade_id,))
 
@@ -307,7 +307,7 @@ class Database:
             cursor.execute("INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES" \
             "(?, ?, ?, ?, ?)", (account.account_name, account.account_type, account.broker, account.starting_balance, account.is_active))
         except sqlite3.IntegrityError as e:
-            raise t.Constraint_Violation_Error(f"CHECK FOR COLUMN CONSTRAINT VIOLATION: {e}") from e
+            raise t.ConstraintViolationError(f"CHECK FOR COLUMN CONSTRAINT VIOLATION: {e}") from e
 
         return cursor.lastrowid # type: ignore
 
@@ -315,7 +315,7 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute("DELETE FROM accounts WHERE account_id = ?", (account_id,))
         if cursor.rowcount == 0:
-            raise t.Invalid_Account_Error(f"NO ROW MATCHES THE {account_id}")
+            raise t.InvalidAccountError(f"NO ROW MATCHES THE {account_id}")
 
         self.conn.commit()
 
@@ -328,22 +328,22 @@ class Database:
         cursor.execute("SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id = ?)", (trade.account_id,))
         exists = cursor.fetchone()[0]
         if not exists:
-            raise t.Invalid_Identifier_Error(f"ACCOUNT WITH ID OF {trade.account_id} DOESN'T EXIST.")
+            raise t.InvalidIdentifierError(f"ACCOUNT WITH ID OF {trade.account_id} DOESN'T EXIST.")
 
         cursor.execute("SELECT EXISTS(SELECT 1 FROM models WHERE model_id = ?)", (trade.model_id,))
         exists = cursor.fetchone()[0]
         if not exists:
-            raise t.Invalid_Identifier_Error(f"MODEL WITH {trade.model_id} DOESN'T EXISTS.")
+            raise t.InvalidIdentifierError(f"MODEL WITH {trade.model_id} DOESN'T EXISTS.")
 
         cursor.execute("SELECT EXISTS(SELECT 1 FROM trade_management WHERE management_id = ?)", (trade.management_id,))
         exists = cursor.fetchone()[0]
         if not exists:
-            raise t.Invalid_Identifier_Error(f"{trade.management_id} DOESN'T MATCH ANY MANAGEMENT ARCHETYPE.")
+            raise t.InvalidIdentifierError(f"{trade.management_id} DOESN'T MATCH ANY MANAGEMENT ARCHETYPE.")
 
         cursor.execute("SELECT EXISTS(SELECT 1 FROM entry_execution WHERE entry_execution_id = ?)", (trade.entry_execution_id,))
         exists = cursor.fetchone()[0]
         if not exists:
-            raise t.Invalid_Identifier_Error(f"{trade.entry_execution_id} DOESN'T MATCH ANY ARCHETYPE.")
+            raise t.InvalidIdentifierError(f"{trade.entry_execution_id} DOESN'T MATCH ANY ARCHETYPE.")
 
     def get_current_account_balance(self, account_id: int) -> float:
         """CALCULATES LIVE VALUE OF ACCOUNT BALANCE WHEN NEEDED!"""
@@ -366,7 +366,7 @@ class Database:
         cursor.execute("SELECT * FROM accounts")
         rows = cursor.fetchall()
         if not rows:
-            raise t.Empty_Accounts_Table_Error("NO ACCOUNTS FOUND!")
+            raise t.EmptyAccountsTableError("NO ACCOUNTS FOUND!")
 
         accounts = []
         for row in rows:
@@ -380,7 +380,7 @@ class Database:
         cursor.execute("SELECT * FROM trade_notes WHERE trade_id = ?", (trade_id,))
         row = cursor.fetchone()
         if row is None:
-            raise t.Trade_Not_Found_Error(f"{trade_id} IS INVALID.")
+            raise t.TradeNotFoundError(f"{trade_id} IS INVALID.")
 
         return TradeNotes(**row)
 
@@ -390,7 +390,7 @@ class Database:
         cursor.execute("SELECT * FROM charts WHERE trade_id = ?", (trade_id,))
         rows = cursor.fetchall()
         if not rows:
-            raise t.Trade_Not_Found_Error(f"{trade_id} IS INVALID.")
+            raise t.TradeNotFoundError(f"{trade_id} IS INVALID.")
 
         charts_list = []
 

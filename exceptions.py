@@ -14,7 +14,7 @@
 #INTERFACEEEROR: FIRES WITH A PROBLEM WITH THE PYTHON-SQLITE3 INTERFACE LAYER ITSELF. RARE.
 #EXAMPLE: PASSING A PYTHON OBJECT TYPE SQLITE HAS NO IDEA HOW TO BIND.
 #LIKE PASSING A RAW TRADE DATACLASS ITSELF AS A PARAMETER INSTEAD OF THE INDIVIDUAL FIELDS LIKE TRADE_ID.
- 
+
 #DATABASEERROR SUBCLASSES INCLUDE: DATAERROR, INTEGRITYERROR, INTERNALERROR,
 #NOTSUPPORTEDERROR, OPERATIONALERROR, PROGRAMMINGERROR
 
@@ -25,7 +25,7 @@
 #OPERATIONALERROR - FIRES WITH A PROBLEM OF DATABASE OPERATION ITSELF AT RUNTIME. DATABASE FILE IS LOCKED BY ANOTHER PROCESS,
 #DISK IS FULL. EXAMPLE: YOU REFERENCE A TABLE NAME OR COLUMN NAME THAT DOESN'T EXIST DUE TO TYPING ERROR.
 
-#PROGRAMMINGERROR: FIRES WITH MISUSE OF THE API ITSELF. 
+#PROGRAMMINGERROR: FIRES WITH MISUSE OF THE API ITSELF.
 #EXAMPLE: WRONG NUMBER OF ? PLACEHOLDERS VERSUS PARAMS. 2 ? PLACEHOLDERS WITH 3 VALUE TUPLE OF PARAMS.
 #ERROR BINDING PARAMETER TYPE THAT IS NOT SUPPORTED.
 
@@ -36,34 +36,34 @@
 class JournalingError(Exception):
     """BASE CLASS FOR JOURNAL EXCEPTIONS"""
 
-class Trade_Validation_Error(JournalingError):
+class TradeValidationError(JournalingError):
     "EXCEPTION CLASS FOR VALIDATION ERROR"
 
-class Trade_Recording_Error(JournalingError):
+class TradeRecordingError(JournalingError):
     """EXCEPTION CLASS FOR FAILED TRADE DATABASE SAVES."""
 
-class Chart_Upload_Error(JournalingError):
+class ChartUploadError(JournalingError):
     """EXCEPTION CLASS FOR FAILED CHART UPLOADS TO CHARTS TABLE."""
 
-class Grading_Error(JournalingError):
+class GradingError(JournalingError):
     """EXCEPTION CLASS FOR HANDLING GRADING ERRORS."""
 
-class Notes_Recording_Error(JournalingError):
+class NotesRecordingError(JournalingError):
     """EXCEPTION CLASS FOR FAILED TRADE NOTES DATABASE SAVES."""
 
-class Invalid_TradeID_Error(JournalingError):
+class InvalidTradeIDError(JournalingError):
     """EXCEPTION CLASS FOR INVALID TRADEIDs"""
 
-class Journal_Entry_Error(JournalingError):
+class JournalEntryError(JournalingError):
     "EXCEPTION CLASS FOR FAILED JOURNAL ENTRIES."
 
-class Trades_Not_Found_Error(JournalingError):
+class TradesNotFoundError(JournalingError):
     "EXCEPTION CLASS FOR NO TRADES FOUND IN THE DATABASE"
 
-class Account_Creation_Error(JournalingError):
+class AccountCreationError(JournalingError):
     """EXCEPTION CLASS FOR FAILED DB ACCOUNT CREATION"""
 
-class Accounts_Not_Found_Error(JournalingError):
+class AccountsNotFoundError(JournalingError):
     """EXCEPTION CLASS FOR NO ACCOUNTS FOUND IN THE DATABASE"""
 
 class TradeAlreadyGradedError(JournalingError):
@@ -80,33 +80,36 @@ class AccountNotFoundError(JournalingError):
 class DatabaseError(Exception):
     """BASE CLASS FOR DATABASE EXCEPTIONS"""
 
-class Constraint_Violation_Error(DatabaseError):
+class ConstraintViolationError(DatabaseError):
     """EXCEPTION CLASS FOR TABLE/COLUMN CONSTRAINTS VIOLATIONS"""
 
-class Invalid_Column_Name_Error(DatabaseError):
+class InvalidColumnNameError(DatabaseError):
     """EXCEPTION CLASS FOR INVALID COLUMN NAME"""
 
-class Trade_Not_Found_Error(DatabaseError):
+class TradeNotFoundError(DatabaseError):
     """EXCEPTION CLASS FOR INVALID TRADEID IDENTIFIER"""
 
-class Invalid_Account_Error(DatabaseError):
+class InvalidAccountError(DatabaseError):
     """EXCEPTION CLASS FOR INVALID ACCOUNTID IDENTIFIER"""
 
-class Invalid_Identifier_Error(DatabaseError):
+class NotesNotFoundError(DatabaseError):
+    """NO AVAILABLE NOTES FOR THIS TRADE"""
+
+class InvalidIdentifierError(DatabaseError):
     """EXCEPTION CLASS FOR INVALID IDENTIFIERS"""
     """IDENTIFIERS INCLUDE ACCOUNTID, MANAGEMENTID, MODELID, ENTRY_EXECUTIONID"""
 
-class Invalid_Grade_Error(DatabaseError):
+class InvalidGradeError(DatabaseError):
     """EXCEPTION CLASS FOR AN INVALID GRADE"""
 
-class Invalid_Asset_Error(DatabaseError):
+class InvalidAssetError(DatabaseError):
     """EXCEPTION CLASS FOR AN INVALID ASSET"""
 
-class Invalid_Direction_Error(DatabaseError):
+class InvalidDirectionError(DatabaseError):
     "EXCEPTION CLASS FOR AN INVALID DIRECTION STRING."
 
-class Empty_Trades_Table_Error(DatabaseError):
+class EmptyTradesTableError(DatabaseError):
     """EXCEPTION CLASS FOR AN EMPTY TRADES TABLE IN THE DATABASE"""
 
-class Empty_Accounts_Table_Error(DatabaseError):
+class EmptyAccountsTableError(DatabaseError):
     """EXCEPTION CLASS FOR AN EMPTY ACCOUNTS TABLE IN THE DATABASE"""
