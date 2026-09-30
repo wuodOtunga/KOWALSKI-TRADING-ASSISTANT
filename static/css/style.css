@@ -1,0 +1,76 @@
+/* ==========================================================================
+   KOWALSKI — brand overrides on top of Bootstrap 5 (dark theme).
+   Bootstrap handles layout/components; this file just sets the
+   look-and-feel: fonts, colors, and a couple of small fixes.
+   ========================================================================== */
+
+:root {
+    --kw-bg: #12151a;          /* near-black charcoal, not pure black */
+    --kw-surface: #1b1f27;     /* cards, nav, table stripes */
+    --kw-border: #2a2f3a;
+    --kw-accent: #e0a526;      /* amber — "ticker" accent color */
+    --kw-accent-soft: #e0a52633;
+    --kw-text: #e8e8e8;
+    --kw-text-muted: #9aa0ab;
+
+    --bs-body-font-family: 'Inter', system-ui, sans-serif;
+    --bs-body-bg: var(--kw-bg);
+    --bs-body-color: var(--kw-text);
+}
+
+body {
+    font-family: var(--bs-body-font-family);
+}
+
+/* Numbers/data read better in a monospace face — used for the brand
+   mark and anywhere tabular figures show up. */
+.navbar-brand,
+table {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--kw-accent) !important;
+}
+
+header .navbar {
+    background-color: var(--kw-surface);
+    border-bottom: 1px solid var(--kw-border);
+}
+
+.nav-link {
+    color: var(--kw-text-muted) !important;
+}
+
+.nav-link:hover,
+.nav-link:focus,
+.nav-link.active {
+    color: var(--kw-text) !important;
+}
+
+/* Bootstrap's table-dark ignores our custom bg by default — line it up
+   with the rest of the page instead of pure black. */
+.table-dark {
+    --bs-table-bg: var(--kw-surface);
+    --bs-table-striped-bg: #212630;
+    --bs-table-border-color: var(--kw-border);
+}
+
+footer {
+    background-color: var(--kw-surface);
+    border-top: 1px solid var(--kw-border);
+    color: var(--kw-text-muted);
+}
+
+footer a {
+    color: var(--kw-accent);
+}
+
+/* Small accent touch, not overused: section headings get a left rule
+   instead of an all-caps label or a horizontal divider. */
+main h2 {
+    border-left: 3px solid var(--kw-accent);
+    padding-left: 0.6rem;
+}
