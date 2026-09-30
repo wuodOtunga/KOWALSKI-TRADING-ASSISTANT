@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!-- Open Graph / Social Meta Tags -->
+        <meta property="og:title" content="Kowalski Trading Assistant">
+        <meta property="og:description" content="Advanced tools for trading mastery: journal, calculator, analytics, records, models & archetypes.">
+        <meta property="og:type" content="website">
+        <!--meta property="og:url" content="https://yourdomain.com/kowalski"-->
+        <!--meta property="og:image" content="https://yourdomain.com/assets/kowalski-og.png"-->
+        <!--meta name="twitter:card" content="summary_large_image"-->
+        <!-- Bootstrap 5 CSS (light version, no JS bundle yet) -->
+        <!--link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"-->
+        <title>KOWALSKI</title>
+        <!-- Custom style (kept for any overrides / personal touch) -->
+        <link rel="stylesheet" href="/static/style.css">
+    </head>
+    <body>
+        <header id="header_styler">
+            <h1>KOWALSKI TRADING ASSISTANT</h1>
+            <nav class="navbar">
+                <ul>
+                    <li><a href="journal.html">JOURNAL</a></li>
+                    <li><a href="calculator.html">CALCULATOR</a></li>
+                    <li><a href="analytics.html">ANALYTICS</a></li>
+                    <li><a href="records.html">RECORDS</a></li>
+                    <li><a href="models.html">MODELS AND ARCHETYPES</a></li>
+                </ul>
+            </nav>
+        </header>
+        <hr>
+        <main>
+            <div class="main_parent_class">
+                <div class="main_column_body">
+                    <h2>ABOUT</h2>
+                    <div>
+                        <p>
+                            Kowalski trading assistant is built with the trader in mind.
+                            Kowalski's main goal is to help a trader attain trading mastery.
+                            This is achieved through tools like trade journal and a modern trade calculator.
+                        </p>
+                        <p>
+                            Kowalski is designed and built by a trader and so it's tailor made for any trader's needs.
+                            The trading journal is designed to uncover valuable insights from your trading via indepth journaling of trades.
+                            The modern trading calculator is designed to help a trader mathematically derive the required metrics for trading.
+                            Kowalski trading assistant has the following tools and features to help you become a better and more profitable trader.
+                        </p>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>KOWALSKI FEATURE</th>
+                                <th>KOWALSKI TOOL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>TRADE CALCULATOR</td>
+                                <td>
+                                    <ul>
+                                        <li>RISK-REWARD CALCULATOR</li>
+                                        <li>PROFIT AND LOSS CALCULATOR</li>
+                                        <li>POSITION SIZING CALCULATOR</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>TRADE JOURNAL</td>
+                                <td>
+                                    <ul>
+                                        <li>RECORD TRADES</li>
+                                        <li>ATTACH TRADE NOTES</li>
+                                        <li>ATTACH TRADE CHARTS</li>
+                                        <li>EDIT RECORDED TRADES</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>TRADE ANALYTICS</td>
+                                <td>
+                                    <ul>
+                                        <li>TRADE STATS</li>
+                                        <li>PERFORMANCE STATS</li>
+                                        <li>ANALYTICS CHARTS</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    {% block content %}
+                    {% endblock content %}
+                </div>
+            </div>
+        </main>
+        <br>
+        <footer>
+            <div id="footer_styler">
+                AUTHOR: KOWALSKI FINANCIAL SERVICES<br>
+                &copy; COPYRIGHTS RESERVED<br>
+                CONTACT US: <a href="mailto:kowalskiservices@gmail.com">kowalskiservices@gmail.com</a>
+            </div>
+        </footer>
+    </body>
+</html>
