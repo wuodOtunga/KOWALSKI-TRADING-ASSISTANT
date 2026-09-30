@@ -146,7 +146,7 @@ class PositionSizingInput:
     success: bool
     message: str
     position_size: float | int | None
-
+    
 @dataclass
 class ServiceResult:
     """MANAGES RETURN TYPES OF SERVICE FUNCTIONS"""

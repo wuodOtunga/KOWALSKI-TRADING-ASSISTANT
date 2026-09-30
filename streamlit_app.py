@@ -175,7 +175,7 @@ class Kowalski:
 
         if "show_position_sizing_form" not in st.session_state:
             st.session_state.show_position_sizing_form = False
-    
+
     def _render_trade_details_form(self):
         st.header("TRADE DETAILS ENTRY FORM")
         with st.form("TRADE DETAILS", enter_to_submit=False):
@@ -242,7 +242,7 @@ class Kowalski:
                         for field, value in asdict(trade).items(): # type: ignore
                             st.write(f"{field} : {value}")
 
-                
+
     def _render_trade_notes_form(self):
         st.header("TRADE NOTES ENTRY FORM")
         with st.form("TRADE NOTES", enter_to_submit=False):
@@ -282,12 +282,12 @@ class Kowalski:
                         trading_notes = st.session_state.last_trade_notes_results.data
                         for field, value in asdict(trading_notes).items(): # type: ignore
                             st.write(f"{field}: {value}")
-                        
+
     def _render_trade_parameters_form(self):
         st.header("TRADE PARAMETERS CHECKLIST")
         with st.form("PARAMETERS CHECKLIST", enter_to_submit=False):
             st.number_input("TRADE ID", value= None, key= "trade_identifier")
-            
+
             #RESEARCH ABOUT PERSIST_STATE PARAMETER, NONE/PAGE/SESSION
             st.multiselect("PARAMETERS CHECKLIST", parameters, key="checklist")
 

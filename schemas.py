@@ -73,24 +73,28 @@ class AccountResponse(AccountBase):
     account_id: int
 
 class ParametersBase(BaseModel):
+    """REPRESENTS THE TRADE PARAMETERS BASE MODEL AS PARENT MODEL CLASS"""
     trade_id: int
     parameters_list: list[str]
 
 class TradeParameters(ParametersBase):
-    pass
+    """REPRESENTS REQUEST SHAPE FOR POSTING PARAMETERS LINKED TO A TRADE"""
 
 class ParametersResponse(ParametersBase):
+    """REPRESENTS SHAPE OF TRADE PARAMETERS RESPONSE CLIENT GETS TO SEE"""
     model_config = ConfigDict(from_attributes=True)
 
 
 class TradeChanges(BaseModel):
+    """REPRESENTS THE TRADE CHANGES BASE MODEL AS PARENT MODEL CLASS"""
     column_name: AmendableColumns
     new_value: float | str
 
 class NewChanges(TradeChanges):
-    pass
+    """REPRESENTS REQUEST SHAPE FOR CREATING NEW CHANGES FOR A TRADE"""
 
 class ChangesResponse(TradeChanges):
+    """REPRESENTS SHAPE OF TRADE CHANGES RESPONSE CLIENT GETS TO SEE"""
     model_config = ConfigDict(from_attributes=True)
 
     trade_id: int
