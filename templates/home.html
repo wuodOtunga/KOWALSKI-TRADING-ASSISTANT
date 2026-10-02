@@ -37,11 +37,36 @@
                     </button>
                     <div class="collapse navbar-collapse" id="navMain">
                         <ul class="navbar-nav ms-auto gap-lg-2">
-                            <li class="nav-item"><a class="nav-link" href="journal.html">Journal</a></li>
-                            <li class="nav-item"><a class="nav-link" href="calculator.html">Calculator</a></li>
-                            <li class="nav-item"><a class="nav-link" href="analytics.html">Analytics</a></li>
-                            <li class="nav-item"><a class="nav-link" href="records.html">Records</a></li>
-                            <li class="nav-item"><a class="nav-link" href="models.html">Models &amp; Archetypes</a></li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="False">
+                                    Journal
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#recordTradeModal">
+                                        RECORD TRADE
+                                    </button></li>
+                                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#notesModal">
+                                        NOTES
+                                    </button></li>
+                                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#parametersModal">
+                                        PARAMETERS
+                                    </button></li>
+                                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#chartsModal">
+                                        CHARTS
+                                    </button></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#journalEntryModal">
+                                        JOURNAL ENTRY
+                                    </button></li>
+                                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#amendTradeModal">
+                                        AMEND TRADE
+                                    </button></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item"><a class="nav-link" href="/calculator.html">Calculator</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/analytics.html">Analytics</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/records.html">Records</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/models.html">Models &amp; Archetypes</a></li>
                         </ul>
                     </div>
                 </div>
@@ -132,6 +157,8 @@
             </div>
         </footer>
 
+        <!--JOURNAL MODALS. SITS OUTSIDE EVERY BLOCK SO EVERY PAGE GETS THEM-->
+        {% include "record_trade_modal.html" %}
         <!-- Bootstrap JS bundle (Popper included) -->
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     </body>
