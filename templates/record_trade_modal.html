@@ -1,0 +1,132 @@
+<!--journal now becomes a dropdown menu. each journal action becomes a modal-->
+<!--an inline alert or toast for result not another modal. Keep the input form open, show the error above it, reset form on success-->
+<!--HTTP exception handler returns details as a scalar value, while validation handler returns details as a list, normalize these two-->
+<!--the models ID needs a dropdown, not typed IDs. We need endpoints that return the lists-->
+
+<!--RECORD TRADE MODAL-->
+
+<div class="modal fade" id="recordTradeModal" tabindex="-1"
+     aria-labelledby="recordTradeLabel" aria-hidden="true"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h2 class="modal-title h5" id="recordTradeLabel">Record trade</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="recordTradeAlert" class="alert alert-danger d-none" role="alert"></div>
+
+        <form id="recordTradeForm" novalidate>
+          <div class="row g-3">
+
+            <div class="col-md-6">
+              <label for="rt-entry-price" class="form-label">Entry price</label>
+              <input type="number" step="any" class="form-control"
+                     id="rt-entry-price" name="entry_price" required>
+              <div class="invalid-feedback">Enter an entry price.</div>
+            </div>
+
+            <div class="col-md-6">
+              <label for="rt-exit-price" class="form-label">Exit price</label>
+              <input type="number" step="any" class="form-control"
+                     id="rt-exit-price" name="exit_price" required>
+              <div class="invalid-feedback">Enter an exit price.</div>
+            </div>
+
+            <div class="col-md-6">
+                <label for="rt-stop-loss" class="form-label">Stop loss</label>
+                <input type="number" step="any" class="form-control"
+                        id="rt-stop-loss" name="stop_loss" required>
+                <div class="invalid-feedback">Enter a stop loss</div>
+            </div>
+
+            <div class="col-md-6">
+                <label for="rt-take-profit" class="form-label">Take profit</label>
+                <input type="number" step="any" class="form-control"
+                        id="rt-take-profit" name="take_profit" required>
+                <div class="invalid-feedback">Enter a take profit</div>
+            </div>
+
+            <div>
+                <label for="rt-position-size" class="form-label">Position size</label>
+                <input type="number" step="any" class="form-control"
+                        id="rt-position-size" name="position_size" required>
+                <div class="invalid-feedback">Enter a position_size</div>
+            </div>
+
+            <div class="col-md-6">
+              <label for="rt-entry-time" class="form-label">Entry time</label>
+              <input type="time" class="form-control" id="rt-entry-time" name="entry_time" required>
+            </div>
+
+            <div class="col-md-6">
+                <label for="rt-exit-time" class="form-label">Exit time</label>
+                <input type="time" class="form-control" id="rt-exit-time" name="exit_time" required>
+            </div>
+
+            <div class="col-md-6">
+                <label for="rt-date" class="form-label">Date</label>
+                <input type="date" class="form-control" id="rt-date" name="date" required>
+            </div>
+
+            <div class="col-md-6">
+              <label for="rt-asset" class="form-label">Asset</label>
+              <select class="form-select" id="rt-asset" name="asset" required>
+                <option value="" selected disabled>Choose...</option>
+                <option>XAUUSD</option><option>XAGUSD</option>
+                <option>NQ</option><option>ES</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+                <label for="rt-direction" class="form-label">Direction</label>
+                <select class="form-select" id="rt-direction" name="direction" required>
+                    <option value="" selected disabled>Choose...</option>
+                    <option>Long</option><option>Short</option>
+                </select>
+            </div>
+
+            <!--OPTIONS POPULATED BY JAVASCRIPT-->
+            <div class="col-md-6">
+              <label for="rt-account" class="form-label">Account</label>
+              <select class="form-select" id="rt-account" name="account_id" required>
+                <option value="" selected disabled>Loading...</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+                <label for="rt-model-id" class="form-label">Model_id</label>
+                <select class="form-select" id="rt-model-id" name="model_id" required>
+                    <option value="" selected disabled>Loading...</option>
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label for="rt-management-id" class="form-label">Management_id</label>
+                <select class="form-select" id="rt-management-id" name="management_id" required>
+                    <option value="" selected disabled>Loading...</option>
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label for="rt-entry-execution-id" class="form-label">Entry_Execution_id</label>
+                <select class="form-select" id="rt-entry-execution-id" name="entry_execution_id" required>
+                    <option value="" selected disabled>Loading...</option>
+                </select>
+            </div>
+
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary" form="recordTradeForm">Record trade</button>
+      </div>
+
+    </div>
+  </div>
+</div>
