@@ -1,9 +1,12 @@
 from fastapi import APIRouter, HTTPException, status
 
 import services as s
-from api import journal
+from database import Database
+from journal import Journal
 from schemas import AccountResponse, NewAccount
 
+db = Database()
+journal = Journal(db= db)
 router = APIRouter()
 
 @router.post(

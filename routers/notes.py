@@ -1,8 +1,12 @@
 from fastapi import APIRouter, HTTPException, status
 
 import services as s
-from api import journal
+from database import Database
+from journal import Journal
 from schemas import NewNotes, NotesResponse
+
+db = Database()
+journal = Journal(db= db)
 
 router = APIRouter()
 
