@@ -74,3 +74,9 @@ main h2 {
     border-left: 3px solid var(--kw-accent);
     padding-left: 0.6rem;
 }
+
+.dropdown-menu {
+    --bs-dropdown-bg: var(--kw-surface);
+    --bs-dropdown-border-color: var(--kw-border);
+    --bs-dropdown-link-hover-bg: var(--kw-accent-soft);
+}
