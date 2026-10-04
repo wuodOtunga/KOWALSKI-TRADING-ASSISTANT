@@ -1,0 +1,69 @@
+<!-- ABOUT: two-column flex layout, stacks on mobile -->
+{% extends "base.html" %}
+{% block title %}KOWALSKI | Home{% endblock title %}
+
+{% block content %}
+                <section class="d-flex flex-column flex-lg-row gap-4 mb-5">
+                    <div class="flex-fill">
+                        <h2 class="h4 mb-3">About</h2>
+                        <p>
+                            Kowalski trading assistant is built with the trader in mind.
+                            Kowalski's main goal is to help a trader attain trading mastery,
+                            achieved through tools like a trade journal and a modern trade calculator.
+                        </p>
+                        <p>
+                            Kowalski is designed and built by a trader, tailor-made for a trader's needs.
+                            The trading journal is designed to uncover valuable insights from your trading
+                            via in-depth journaling of trades. The modern trading calculator is designed
+                            to help a trader mathematically derive the required metrics for trading.
+                        </p>
+                    </div>
+
+                    <div class="flex-fill">
+                        <h2 class="h4 mb-3">Features</h2>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-striped table-bordered align-middle">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Kowalski Feature</th>
+                                        <th scope="col">Kowalski Tool</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Trade Calculator</td>
+                                        <td>
+                                            <ul class="mb-0 ps-3">
+                                                <li>Risk-reward calculator</li>
+                                                <li>Profit and loss calculator</li>
+                                                <li>Position sizing calculator</li>
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Trade Journal</td>
+                                        <td>
+                                            <ul class="mb-0 ps-3">
+                                                <li>Record trades</li>
+                                                <li>Attach trade notes</li>
+                                                <li>Attach trade charts</li>
+                                                <li>Edit recorded trades</li>
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Trade Analytics</td>
+                                        <td>
+                                            <ul class="mb-0 ps-3">
+                                                <li>Trade stats</li>
+                                                <li>Performance stats</li>
+                                                <li>Analytics charts</li>
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+{% endblock content %}
