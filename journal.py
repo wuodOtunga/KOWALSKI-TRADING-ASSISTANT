@@ -6,15 +6,18 @@ from database import Database
 from models import (
     Account,
     Amendments,
+    EntryExecution,
     JournalEntry,
     Trade,
     TradeAsset,
     TradeChart,
     TradeDirection,
     TradeGrade,
+    TradeManagement,
     TradeNotes,
     TradeResult,
     TradeSetup,
+    TradingModel,
 )
 from validation import validate_trade_data
 
@@ -385,3 +388,11 @@ class Journal:
         except t.TradeNotFoundError as e:
             raise t.InvalidTradeIDError(f"TRADE NOT FOUND: {e}") from e
 
+    def fetch_models_list(self) -> list[TradingModel]:
+        return self.db.get_models_list()
+
+    def fetch_entry_executions_list(self) -> list[EntryExecution]:
+        return self.db.get_entry_executions_list()
+
+    def fetch_trade_management_lists(self) -> list[TradeManagement]:
+        return self.db.get_trade_managements_list()

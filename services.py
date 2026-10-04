@@ -13,6 +13,7 @@ from models import (
     CalculatorResults,
     ChartsBatchResult,
     ChartUploadOutcome,
+    EntryExecution,
     PositionSizing,
     PositionSizingInput,
     ServiceResult,
@@ -20,8 +21,10 @@ from models import (
     TradeAsset,
     TradeChart,
     TradeDirection,
+    TradeManagement,
     TradeNotes,
     TradeSetup,
+    TradingModel,
 )
 from models import (
     ServiceErrorType as SET,
@@ -404,6 +407,36 @@ def delete_account_info(account_id: int, journal: Journal) -> ServiceResult:
         message="ACCOUNT DELETED SUCCESSFULLY!",
         data=None,
         error_type=None,
+    )
+
+def view_trading_models(journal: Journal) -> ServiceResult:
+    trading_models: list[TradingModel] = journal.fetch_models_list()
+
+    return ServiceResult(
+        success=True,
+        message="TRADING MODELS RETRIEVED SUCCESSFULLY!",
+        data=trading_models,
+        error_type=None
+    )
+
+def view_entry_execution(journal: Journal) -> ServiceResult:
+    archetypes: list[EntryExecution] = journal.fetch_entry_executions_list()
+
+    return ServiceResult(
+        success=True,
+        message="ENTRY EXECUTIONS RETRIEVED SUCCESSFULLY!",
+        data=archetypes,
+        error_type=None
+    )
+
+def view_trade_management(journal: Journal) -> ServiceResult:
+    archetypes: list[TradeManagement] = journal.fetch_trade_management_lists()
+
+    return ServiceResult(
+        success=True,
+        message="TRADE MANAGEMENTS RETRIEVED SUCCESSFULLY!",
+        data=archetypes,
+        error_type=None
     )
 
 #SERVICE FUNCTIONS FOR STREAMLIT TRADE CALCULATOR FEATURE BUTTONS.

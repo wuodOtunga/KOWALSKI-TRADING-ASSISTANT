@@ -6,13 +6,16 @@ import exceptions as t
 from models import (
     Account,
     Amendments,
+    EntryExecution,
     Trade,
     TradeAsset,
     TradeChart,
     TradeDirection,
     TradeGrade,
+    TradeManagement,
     TradeNotes,
     TradeResult,
+    TradingModel,
 )
 from seed_data import (
     accounts,
@@ -368,11 +371,7 @@ class Database:
         if not rows:
             raise t.EmptyAccountsTableError("NO ACCOUNTS FOUND!")
 
-        accounts = []
-        for row in rows:
-            accounts.append(Account(**row))
-
-        return accounts
+        return [Account(**dict(row)) for row in rows]
 
     def get_trade_notes(self, trade_id: int) -> TradeNotes:
 
@@ -382,7 +381,7 @@ class Database:
         if row is None:
             raise t.TradeNotFoundError(f"{trade_id} IS INVALID.")
 
-        return TradeNotes(**row)
+        return TradeNotes(**dict(row))
 
     def get_trade_charts(self, trade_id: int) -> list[TradeChart]:
 
@@ -392,12 +391,7 @@ class Database:
         if not rows:
             raise t.TradeNotFoundError(f"{trade_id} IS INVALID.")
 
-        charts_list = []
-
-        for row in rows:
-            charts_list.append(TradeChart(**row))
-
-        return charts_list
+        return [TradeChart(**dict(row)) for row in rows]
 
     def get_parameter_ids(self, parameter_names: list) -> list:
         cursor = self.conn.cursor()
@@ -418,6 +412,27 @@ class Database:
             parameter_names.append(row[0])
 
         return parameter_names
+
+    def get_models_list(self) -> list[TradingModel]:
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM models")
+        rows = cursor.fetchall()
+
+        return [TradingModel(**dict(row)) for row in rows]
+
+    def get_entry_executions_list(self) -> list[EntryExecution]:
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM entry_execution")
+        rows = cursor.fetchall()
+
+        return [EntryExecution(**dict(row)) for row in rows]
+
+    def get_trade_managements_list(self) -> list[TradeManagement]:
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM trade_management")
+        rows = cursor.fetchall()
+
+        return [TradeManagement(**dict(row)) for row in rows]
 
     def get_global_stats_rows(self):
         pass

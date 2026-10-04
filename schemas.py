@@ -60,7 +60,7 @@ class AccountBase(BaseModel):
     """REPRESENTS THE ACCOUNT BASE MODEL AS PARENT MODEL CLASS"""
     account_name: str
     account_type: str
-    broker: str
+    broker: str | None    #some accounts in database were recorded with no brokers
     starting_balance: int
     is_active: bool
 
@@ -101,3 +101,25 @@ class ChangesResponse(TradeChanges):
     change_id: int
     old_value: float | str
     amended_at: datetime
+
+class TradeModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    model_id: int
+    model_name: str
+    description: str
+
+class ExecutionArchetypes(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    entry_execution_id: int
+    archetype: str
+    description: str
+    points: int
+    grade: str
+
+class ManagementArchetypes(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    management_id: int
+    archetype: str
+    description: str
+    points: int
+    grade: str
