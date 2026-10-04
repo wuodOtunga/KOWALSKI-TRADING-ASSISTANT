@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from enum import Enum
@@ -146,13 +148,13 @@ class PositionSizingInput:
     success: bool
     message: str
     position_size: float | int | None
-    
+
 @dataclass
 class ServiceResult:
     """MANAGES RETURN TYPES OF SERVICE FUNCTIONS"""
     success : bool
     message : str
-    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | list[Account] | None
+    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | list[Account] | list[TradeManagement] | list[TradingModel] | list[EntryExecution] | None
     error_type: ServiceErrorType | None = None
 
 @dataclass
@@ -186,3 +188,25 @@ class CalculatorResults:
     message: str
     profit_loss: dict | None
     risk_reward: dict | None
+
+@dataclass
+class TradingModel:
+    model_id: int
+    model_name: str
+    description: str
+
+@dataclass
+class EntryExecution:
+    entry_execution_id: int
+    archetype: str
+    description: str
+    points: int
+    grade: str
+
+@dataclass
+class TradeManagement:
+    management_id: int
+    archetype: str
+    description: str
+    points: int
+    grade: str
