@@ -36,7 +36,7 @@ app.include_router(trading_models.router, prefix="/api/static_models", tags=["st
 #ASK CLAUDE WHY WE NEED BOTH FROM FASTAPI.EXCEPTIONS IMPORT HTTPEXCEPTIONS AND ALSO FROM STARLETTE.EXCEPTIONS IMPORT HTTPEXCEPTIONS
 @app.get(path="/", include_in_schema=False)
 def home(request: Request):
-    return templates.TemplateResponse(request= request, name="home.html")
+    return templates.TemplateResponse(request= request, name="index.html")
 
 @app.get(path="/trades", include_in_schema=False)
 def trades_page(request: Request, journal: JournalDep):
