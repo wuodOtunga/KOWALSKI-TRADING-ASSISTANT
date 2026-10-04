@@ -17,7 +17,7 @@
       </div>
 
       <div class="modal-body">
-        <div id="recordTradeAlert" class="alert alert-danger d-none" role="alert"></div>
+        <div id="recordTradeAlert" class="alert d-none" role="alert"></div>
 
         <form id="recordTradeForm" novalidate>
           <div class="row g-3">
@@ -50,7 +50,7 @@
                 <div class="invalid-feedback">Enter a take profit</div>
             </div>
 
-            <div>
+            <div class="col-md-6">
                 <label for="rt-position-size" class="form-label">Position size</label>
                 <input type="number" step="any" class="form-control"
                         id="rt-position-size" name="position_size" required>
@@ -85,7 +85,7 @@
                 <label for="rt-direction" class="form-label">Direction</label>
                 <select class="form-select" id="rt-direction" name="direction" required>
                     <option value="" selected disabled>Choose...</option>
-                    <option>Long</option><option>Short</option>
+                    <option>long</option><option>short</option>
                 </select>
             </div>
 
