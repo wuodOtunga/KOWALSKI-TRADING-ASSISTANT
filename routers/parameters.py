@@ -1,20 +1,17 @@
 from fastapi import APIRouter, HTTPException, status
 
 import services as s
-from database import Database
-from journal import Journal
+from dependencies import JournalDep
 from schemas import ParametersResponse, TradeParameters
 
-db = Database()
-journal = Journal(db= db)
 router = APIRouter()
 
 @router.post(
-        path="/api/parameters",
+        path="",
         response_model=ParametersResponse,
         status_code=status.HTTP_201_CREATED,
 )
-def submit_parameters(parameters: TradeParameters):
+def submit_parameters(parameters: TradeParameters, journal: JournalDep):
 
     parameters_present: dict = parameters.model_dump()
     results = s.submit_trade_parameters(trade_parameters= parameters_present, journal= journal)
@@ -37,8 +34,8 @@ def submit_parameters(parameters: TradeParameters):
         parameters_list= parameters.parameters_list,
     )
 
-@router.get(path="/api/parameters/{trade_id}", response_model=ParametersResponse)
-def get_parameters(trade_id: int):
+@router.get(path="/{trade_id}", response_model=ParametersResponse)
+def get_parameters(trade_id: int, journal: JournalDep):
 
     results = s.view_trade_parameters(trade_id= trade_id, journal= journal)
 

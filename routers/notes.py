@@ -1,19 +1,15 @@
 from fastapi import APIRouter, HTTPException, status
 
 import services as s
-from database import Database
-from journal import Journal
+from dependencies import JournalDep
 from schemas import NewNotes, NotesResponse
-
-db = Database()
-journal = Journal(db= db)
 
 router = APIRouter()
 
 @router.post(
     path="", response_model=NotesResponse, status_code=status.HTTP_201_CREATED
 )
-def create_trade_notes(notes: NewNotes):
+def create_trade_notes(notes: NewNotes, journal: JournalDep):
     # WE ARE NOT CHECKING FOR KEYERROR BECAUSE PYDANTIC VALIDATES NewNotes INSTANCE IS VALID
 
     trade_notes: dict = notes.model_dump()
@@ -29,7 +25,7 @@ def create_trade_notes(notes: NewNotes):
 
 
 @router.get(path="/{trade_id}", response_model=NotesResponse)
-def get_trade_notes(trade_id: int):
+def get_trade_notes(trade_id: int, journal: JournalDep):
 
     results = s.view_trade_notes(trade_id=trade_id, journal=journal)
     if not results.success:
@@ -42,7 +38,7 @@ def get_trade_notes(trade_id: int):
 
 
 @router.put(path="/{trade_id}", response_model=NotesResponse)
-def update_trade_notes(trade_id: int, notes: NewNotes):
+def update_trade_notes(trade_id: int, notes: NewNotes, journal: JournalDep):
 
     new_notes: dict = notes.model_dump()
     results = s.amend_trade_notes(updated_notes=new_notes, journal=journal)

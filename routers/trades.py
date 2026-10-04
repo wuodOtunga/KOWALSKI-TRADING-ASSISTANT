@@ -1,17 +1,14 @@
 from fastapi import APIRouter, HTTPException, status
 
 import services as s
-from database import Database
-from journal import Journal
+from dependencies import JournalDep
 from schemas import ChangesResponse, NewChanges, NewTrade, TradeResponse
-
-db = Database()
-journal = Journal(db= db)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 
 router = APIRouter()
 
+
 @router.get(path="", response_model=list[TradeResponse])
-def get_all_trades():
+def get_all_trades(journal: JournalDep):
 
     results = s.fetch_all_trades(journal=journal)
 
@@ -28,7 +25,7 @@ def get_all_trades():
     response_model=TradeResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_new_trade(new_trade: NewTrade):
+def create_new_trade(new_trade: NewTrade, journal: JournalDep):
 
     trade_details = new_trade.model_dump()
     results = s.submit_trade(trade_details=trade_details, journal=journal)
@@ -42,14 +39,14 @@ def create_new_trade(new_trade: NewTrade):
         elif results.error_type.value == "VALIDATION":  # type: ignore
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="TRADE VALIDATION FAILED.",
+                detail="TRADE VALIDATION FAILED. INVALID INPUT VALUES",
             )
 
     return results.data
 
 
 @router.get(path="/{trade_id}", response_model=TradeResponse)
-def get_trade(trade_id: int):
+def get_trade(trade_id: int, journal: JournalDep):
 
     results = s.fetch_trade(trade_id=trade_id, journal=journal)
 
@@ -62,7 +59,7 @@ def get_trade(trade_id: int):
 
 
 @router.patch(path="/{trade_id}", response_model=ChangesResponse)
-def update_trade_field(trade_id: int, changes: NewChanges):
+def update_trade_field(trade_id: int, changes: NewChanges, journal: JournalDep):
 
     # NO USE FOR EXCLUDE_UNSET = TRUE BECAUSE ALL FIELDS WILL BE PROVIDED
     trade_changes: dict = changes.model_dump()
@@ -105,7 +102,7 @@ def update_trade_field(trade_id: int, changes: NewChanges):
 
 
 @router.delete(path="/{trade_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_trade_row(trade_id: int):
+def delete_trade_row(trade_id: int, journal: JournalDep):
     # THERE IS NO RESPONSE MODEL BECAUSE THERE IS NOTHING TO RETURN SINCE RESOURCE IS DELETED.
     # 204 NO CONTENT BECAUSE REQUEST IS SUCCESSFUL BUT THERE IS NO CONTENT TO RETURN.
     # IMPLEMENT CASCADE DELETE FOR DELETED TRADES

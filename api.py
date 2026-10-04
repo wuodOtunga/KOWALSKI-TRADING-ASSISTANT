@@ -6,13 +6,9 @@ from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import services as s
-from database import Database
-from journal import Journal
-from routers import accounts, notes, parameters, trades
+from dependencies import JournalDep
+from routers import accounts, notes, parameters, trades, trading_models
 from schemas import TradeResponse
-
-db = Database()
-journal = Journal(db= db)
 
 #HTTP REQUEST IN -> API.PY CALLS A SERVICES.PY FUNCTION -> SERVICERESULT OUT -> HTTP RESPONSE OUT!
 #METHOD + PATH + REQUEST SHAPE + RESPONSE SHAPE + FAILURE MODE TO STATUS CODE MAPPING
@@ -32,6 +28,7 @@ app.include_router(trades.router, prefix="/api/trades", tags=["trades"])
 app.include_router(notes.router, prefix="/api/notes", tags=["notes"])
 app.include_router(parameters.router, prefix="/api/parameters", tags=["parameters"])
 app.include_router(accounts.router, prefix="/api/accounts", tags=["accounts"])
+app.include_router(trading_models.router, prefix="/api/static_models", tags=["static_models"])
 
 
 #HTML PAGE ROUTES FOR RENDERING PROPER HTML FOR BROWSER CONSUMER
@@ -42,7 +39,7 @@ def home(request: Request):
     return templates.TemplateResponse(request= request, name="home.html")
 
 @app.get(path="/trades", include_in_schema=False)
-def trades_page(request: Request):
+def trades_page(request: Request, journal: JournalDep):
     results = s.fetch_all_trades(journal= journal)
 
     if not results.success:
@@ -55,7 +52,7 @@ def trades_page(request: Request):
 
 
 @app.get(path="/trades/{trade_id}", include_in_schema=False)
-def trade_page(trade_id: int, request: Request):
+def trade_page(trade_id: int, request: Request, journal: JournalDep):
     results = s.fetch_trade(trade_id= trade_id, journal= journal)
 
     if not results.success:

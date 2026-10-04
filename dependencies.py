@@ -11,7 +11,6 @@ from journal import Journal
 def get_db():
     return Database()
 
-
 def get_journal(db: Annotated[Database, Depends(get_db)]):
     return Journal(db=db)
 
