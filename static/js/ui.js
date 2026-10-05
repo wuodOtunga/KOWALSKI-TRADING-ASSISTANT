@@ -1,4 +1,5 @@
 //shared helper functions for displaying and hiding alerts to the UI
+//functions to be exported where required
 
 export function hideAlert(element) {
     element.className = "alert d-none";
