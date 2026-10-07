@@ -1,6 +1,5 @@
 //main entry point
-import { recordTradeHandler } from "./recordTrade.js";
-import { recordNotesHandler } from "./recordNotes.js";
+import "./recordTrade.js";
+import "./recordNotes.js";
 
-recordTradeHandler()
-recordNotesHandler()
+

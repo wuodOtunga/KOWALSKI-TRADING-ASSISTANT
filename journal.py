@@ -8,6 +8,7 @@ from models import (
     Amendments,
     EntryExecution,
     JournalEntry,
+    Parameter,
     Trade,
     TradeAsset,
     TradeChart,
@@ -305,6 +306,8 @@ class Journal:
 
         if parameter_names:
             parameter_ids = self.db.get_parameter_ids(parameter_names)
+        else:
+            parameter_ids = []
 
         #TRADE IS ALREADY GRADED AND CLIENT RESUBMITS SAME PARENTERS. = INTERNAL
         #TRADE_ID DOESN'T EXIST, FK CONSTRAINT FAILS == INTERNAL
@@ -396,3 +399,6 @@ class Journal:
 
     def fetch_trade_management_lists(self) -> list[TradeManagement]:
         return self.db.get_trade_managements_list()
+
+    def fetch_parameters_list(self) -> list[Parameter]:
+        return self.db.get_parameters_list()

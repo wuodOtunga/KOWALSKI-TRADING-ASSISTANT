@@ -7,6 +7,7 @@ from models import (
     Account,
     Amendments,
     EntryExecution,
+    Parameter,
     Trade,
     TradeAsset,
     TradeChart,
@@ -433,6 +434,13 @@ class Database:
         rows = cursor.fetchall()
 
         return [TradeManagement(**dict(row)) for row in rows]
+
+    def get_parameters_list(self) -> list[Parameter]:
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT parameter_name FROM parameters")
+        rows = cursor.fetchall()
+
+        return [Parameter(**dict(row)) for row in rows]
 
     def get_global_stats_rows(self):
         pass

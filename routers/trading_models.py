@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 import services as s
 from dependencies import JournalDep
-from schemas import ExecutionArchetypes, ManagementArchetypes, TradeModel
+from schemas import ExecutionArchetypes, ManagementArchetypes, Parameters, TradeModel
 
 router = APIRouter()
 
@@ -23,3 +23,7 @@ def trade_management(journal: JournalDep):
     results = s.view_trade_management(journal)
 
     return results.data
+
+@router.get(path="/parameters", response_model=list[Parameters])
+def parameters(journal: JournalDep):
+    pass

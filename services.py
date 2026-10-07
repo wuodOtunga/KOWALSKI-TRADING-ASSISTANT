@@ -14,6 +14,7 @@ from models import (
     ChartsBatchResult,
     ChartUploadOutcome,
     EntryExecution,
+    Parameter,
     PositionSizing,
     PositionSizingInput,
     ServiceResult,
@@ -436,6 +437,16 @@ def view_trade_management(journal: Journal) -> ServiceResult:
         success=True,
         message="TRADE MANAGEMENTS RETRIEVED SUCCESSFULLY!",
         data=archetypes,
+        error_type=None
+    )
+
+def view_parameters_list(journal: Journal):
+    parameters: list[Parameter] = journal.fetch_parameters_list()
+
+    return ServiceResult(
+        success=True,
+        message="PARAMETERS LIST RETRIEVED SUCCESSFULLY!",
+        data=parameters,
         error_type=None
     )
 

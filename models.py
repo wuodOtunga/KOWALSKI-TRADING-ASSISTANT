@@ -154,7 +154,7 @@ class ServiceResult:
     """MANAGES RETURN TYPES OF SERVICE FUNCTIONS"""
     success : bool
     message : str
-    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | list[Account] | list[TradeManagement] | list[TradingModel] | list[EntryExecution] | None
+    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | list[Account] | list[TradeManagement] | list[TradingModel] | list[EntryExecution] | list[Parameter] | None
     error_type: ServiceErrorType | None = None
 
 @dataclass
@@ -210,3 +210,7 @@ class TradeManagement:
     description: str
     points: int
     grade: str
+
+@dataclass
+class Parameter:
+    parameter_name: str
