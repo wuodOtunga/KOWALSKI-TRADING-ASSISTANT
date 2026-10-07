@@ -14,6 +14,7 @@ from models import (
     ChartsBatchResult,
     ChartUploadOutcome,
     EntryExecution,
+    JournalEntry,
     Parameter,
     PositionSizing,
     PositionSizingInput,
@@ -178,7 +179,7 @@ def submit_trade_charts(trade_charts: dict, journal: Journal) -> ChartsBatchResu
         )
 
         try:
-            saved_chart = journal.attach_charts(chart)
+            saved_chart: TradeChart = journal.attach_charts(chart)
             outcomes.append(ChartUploadOutcome(
                 filename= uploaded_file.name,
                 success= True,
@@ -203,8 +204,8 @@ def _save_uploaded_charts(uploaded_file) -> tuple[str, str]:
     Path(UPLOAD_DIR).mkdir(exist_ok=True)
 
     original_name = Path(uploaded_file.name)  #.name is the string filename attribute
-    unique_filename = f"{uuid.uuid4().hex[:8]}_{original_name.stem}{original_name.suffix}"
-    filepath = os.path.join(UPLOAD_DIR, unique_filename)
+    unique_filename: str = f"{uuid.uuid4().hex[:8]}_{original_name.stem}{original_name.suffix}"
+    filepath: str = os.path.join(UPLOAD_DIR, unique_filename)
 
     with open(filepath, "wb") as f:
         f.write(uploaded_file.getbuffer())
@@ -230,7 +231,7 @@ def submit_amendment(trade_amendment: dict, journal: Journal) -> ServiceResult:
         return ServiceResult(success= False, message= f"INVALID KEY REFERENCE: {e}", data=None, error_type=SET.VALIDATION)
 
     try:
-        changes = journal.amend_trade_entry(amendment.trade_id, amendment)
+        changes: Amendments = journal.amend_trade_entry(amendment.trade_id, amendment)
     except t.InvalidTradeIDError as e:
         return ServiceResult(success= False, message= f"TRADE NOT FOUND: {e}", data=None, error_type=SET.NOT_FOUND)
     except t.TradeRecordingError as e:
@@ -246,7 +247,7 @@ def submit_amendment(trade_amendment: dict, journal: Journal) -> ServiceResult:
 #STREAMLIT DISPLAY SERVICE FUNCTIONS
 def fetch_trade(trade_id: int, journal: Journal) -> ServiceResult:
     try:
-        trade = journal.get_trade(trade_id)
+        trade: Trade = journal.get_trade(trade_id)
     except t.InvalidTradeIDError as e:
         return ServiceResult(success= False, message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}, {e}", data= None, error_type=SET.NOT_FOUND)
 
@@ -254,7 +255,7 @@ def fetch_trade(trade_id: int, journal: Journal) -> ServiceResult:
 
 def fetch_all_trades(journal: Journal) -> ServiceResult:
     try:
-        trades = journal.get_all_trades()
+        trades: list[Trade] = journal.get_all_trades()
     except t.TradesNotFoundError as e:
         return ServiceResult(success= False, message= f"NO TRADES FOUND: {e}", data= None, error_type=SET.NOT_FOUND)
 
@@ -263,7 +264,7 @@ def fetch_all_trades(journal: Journal) -> ServiceResult:
 def fetch_journal_entry(trade_id: int, journal: Journal) -> ServiceResult:
 
     try:
-        journal_entry = journal.get_journal_entry(trade_id)
+        journal_entry: JournalEntry = journal.get_journal_entry(trade_id)
     except t.JournalEntryError as e:
         return ServiceResult(success= False, message= f"ERROR RETRIEVING JOURNAL ENTRY: {e}", data= None, error_type=SET.INTERNAL)
 
@@ -272,7 +273,7 @@ def fetch_journal_entry(trade_id: int, journal: Journal) -> ServiceResult:
 def view_trade_notes(trade_id: int, journal: Journal) -> ServiceResult:
 
     try:
-        trade_notes = journal.fetch_trade_notes(trade_id)
+        trade_notes: TradeNotes = journal.fetch_trade_notes(trade_id)
     except t.InvalidTradeIDError as e:
         return ServiceResult(
             success= False,
@@ -326,7 +327,7 @@ def amend_trade_notes(updated_notes: dict, journal: Journal) -> ServiceResult:
 def view_trade_parameters(trade_id: int, journal: Journal) -> ServiceResult:
 
     try:
-        parameters = journal.fetch_present_parameters(trade_id)
+        parameters: list[str] = journal.fetch_present_parameters(trade_id)
     except t.InvalidTradeIDError:
         return ServiceResult(
             success=False,
@@ -440,7 +441,7 @@ def view_trade_management(journal: Journal) -> ServiceResult:
         error_type=None
     )
 
-def view_parameters_list(journal: Journal):
+def view_parameters_list(journal: Journal) -> ServiceResult:
     parameters: list[Parameter] = journal.fetch_parameters_list()
 
     return ServiceResult(

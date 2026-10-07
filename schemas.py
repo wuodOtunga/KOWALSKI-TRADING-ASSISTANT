@@ -124,7 +124,8 @@ class ManagementArchetypes(BaseModel):
     points: int
     grade: str
 
-class Parameters(BaseModel):
+class ParameterItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    parameter_id: int
     parameter_name: str

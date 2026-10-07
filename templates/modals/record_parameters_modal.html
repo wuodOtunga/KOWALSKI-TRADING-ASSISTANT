@@ -21,9 +21,16 @@
                     <!--INPUTS POPULATED BY JAVASCRIPT HANDLER CODE-->
                     <!--FIND OUT ELEMENT FOR MULTI-SELECT AND THE NAME ATTRIBUTE-->
                     <div class="row g-3">
-                        <div class="pt-parameters">
-                            
+                        <div class="col-md-6">
+                            <label for="pt-trade-id" class="form-label">Trade ID</label>
+                            <input type="number" class="form-control" id="pt-trade-id" name="trade_id" required>
                         </div>
+                        <fieldset class="col-12">
+                            <legend class="form-label fs-6">Parameters present</legend>
+                            <div id="pt-parameters" class="row row-cols-1 row-cols-md-2 g-2">
+                                <!-- checkboxes injected by JS -->
+                            </div>
+                        </fieldset>
                     </div>
                 </form>
             </div>

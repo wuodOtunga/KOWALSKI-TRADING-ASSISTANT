@@ -213,4 +213,5 @@ class TradeManagement:
 
 @dataclass
 class Parameter:
+    parameter_id: int
     parameter_name: str

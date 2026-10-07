@@ -342,7 +342,7 @@ class Journal:
     def fetch_all_trading_accounts(self) -> list[Account]:
 
         try:
-            accounts = self.db.get_trading_accounts()
+            accounts: list[Account] = self.db.get_trading_accounts()
         except t.EmptyAccountsTableError as e:
             raise t.AccountsNotFoundError(f"ERROR! EMPTY ACCOUNTS TABLE: {e}") from e
 

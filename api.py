@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.templating import _TemplateResponse
 
 import services as s
 from dependencies import JournalDep
@@ -24,11 +25,11 @@ app.mount(path="/static", app=StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
 
-app.include_router(trades.router, prefix="/api/trades", tags=["trades"])
-app.include_router(notes.router, prefix="/api/notes", tags=["notes"])
-app.include_router(parameters.router, prefix="/api/parameters", tags=["parameters"])
-app.include_router(accounts.router, prefix="/api/accounts", tags=["accounts"])
-app.include_router(trading_models.router, prefix="/api/static_models", tags=["static_models"])
+app.include_router(router=trades.router, prefix="/api/trades", tags=["trades"])
+app.include_router(router=notes.router, prefix="/api/notes", tags=["notes"])
+app.include_router(router=parameters.router, prefix="/api/parameters", tags=["parameters"])
+app.include_router(router=accounts.router, prefix="/api/accounts", tags=["accounts"])
+app.include_router(router=trading_models.router, prefix="/api/static_models", tags=["static_models"])
 
 
 #HTML PAGE ROUTES FOR RENDERING PROPER HTML FOR BROWSER CONSUMER
@@ -52,13 +53,13 @@ def trades_page(request: Request, journal: JournalDep):
 
 
 @app.get(path="/trades/{trade_id}", include_in_schema=False)
-def trade_page(trade_id: int, request: Request, journal: JournalDep):
+def trade_page(trade_id: int, request: Request, journal: JournalDep) -> _TemplateResponse:
     results = s.fetch_trade(trade_id= trade_id, journal= journal)
 
     if not results.success:
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail= "TRADE NOT FOUND!")
 
-    trade_response = TradeResponse.model_validate(results.data, from_attributes=True)
+    trade_response: TradeResponse = TradeResponse.model_validate(results.data, from_attributes=True)
 
     return templates.TemplateResponse(request= request, name="trade_detail.html", context={"trade": trade_response})
 
@@ -73,8 +74,8 @@ def trade_page(trade_id: int, request: Request, journal: JournalDep):
 #WHY DO WE NEED BOTH HTTPEXCEPTION FROM STARTLETTE AND FASTAPI, WHAT'S THE DIFFERENCE?
 #THIS FUNCTION HANDLES THE QUESTION: WHAT DOES FASTAPI RETURN FOR A 404 WHEN THE CLIENT WANTS EITHER HTML OR JSON?
 
-@app.exception_handler(StarletteHTTPException)
-def general_exception_handler(request: Request, exception: StarletteHTTPException):
+@app.exception_handler(exc_class_or_status_code=StarletteHTTPException)
+def general_exception_handler(request: Request, exception: StarletteHTTPException) -> JSONResponse | _TemplateResponse:
     #WE CREATE A CUSTOM MESSAGE IF STARTLETTE HANDLES AN EXCEPTION WITHOUT A DETAIL
     message = (
         exception.detail

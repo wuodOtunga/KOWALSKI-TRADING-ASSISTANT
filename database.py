@@ -437,7 +437,7 @@ class Database:
 
     def get_parameters_list(self) -> list[Parameter]:
         cursor = self.conn.cursor()
-        cursor.execute("SELECT parameter_name FROM parameters")
+        cursor.execute("SELECT * FROM parameters")
         rows = cursor.fetchall()
 
         return [Parameter(**dict(row)) for row in rows]
