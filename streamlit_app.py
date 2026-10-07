@@ -27,8 +27,8 @@ from seed_data import (
     trade_management_options,
 )
 
-min_date = datetime(1990, 1, 1)  # noqa: DTZ001
-max_date = datetime.now()  # noqa: DTZ005
+min_date = datetime(1990, 1, 1)
+max_date = datetime.now()
 
 @st.cache_resource
 def get_database():

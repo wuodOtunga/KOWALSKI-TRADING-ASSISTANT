@@ -452,8 +452,8 @@ class Database:
         row_dict["exit_price"] = float(row_dict["exit_price"])
         row_dict["take_profit"] = float(row_dict["take_profit"])
         row_dict["position_size"] = float(row_dict["position_size"])
-        row_dict["entry_time"] = datetime.strptime(row_dict["entry_time"], "%I:%M %p").time()  # noqa: DTZ007
-        row_dict["exit_time"] = datetime.strptime(row_dict["exit_time"], "%I:%M %p").time()  # noqa: DTZ007
+        row_dict["entry_time"] = datetime.strptime(row_dict["entry_time"], "%I:%M %p").time()
+        row_dict["exit_time"] = datetime.strptime(row_dict["exit_time"], "%I:%M %p").time()
         row_dict["date"] = datetime.fromisoformat(row_dict["date"])
         row_dict["model_id"] = int(row_dict["model_id"])
         row_dict["account_id"] = int(row_dict["account_id"])

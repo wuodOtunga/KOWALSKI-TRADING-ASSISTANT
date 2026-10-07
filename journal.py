@@ -290,7 +290,7 @@ class Journal:
             #ONLY THE AMENDED COLUMN IS STORED IN THE DATABASE. THE RECOMPUTES GO STALE.
             valid_trade = validate_trade_data(trade)
             self.db.update_trade_field(valid_trade.trade_id, amendment.column_name, amendment.new_value) # type: ignore
-            amendment.amended_at = datetime.now()  # noqa: DTZ005
+            amendment.amended_at = datetime.now()
             amendment.amendment_id = self.db.add_trade_amendments(trade_id, amendment)
             self.db.commit()
         except t.TradeNotFoundError as e:
