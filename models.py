@@ -154,9 +154,8 @@ class ServiceResult:
     """MANAGES RETURN TYPES OF SERVICE FUNCTIONS"""
     success : bool
     message : str
-    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | list[Account] | list[TradeManagement] | list[TradingModel] | list[EntryExecution] | list[Parameter] | None
-    error_type: ServiceErrorType | None = None
-
+    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | list[Account] | list[TradeManagement] | list[TradingModel] | list[EntryExecution] | list[Parameter] | list[TradeChart] | None
+    error_type: ServiceErrorType | None
 @dataclass
 class ChartUploadOutcome:
     """OUTCOME FOR A SINGLE FILE WITHIN A BATCH UPLOAD"""
@@ -180,6 +179,12 @@ class ChartsBatchResult:
 
     def all_succeeded(self) -> bool:
         return all(o.success for o in self.outcomes)
+
+@dataclass
+class ChartFile:
+    """FRAMEWORK NEUTRAL UPLOADED FILE. NAME + RAW BYTES"""
+    name: str
+    content: bytes
 
 @dataclass
 class CalculatorResults:

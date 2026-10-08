@@ -1,7 +1,8 @@
 <!--RECORD CHARTS MODAL-->
 
-<div class="modal fade" id="recordChartsModal" tabindex="-1" aria-labelledby="recordChartsLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="recordChartsModal" tabindex="-1" aria-labelledby="recordChartsLabel" aria-hidden="true"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
 
             <div class="modal-header">
@@ -11,10 +12,27 @@
 
             <div class="modal-body">
                 <div id="recordChartsAlert" class="alert d-none" role="alert"></div>
-                <!--FORM INPUTS: TRADE_ID, CHARTS-->
-                <form id="recordchartsForm" novalidate>
-                    <input type="number" name="trade_id" required>
-                    <input type="file" name="charts" accept="image/*" multiple required>
+
+                <!--NO enctype NEEDED: JS SENDS new FormData(form) VIA fetch()-->
+                <form id="recordChartsForm" novalidate>
+                    <div class="row g-3">
+
+                        <div class="col-12">
+                            <label for="rc-trade-id" class="form-label">Trade ID</label>
+                            <input type="number" min="1" class="form-control"
+                                   id="rc-trade-id" name="trade_id" required>
+                            <div class="invalid-feedback">Enter a valid trade ID.</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="rc-charts" class="form-label">Chart images</label>
+                            <input type="file" class="form-control"
+                                   id="rc-charts" name="charts" accept="image/*" multiple required>
+                            <div class="form-text">You can select several images at once.</div>
+                            <div class="invalid-feedback">Choose at least one image.</div>
+                        </div>
+
+                    </div>
                 </form>
             </div>
 

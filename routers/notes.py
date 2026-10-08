@@ -10,15 +10,22 @@ router = APIRouter()
     path="", response_model=NotesResponse, status_code=status.HTTP_201_CREATED
 )
 def create_trade_notes(notes: NewNotes, journal: JournalDep):
-    # WE ARE NOT CHECKING FOR KEYERROR BECAUSE PYDANTIC VALIDATES NewNotes INSTANCE IS VALID
+    # should a trader be able to add notes to a trade_id via the record notes UI button and POST notes endpoint?
+    # or do they have to explicitly use the update notes UI button and PUT notes endpoint
 
     trade_notes: dict = notes.model_dump()
 
     results = s.submit_trade_notes(trade_notes=trade_notes, journal=journal)
-    if not results.success:
+    if not results.success and results.error_type.value == "NOT_FOUND": # type: ignore
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="INVALID TRADE_ID. NO TRADE MATCHES",
+        )
+
+    if not results.success and results.error_type.value == "CONFLICT": # type: ignore
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="TRADE ALREADY HAS NOTES ATTACHED. NO DUPLICATES ALLOWED",
         )
 
     return results.data
@@ -28,10 +35,16 @@ def create_trade_notes(notes: NewNotes, journal: JournalDep):
 def get_trade_notes(trade_id: int, journal: JournalDep):
 
     results = s.view_trade_notes(trade_id=trade_id, journal=journal)
-    if not results.success:
+    if not results.success and results.error_type.value == "NOT_FOUND": # pyright: ignore[reportOptionalMemberAccess]
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="TRADE NOTES WITH THAT TRADE_ID NOT FOUND",
+        )
+
+    if not results.success and results.error_type.value == "VALIDATION": # type: ignore
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="TRADE_ID IS INVALID. NO TRADE MATCHES THE TRADE_ID",
         )
 
     return results.data

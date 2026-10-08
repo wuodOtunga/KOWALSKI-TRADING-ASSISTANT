@@ -11,7 +11,7 @@ router = APIRouter()
         response_model=ParametersResponse,
         status_code=status.HTTP_201_CREATED,
 )
-def submit_parameters(parameters: TradeParameters, journal: JournalDep):
+def submit_parameters(parameters: TradeParameters, journal: JournalDep) -> ParametersResponse:
 
     parameters_present: dict = parameters.model_dump()
     results = s.submit_trade_parameters(trade_parameters= parameters_present, journal= journal)
@@ -35,7 +35,7 @@ def submit_parameters(parameters: TradeParameters, journal: JournalDep):
     )
 
 @router.get(path="/{trade_id}", response_model=ParametersResponse)
-def get_parameters(trade_id: int, journal: JournalDep):
+def get_parameters(trade_id: int, journal: JournalDep) -> ParametersResponse:
 
     results = s.view_trade_parameters(trade_id= trade_id, journal= journal)
 

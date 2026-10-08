@@ -146,7 +146,7 @@ def _get_notes_row(trade_id: int, session: Session) -> TradeNotesModel:
 
     return row
 
-def _ensure_trade_exists(trade_id, session: Session) -> None:
+def _ensure_trade_exists(trade_id: int, session: Session) -> None:
     """VALIDATES THAT THE TRADE_ID EXISTS"""
     """cheap existence check to avoid foreign key constraint violations"""
 
@@ -333,7 +333,7 @@ class Repository:
         """PERSISTS TRADE NOTES TO THE REPOSITORY"""
 
         with self._transaction() as session:
-            _ensure_trade_exists(notes.trade_id, session)
+            _ensure_trade_exists(notes.trade_id, session) # type: ignore
             session.add(TradeNotesModel(**_field_values(notes)))
             session.flush()
 
@@ -351,7 +351,7 @@ class Repository:
         an upsert makes the method idempotent. making calls, same database state"""
 
         with self._transaction() as session:
-            _ensure_trade_exists(new_notes.trade_id, session)
+            _ensure_trade_exists(new_notes.trade_id, session) # type: ignore
 
             row = session.get(TradeNotesModel, new_notes.trade_id)
             if row is None:

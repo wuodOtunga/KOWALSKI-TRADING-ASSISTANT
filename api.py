@@ -36,11 +36,11 @@ app.include_router(router=trading_models.router, prefix="/api/static_models", ta
 #SET UP HREF PAGE LINKS TO INDIVIDUAL PAGES FROM HOME.LAYOUT USING URL_FOR("trade_page", trade_id=trade.trade_id)
 #ASK CLAUDE WHY WE NEED BOTH FROM FASTAPI.EXCEPTIONS IMPORT HTTPEXCEPTIONS AND ALSO FROM STARLETTE.EXCEPTIONS IMPORT HTTPEXCEPTIONS
 @app.get(path="/", include_in_schema=False)
-def home(request: Request):
+def home(request: Request) -> _TemplateResponse:
     return templates.TemplateResponse(request= request, name="index.html")
 
 @app.get(path="/trades", include_in_schema=False)
-def trades_page(request: Request, journal: JournalDep):
+def trades_page(request: Request, journal: JournalDep) -> _TemplateResponse:
     results = s.fetch_all_trades(journal= journal)
 
     if not results.success:
@@ -107,8 +107,8 @@ def general_exception_handler(request: Request, exception: StarletteHTTPExceptio
 #THIS IS BECAUSE VALIDATION ERRORS ARE A DIFFERENT EXCEPTION CLASS FROM HTTPEXCEPTION. THEY ARE RequestValidationError CLASS.
 #NOW OUT HTML PAGE ROUTES ARE RETURNING JSON FOR VALIDATION ERRORS, SO WE NEED TO TURN THESE INTO HTML PAGE RESPONSES.
 
-@app.exception_handler(RequestValidationError)
-def validation_exception_handler(request: Request, exception: RequestValidationError):
+@app.exception_handler(exc_class_or_status_code=RequestValidationError)
+def validation_exception_handler(request: Request, exception: RequestValidationError) -> JSONResponse | _TemplateResponse:
     #VALIDATION EXCEPTIONS DON'T HAVE A SINGLE MESSAGE VALUE. IT'S A LIST OF ERROR DETAILS.
     #EXCEPTION.ERRORS() RETURNS THIS LIST OF ERROR DETAILS.
     #VALIDATION ERRORS DON'T HAVE A STATUS_CODE ATTRIBUTE SINCE THE CODE IS ALWAYS A HTTP_422_UNPROCESSABLE_CONTENT.

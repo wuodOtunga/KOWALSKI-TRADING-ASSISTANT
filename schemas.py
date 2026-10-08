@@ -129,3 +129,16 @@ class ParameterItem(BaseModel):
 
     parameter_id: int
     parameter_name: str
+
+class ChartOutcomeResponse(BaseModel):
+    filename: str
+    success: bool
+    chart_id: int | None = None
+    error: str | None = None
+
+class ChartsBatchResponse(BaseModel):
+    trade_id: int
+    succeeded: int
+    failed: int
+    outcomes: list[ChartOutcomeResponse]
+

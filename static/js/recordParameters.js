@@ -14,7 +14,7 @@ const form = document.getElementById("recordParametersForm");
 const parametersAlert = document.getElementById("recordParametersAlert");
 const successMessageEl = document.getElementById("successMessage");
 const parametersModal = document.getElementById("recordParametersModal");
-const parametersContainer = document.getElementById("pt-parameters");
+const parametersContainer = document.getElementById("pt-parameters-list");
 const parametersSubmit = document.querySelector('button[form="recordParametersForm"]');
 
 form.addEventListener("submit", recordParametersHandler);
@@ -64,7 +64,7 @@ async function populateParametersCheckboxes(containerElement, url) {
         const msg = document.createElement("p");
         msg.className = "text-danger mb-0";
         msg.textContent = "Failed to load parameters";
-        containerEl.append(msg);
+        containerElement.append(msg);
         return false;
     }
 }
@@ -80,8 +80,18 @@ async function recordParametersHandler(event) {
     event.preventDefault();
     hideAlert(parametersAlert);
 
+    if (!form.checkValidity()) {
+        form.classList.add("was-validated");
+        return;
+    }
+
     const formData = new FormData(form);
     const parametersData = Object.fromEntries(formData.entries());
+
+    parametersData = {
+        "trade_id": Number(parametersData.get("trade_id")),
+        "parameters_list": parametersData.getAll("parameters"),
+    }
 
     let response = null;
     try {

@@ -86,6 +86,13 @@ class Database:
         """DATABASE ROLLBACKS"""
         self.conn.rollback()
 
+    def _ensure_trade_exists(self, trade_id: int):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM trades WHERE trade_id = ?)", (trade_id,))
+        exists = cursor.fetchone()[0]
+        if not exists:
+            raise t.TradeNotFoundError(f"TRADE_ID {trade_id} IS INVALID.")
+
 #Foreign-key error translation is too broad
 #REFINE TO IDENTIFY WHICH ERROR HAPPENED.
 #foreign-key violation, UNIQUE constraint violation
@@ -194,12 +201,14 @@ class Database:
     def add_chart(self, chart: TradeChart) -> int:
         """ATTACH TRADE CHART TO DATABASE"""
 
+        self._ensure_trade_exists(chart.trade_id)  #raise t.TradeNotFoundError
+
         cursor = self.conn.cursor()
         try:
             cursor.execute("INSERT INTO charts (trade_id, filepath, filename, upload_date) VALUES (?, ?, ?, ?)",
                             (chart.trade_id, chart.filepath, chart.filename, chart.upload_date))
         except sqlite3.IntegrityError as e:
-            raise t.ConstraintViolationError(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
+            raise t.ConstraintViolationError(f"CHECK FOR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
         return cursor.lastrowid # type: ignore
 
@@ -208,12 +217,15 @@ class Database:
         """TRADE NOTES INCLUDE EMOTIONS, MISTAKES, LESSONS"""
         """ARGS: trade_id IDENTIFIER, TRADENOTE OBJECT"""
 
+        #check for validity of the trade_id FK and rule out FK constraint violation error.
+        self._ensure_trade_exists(trade_notes.trade_id) # type: ignore
+
         cursor = self.conn.cursor()
         try:
             cursor.execute("INSERT INTO trade_notes (trade_id, emotions, mistakes, lessons, general_notes) VALUES" \
             "(?, ?, ?, ?, ?)", (trade_notes.trade_id, trade_notes.emotions, trade_notes.mistakes, trade_notes.lessons, trade_notes.general_notes))
         except sqlite3.IntegrityError as e:
-            raise t.ConstraintViolationError(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
+            raise t.ConstraintViolationError(f"CHECK FOR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
     def update_trading_notes(self, trade_notes: TradeNotes) -> None:
         """UPDATES FULL ROW ON TRADE NOTES DATABASE TABLE"""
@@ -285,12 +297,9 @@ class Database:
         """ARGS: TRADE_ID ROW IDENTIFIER"""
         """RETURNS LIST OF PARAMETER IDS MATCHING THE TRADE_ID"""
 
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM trades WHERE trade_id = ?)", (trade_id,))
+        self._ensure_trade_exists(trade_id) #raises t.TradeNotFoundError
 
-        exists = cursor.fetchone()[0]
-        if not exists:
-            raise t.TradeNotFoundError(f"TRADE_ID {trade_id} IS INVALID.")
+        cursor = self.conn.cursor()
 
         cursor.execute("SELECT * FROM trade_parameters WHERE trade_id = ?", (trade_id,))
 
@@ -376,21 +385,28 @@ class Database:
 
     def get_trade_notes(self, trade_id: int) -> TradeNotes:
 
+        self._ensure_trade_exists(trade_id)
+
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM trade_notes WHERE trade_id = ?", (trade_id,))
         row = cursor.fetchone()
         if row is None:
-            raise t.TradeNotFoundError(f"{trade_id} IS INVALID.")
+            raise t.NotesNotFoundError("THE TRADE HAS NO AVAILABLE NOTES")
 
         return TradeNotes(**dict(row))
 
     def get_trade_charts(self, trade_id: int) -> list[TradeChart]:
 
+        self._ensure_trade_exists(trade_id=trade_id)  #raise t.TradeNotFoundError
+
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM charts WHERE trade_id = ?", (trade_id,))
         rows = cursor.fetchall()
+
+        #i actually don't want to return an empty list for no charts found.
+        #this might be ambiguous in the future, like why is the list empty???
         if not rows:
-            raise t.TradeNotFoundError(f"{trade_id} IS INVALID.")
+            raise t.ChartsNotFoundError(f"THE TRADE HAS NO CHARTS ATTACHED YET")
 
         return [TradeChart(**dict(row)) for row in rows]
 

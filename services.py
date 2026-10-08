@@ -95,7 +95,9 @@ def submit_trade_notes(trade_notes: dict, journal: Journal) -> ServiceResult:
     try:
         journal.add_reflection_notes(trading_notes)
     except t.NotesRecordingError as e:
-        return ServiceResult(success= False, message= f"ERROR OCCURRED WHILE RECORDING NOTES: {e}", data= None, error_type=SET.NOT_FOUND)
+        return ServiceResult(success= False, message= f"ERROR OCCURRED WHILE RECORDING NOTES: {e}", data= None, error_type=SET.CONFLICT)
+    except t.InvalidTradeIDError as e:
+        return ServiceResult(success=False, message=f"TRADE DOESN'T EXIST: {e}", data=None, error_type=SET.NOT_FOUND)
 
     return ServiceResult(success= True, message= "TRADE NOTES RECORDED SUCCESSFULLY!", data= trading_notes, error_type=None)
 
@@ -208,7 +210,7 @@ def _save_uploaded_charts(uploaded_file) -> tuple[str, str]:
     filepath: str = os.path.join(UPLOAD_DIR, unique_filename)
 
     with open(filepath, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+        f.write(uploaded_file.content)
 
     return filepath, unique_filename
 
@@ -279,7 +281,14 @@ def view_trade_notes(trade_id: int, journal: Journal) -> ServiceResult:
             success= False,
             message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}. {e}",
             data= None,
-            error_type=SET.NOT_FOUND
+            error_type=SET.VALIDATION
+        )
+    except t.NotesNotFoundError as e:
+        return ServiceResult(
+            success=False,
+            message="THE TRADE HAS NO AVAILABLE NOTES ATTACHED",
+            data=None,
+            error_type=SET.NOT_FOUND,
         )
 
     return ServiceResult(
@@ -450,6 +459,16 @@ def view_parameters_list(journal: Journal) -> ServiceResult:
         data=parameters,
         error_type=None
     )
+
+def view_trading_charts(trade_id: int, journal: Journal) -> ServiceResult:
+    try:
+        charts: list[TradeChart] = journal.fetch_trading_charts(trade_id)
+    except t.InvalidTradeIDError as e:
+        return ServiceResult(success=False, message=f"TRADE DOESN'T EXISTS: {e}", data=None, error_type=SET.VALIDATION)
+    except t.TradeHasNoChartsError as e:
+        return ServiceResult(success=False, message=f"NO CHARTS FOUND: {e}", data=None, error_type=SET.NOT_FOUND)
+
+    return ServiceResult(success=True, message="CHARTS RETRIEVED SUCCESSFULLY!", data=charts, error_type=None)
 
 #SERVICE FUNCTIONS FOR STREAMLIT TRADE CALCULATOR FEATURE BUTTONS.
 def run_calculator(setup_values: dict) -> CalculatorResults:

@@ -101,7 +101,7 @@ class Journal:
 #ASSEMBLE/DERIVE DATA AND VALIDATE DATA GETS HANDLED BY STREAMLIT.
 #STREAMLIT OWNS THE COLLECTION OF CHARTS DATA LOGIC.
 #ATTACH CHART RECEIVES A VALID, FULLY CONSTRUCTED CHARTS DATA.
-    def attach_charts(self, chart: TradeChart):
+    def attach_charts(self, chart: TradeChart) -> TradeChart:
 
         #TRADE_ID ISN'T BEING VERIFIED ANYWHERE
         #3: PERSIST TO DATABASE AND TRANSLATE FAILURES.
@@ -111,7 +111,10 @@ class Journal:
             self.db.commit()
         except t.ConstraintViolationError as e:
             self.db.rollback()
-            raise t.ChartUploadError(f"TRADE_ID PROVIDED {chart.trade_id} DOESN'T EXIST: {e}") from e
+            raise t.ChartUploadError(f"CONSTRAINT VIOLATION ERROR DETECTED {e}") from e
+        except t.TradeNotFoundError as e:
+            self.db.rollback()
+            raise t.InvalidTradeIDError(f"TRADE_ID PROVIDED {chart.trade_id} DOESN'T EXIST: {e}") from e
 
         #4: RETURN SOMETHING MEANINGFUL.
         return chart
@@ -181,7 +184,10 @@ class Journal:
             self.db.commit()
         except t.ConstraintViolationError as e:
             self.db.rollback()
-            raise t.NotesRecordingError(f"TRADE_ID {trade_notes.trade_id} IS INVALID, {e}") from e
+            raise t.NotesRecordingError(f"TRADE_ID MUST BE UNIQUE AND ALL INPUTS ARE REQUIRED: {e}") from e
+        except t.TradeNotFoundError as e:
+            self.db.rollback()
+            raise t.InvalidTradeIDError("INVALID TRADE_ID. CAN'T ADD NOTES FOR INVALID TRADE.")
 
         return trade_notes
 
@@ -354,28 +360,30 @@ class Journal:
         except t.InvalidAccountError:
             raise t.AccountNotFoundError("INVALID ACCOUNT_ID. NO ACCOUNT MATCHES!")
 
-    def fetch_trade_notes(self, trade_id: int):
+    def fetch_trade_notes(self, trade_id: int) -> TradeNotes:
 
         try:
             notes = self.db.get_trade_notes(trade_id)
         except t.TradeNotFoundError as e:
             raise t.InvalidTradeIDError(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
+        except t.NotesNotFoundError as e:
+            raise
 
         return notes
 
-    def fetch_present_parameters(self, trade_id: int):
+    def fetch_present_parameters(self, trade_id: int) -> list[str]:
         #CHECK TO SEE IF THE TRADE_ID EXISTS.
         #TRADE CAN HAVE ZERO PARAMETERS ATTACHED TO IT. FIX THIS
 
         try:
-            parameter_ids = self.db.get_trade_parameters(trade_id)
+            parameter_ids: list[int] = self.db.get_trade_parameters(trade_id)
         except t.TradeNotFoundError as e:
             raise t.InvalidTradeIDError(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
 
         if parameter_ids:
-            parameter_names: list[str] = self.db.get_parameter_names(parameter_ids)
-
-        return parameter_names  # type: ignore POSSIBLY UNBOUND
+            return self.db.get_parameter_names(parameter_ids)
+        else:
+            return []
 
     def delete_trade_entry(self, trade_id: int) -> None:
 
@@ -402,3 +410,11 @@ class Journal:
 
     def fetch_parameters_list(self) -> list[Parameter]:
         return self.db.get_parameters_list()
+
+    def fetch_trading_charts(self, trade_id) -> list[TradeChart]:
+        try:
+            return self.db.get_trade_charts(trade_id)
+        except t.TradeNotFoundError as e:
+            raise t.InvalidTradeIDError(f"TRADE NOT FOUND: {e}") from e
+        except t.ChartsNotFoundError as e:
+            raise t.TradeHasNoChartsError(f"THE TRADE HAS NO CHARTS ATTACHED: {e}") from e

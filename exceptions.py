@@ -75,6 +75,9 @@ class ParametersJunctionTableConflict(JournalingError):
 class AccountNotFoundError(JournalingError):
     """EXCEPTION CLASS FOR A MISSING ACCOUNT"""
 
+class TradeHasNoChartsError(JournalingError):  #super creative bro
+    """EXCEPTION CLASS FOR A TRADE WITH NO CHARTS ATTACHED"""
+
 #SQLITE3 DATABASE DOMAIN ERRORS EXCEPTION CLASSES.
 #REVISIT WHY SQLITE3.DATABASEERRORS ARE NOT BEING CAUGHT.
 class DatabaseError(Exception):
@@ -107,6 +110,9 @@ class InvalidAssetError(DatabaseError):
 
 class InvalidDirectionError(DatabaseError):
     "EXCEPTION CLASS FOR AN INVALID DIRECTION STRING."
+
+class ChartsNotFoundError(DatabaseError):
+    """EXCEPTION CLASS FOR A TRADE WITH NO CHARTS ATTACHED"""
 
 class EmptyTradesTableError(DatabaseError):
     """EXCEPTION CLASS FOR AN EMPTY TRADES TABLE IN THE DATABASE"""
