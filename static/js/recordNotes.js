@@ -13,8 +13,22 @@ const notesModal = document.getElementById("recordNotesModal");
 const notesAlert = document.getElementById("recordNotesAlert");
 const submitButton = document.querySelector(`button[form="recordNotesForm"]`);
 const successMessageEl = document.getElementById("successMessage");
+const successModal = document.getElementById("successModal");
 
 form.addEventListener("submit", recordNotesHandler);
+successModal.addEventListener("hidden.bs.modal", resetNotesModal);
+
+function resetNotesModal() {
+    //reset form inputs to defaults
+    form.reset()
+    //stop fields from showing red on reopen
+    form.classList.remove("was-validated");
+    //hide any previous alerts in the modal.
+    hideAlert(notesAlert);
+    //reload the window to refresh data to avoid stale writes.
+    window.location.reload();
+
+}
 
 export async function recordNotesHandler(event) {
 
@@ -33,7 +47,6 @@ export async function recordNotesHandler(event) {
     //extract and assemble form data into a JS object
     const formData = new FormData(form);
     const notesData = Object.fromEntries(formData.entries());
-
 
     //convert trade_id from string to number, the other inputs are strings.
     notesData["trade_id"] = Number(notesData["trade_id"]);
@@ -59,18 +72,15 @@ export async function recordNotesHandler(event) {
             showAlert(notesAlert, "danger", extractErrorMessage(payload, response.status));
             return;
         } else {
-            successMessageEl.textContent = `NOTES FOR TRADE WITH TRADE_ID OF ${payload.trade_id} RECORDED SUCCESSFULLY!`;
+            const responseData = await readJsonBody(response);
+            successMessageEl.textContent = `NOTES FOR TRADE WITH TRADE_ID OF ${responseData?.trade_id} RECORDED SUCCESSFULLY!`;
             bootstrap.Modal.getOrCreateInstance(notesModal).hide();
             showSuccessModal("successModal");
-            form.reset();
-            window.location.reload();
-            return;
         }
         //catch any network errors that may arise that causes server to be unreachable
     } catch (error) {
         console.log(error);
         showAlert(notesAlert, "danger", "Error detected. Couldn't access the server!");
-        hideAlert(notesAlert);
         return;
         //reenable the form submit button for the next submissions.
     } finally {

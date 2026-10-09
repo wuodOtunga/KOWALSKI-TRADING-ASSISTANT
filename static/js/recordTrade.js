@@ -20,10 +20,11 @@ const accountSelectEl = document.getElementById("rt-account");
 const managementSelectEl = document.getElementById("rt-management-id");
 const executionSelectEl = document.getElementById("rt-entry-execution-id");
 const successMessageEl = document.getElementById("successMessage");
+const successModal = document.getElementById("successModal");
 
 form.addEventListener("submit", recordTradeHandler);
 tradeModal.addEventListener("show.bs.modal", loadRecordTradeOptions);
-tradeModal.addEventListener("hidden.bs.modal", resetTradeRecordModal);
+successModal.addEventListener("hidden.bs.modal", resetTradeRecordModal);
 
 
 
@@ -76,6 +77,7 @@ function resetTradeRecordModal() {
     form.classList.remove("was-validated");
     //clear old success/error message
     hideAlert(tradeAlert);
+    window.location.reload();
 }
 
 async function loadRecordTradeOptions() {
@@ -124,16 +126,17 @@ export async function recordTradeHandler(event){
 
 
         if (!response.ok) {
+            //if !response.ok, we get back a JSON response that has details as the exception message
+            //and the related status code. so on failure we get back an error JSON response
+            //on success, we get back the TradeResponse with the response data.
             const payload = await readJsonBody(response);
-            showAlert(tradeAlert, "danger", extractErrorMessage(payload, response.status));
+            showAlert(tradeAlert, "danger", extractErrorMessage(payload, response?.status));
             return;
         } else {
-            successMessageEl.textContent = `TRADE WITH TRADE_ID OF ${payload.trade_id} RECORDED SUCCESSFULLY!`;
-            bootstrap.Modal.getOrCreateInstance(tradeModal),hide();
+            const responseData = await readJsonBody(response);
+            successMessageEl.textContent = `TRADE WITH TRADE_ID OF ${responseData?.trade_id} RECORDED SUCCESSFULLY!`;
+            bootstrap.Modal.getOrCreateInstance(tradeModal).hide();
             showSuccessModal("successModal");
-            form.reset();
-            window.location.reload();
-            return;
         }
 
         //fetch will throw an error if no response comes back from the server.

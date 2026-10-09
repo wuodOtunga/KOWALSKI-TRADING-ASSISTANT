@@ -3,14 +3,27 @@ import { showAlert, hideAlert, extractErrorMessage, readJsonBody, showSuccessMod
 const form = document.getElementById("recordChartsForm");
 const chartsModal = document.getElementById("recordChartsModal");
 const chartsAlert = document.getElementById("recordChartsAlert");
-const submitBtn = document.querySelector('button[form="recordChartsForm"]');
+const submitButton = document.querySelector('button[form="recordChartsForm"]');
 const successMessageElement = document.getElementById("successMessage");
+const successModal = document.getElementById("successModal");
 
 form.addEventListener("submit", recordChartsHandler);
+successModal.addEventListener("hidden.bs.modal", resetChartsModal);
+
+function resetChartsModal() {
+    //reset form inputs to defaults
+    form.reset()
+    //stop fields from showing red on reopen
+    form.classList.remove("was-validated");
+    //hide any previous alerts in the modal.
+    hideAlert(notesAlert);
+    //reload the window to refresh data to avoid stale writes.
+    window.location.reload();
+}
 
 async function recordChartsHandler(event) {
     event.preventDefault();
-    hideAlert(alertEl);
+    hideAlert(chartsAlert);
 
     if (!form.checkValidity()) {
         form.classList.add("was-validated");
@@ -21,9 +34,11 @@ async function recordChartsHandler(event) {
     const tradeId = formData.get("trade_id");
     formData.delete("trade_id");                    // trade_id lives in the URL now.
 
-    submitBtn.disabled = true;                      // POST isn't idempotent
+    submitButton.disabled = true; // POST isn't idempotent
+
+    let response = null;
     try {
-        const response = await fetch(`/api/trades/${tradeId}/charts`, {
+        response = await fetch(`/api/trades/${tradeId}/charts`, {
             method: "POST",
             body: formData,                         // NO Content-Type header: browser adds the boundary
         });
@@ -35,11 +50,9 @@ async function recordChartsHandler(event) {
             const failed = payload.outcomes.filter(o => !o.success);
 
             if (failed.length === 0) {
-                bootstrap.Modal.getOrCreateInstance(chartsModal).hide();
                 successMessageElement.textContent = "ALL CHARTS RECORDED SUCCESSFULLY!";
+                bootstrap.Modal.getOrCreateInstance(chartsModal).hide();
                 showSuccessModal("successModal");
-                window.location.reload();
-                return;
             }
 
             const lines = failed.map(o => `${o.filename}: ${o.error}`).join("; ");
@@ -57,6 +70,6 @@ async function recordChartsHandler(event) {
         console.error(error);
         showAlert(chartsAlert, "danger", "Error detected. Couldn't access the server!");
     } finally {
-        submitBtn.disabled = false;
+        submitButton.disabled = false;
     }
 }

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Response, UploadFile, File, Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import services as s
 from dependencies import JournalDep
@@ -29,7 +29,7 @@ def get_all_trades(journal: JournalDep):
 )
 def create_new_trade(new_trade: NewTrade, journal: JournalDep):
 
-    trade_details = new_trade.model_dump()
+    trade_details: dict[str, Any] = new_trade.model_dump()
     results = s.submit_trade(trade_details=trade_details, journal=journal)
 
     if not results.success:
@@ -94,7 +94,7 @@ def upload_chart(
         charts: Annotated[list[UploadFile], File()],
         journal: JournalDep,
         response: Response,
-):
+) -> dict:
 
     if not s.fetch_trade(trade_id=trade_id, journal=journal).success:
         raise HTTPException(
@@ -127,6 +127,8 @@ def upload_chart(
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
     else:
         response.status_code = status.HTTP_207_MULTI_STATUS
+
+    return response_body.model_dump()
 
 
 @router.patch(path="/{trade_id}", response_model=ChangesResponse)

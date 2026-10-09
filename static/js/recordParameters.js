@@ -16,11 +16,14 @@ const successMessageEl = document.getElementById("successMessage");
 const parametersModal = document.getElementById("recordParametersModal");
 const parametersContainer = document.getElementById("pt-parameters-list");
 const parametersSubmit = document.querySelector('button[form="recordParametersForm"]');
+const successModal = document.getElementById("successModal");
 
 form.addEventListener("submit", recordParametersHandler);
+successModal.addEventListener("hidden.bs.modal", resetParametersModal);
 
 async function populateParametersCheckboxes(containerElement, url) {
 
+    let response = null;
     try {
         response = await fetch(url);
 
@@ -28,10 +31,7 @@ async function populateParametersCheckboxes(containerElement, url) {
             throw new Error(`${response.status}`)
         }
 
-        const items = readJsonBody(response);
-        if (!Array.isArray(items)) {
-            return;
-        }
+        const items = await response.json();
 
         containerElement.replaceChildren()
 
@@ -75,6 +75,17 @@ parametersModal.addEventListener("show.bs.modal", async () => {
     parametersSubmit.disabled = !loaded;
 });
 
+function resetParametersModal() {
+    //reset form inputs to defaults
+    form.reset()
+    //stop fields from showing red on reopen
+    form.classList.remove("was-validated");
+    //hide any previous alerts in the modal.
+    hideAlert(parametersAlert);
+    //reload the window to refresh data to avoid stale writes.
+    window.location.reload();
+}
+
 async function recordParametersHandler(event) {
 
     event.preventDefault();
@@ -86,11 +97,11 @@ async function recordParametersHandler(event) {
     }
 
     const formData = new FormData(form);
-    const parametersData = Object.fromEntries(formData.entries());
+    let parametersData = Object.fromEntries(formData.entries());
 
     parametersData = {
-        "trade_id": Number(parametersData.get("trade_id")),
-        "parameters_list": parametersData.getAll("parameters"),
+        "trade_id": Number(formData.get("trade_id")),
+        "parameters_list": formData.getAll("parameters"),
     }
 
     let response = null;
@@ -108,17 +119,14 @@ async function recordParametersHandler(event) {
             showAlert(parametersAlert, "danger", extractErrorMessage(payload, response.status));
             return;
         } else {
-            successMessageEl.textContent = "PARAMETERS RECORDED SUCCESSFULLY!";
+            const responseData = await readJsonBody(response);
+            successMessageEl.textContent = `PARAMETERS FOR TRADE WITH TRADE_ID ${responseData?.trade_id} RECORDED SUCCESSFULLY!`;
             bootstrap.Modal.getOrCreateInstance(parametersModal).hide();
             showSuccessModal("successModal");
-            form.reset();
-            window.location.reload();
-            return;
         }
     } catch (error) {
         console.log(error);
         showAlert(parametersAlert, "danger", "Error detected. Couldn't access the server!");
-        hideAlert();
         return;
     };
 }

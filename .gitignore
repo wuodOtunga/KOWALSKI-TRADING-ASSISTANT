@@ -9,3 +9,4 @@ venv/
 .streamlit/secrets.toml
 .vscode/
 EOF
+uploaded_charts/
