@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}KOWALSKI | Record Journal Entry{% endblock title %}
+
+{% block content %}
+
+<!-- PAGE HEADER + TRADE ID BANNER -->
+<section class="mb-4">
+    <h2 class="h4 mb-2">Record Journal Entry</h2>
+    <p class="text-secondary mb-3">
+        Record the trade first. Notes, charts and parameters unlock once the trade is saved,
+        and each one is saved separately, so a failure in one step never undoes another.
+    </p>
+
+    <div id="je-trade-banner" class="alert alert-secondary d-flex flex-wrap justify-content-between align-items-center gap-2 mb-0" role="status">
+        <span id="je-trade-banner-text">No trade recorded yet.</span>
+        <button type="button" id="je-new-entry" class="btn btn-sm btn-outline-secondary d-none">Start a new entry</button>
+    </div>
+</section>
+
+<!-- PROGRESS TRACKER: one list item per step. JS flips the badge text/colour. -->
+<ol class="list-group list-group-horizontal-md mb-4 gap-2 list-unstyled" id="je-progress">
+    <li class="list-group-item flex-fill d-flex justify-content-between align-items-center rounded" data-step="trade">
+        Trade <span class="badge text-bg-warning">Pending</span>
+    </li>
+    <li class="list-group-item flex-fill d-flex justify-content-between align-items-center rounded" data-step="notes">
+        Notes <span class="badge text-bg-secondary">Locked</span>
+    </li>
+    <li class="list-group-item flex-fill d-flex justify-content-between align-items-center rounded" data-step="charts">
+        Charts <span class="badge text-bg-secondary">Locked</span>
+    </li>
+    <li class="list-group-item flex-fill d-flex justify-content-between align-items-center rounded" data-step="parameters">
+        Parameters <span class="badge text-bg-secondary">Locked</span>
+    </li>
+</ol>
+
+<!-- ================= STEP 1: TRADE ================= -->
+<div class="card mb-4" id="je-card-trade">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="h6 mb-0">Step 1: Trade</h3>
+    </div>
+    <div class="card-body">
+        <div id="je-trade-alert" class="alert d-none" role="alert"></div>
+
+        <form id="journalTradeForm" novalidate>
+            <fieldset id="je-trade-fieldset">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="je-entry-price" class="form-label">Entry price</label>
+                        <input type="number" step="any" class="form-control" id="je-entry-price" name="entry_price" required>
+                        <div class="invalid-feedback">Enter an entry price.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-exit-price" class="form-label">Exit price</label>
+                        <input type="number" step="any" class="form-control" id="je-exit-price" name="exit_price" required>
+                        <div class="invalid-feedback">Enter an exit price.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-stop-loss" class="form-label">Stop loss</label>
+                        <input type="number" step="any" class="form-control" id="je-stop-loss" name="stop_loss" required>
+                        <div class="invalid-feedback">Enter a stop loss.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-take-profit" class="form-label">Take profit</label>
+                        <input type="number" step="any" class="form-control" id="je-take-profit" name="take_profit" required>
+                        <div class="invalid-feedback">Enter a take profit.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-position-size" class="form-label">Position size</label>
+                        <input type="number" step="any" class="form-control" id="je-position-size" name="position_size" required>
+                        <div class="invalid-feedback">Enter a position size.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-date" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="je-date" name="date" required>
+                        <div class="invalid-feedback">Pick a date.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-entry-time" class="form-label">Entry time</label>
+                        <input type="time" class="form-control" id="je-entry-time" name="entry_time" required>
+                        <div class="invalid-feedback">Enter an entry time.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-exit-time" class="form-label">Exit time</label>
+                        <input type="time" class="form-control" id="je-exit-time" name="exit_time" required>
+                        <div class="invalid-feedback">Enter an exit time.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-asset" class="form-label">Asset</label>
+                        <select class="form-select" id="je-asset" name="asset" required>
+                            <option value="" selected disabled>Choose...</option>
+                            <option>XAUUSD</option>
+                            <option>XAGUSD</option>
+                            <option>NQ</option>
+                            <option>ES</option>
+                        </select>
+                        <div class="invalid-feedback">Choose an asset.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-direction" class="form-label">Direction</label>
+                        <select class="form-select" id="je-direction" name="direction" required>
+                            <option value="" selected disabled>Choose...</option>
+                            <option>long</option>
+                            <option>short</option>
+                        </select>
+                        <div class="invalid-feedback">Choose a direction.</div>
+                    </div>
+
+                    <!-- OPTIONS POPULATED BY JAVASCRIPT ON PAGE LOAD -->
+                    <div class="col-md-6">
+                        <label for="je-account" class="form-label">Account</label>
+                        <select class="form-select" id="je-account" name="account_id" required>
+                            <option value="" selected disabled>Loading...</option>
+                        </select>
+                        <div class="invalid-feedback">Choose an account.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-model-id" class="form-label">Model</label>
+                        <select class="form-select" id="je-model-id" name="model_id" required>
+                            <option value="" selected disabled>Loading...</option>
+                        </select>
+                        <div class="invalid-feedback">Choose a model.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-management-id" class="form-label">Trade management</label>
+                        <select class="form-select" id="je-management-id" name="management_id" required>
+                            <option value="" selected disabled>Loading...</option>
+                        </select>
+                        <div class="invalid-feedback">Choose a management archetype.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-entry-execution-id" class="form-label">Entry execution</label>
+                        <select class="form-select" id="je-entry-execution-id" name="entry_execution_id" required>
+                            <option value="" selected disabled>Loading...</option>
+                        </select>
+                        <div class="invalid-feedback">Choose an entry execution archetype.</div>
+                    </div>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+    <div class="card-footer text-end">
+        <button type="submit" class="btn btn-primary" form="journalTradeForm" id="je-trade-submit">Record trade</button>
+    </div>
+</div>
+
+<!-- ================= STEP 2: NOTES ================= -->
+<div class="card mb-4" id="je-card-notes">
+    <div class="card-header">
+        <h3 class="h6 mb-0">Step 2: Notes</h3>
+    </div>
+    <div class="card-body">
+        <div id="je-notes-alert" class="alert d-none" role="alert"></div>
+
+        <!-- fieldset disabled greys out and blocks every control inside it at once.
+             JS removes the disabled attribute after step 1 succeeds. -->
+        <form id="journalNotesForm" novalidate>
+            <fieldset id="je-notes-fieldset" disabled>
+                <!-- JS fills this with the trade_id returned by step 1 -->
+                <input type="hidden" name="trade_id" id="je-notes-trade-id">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="je-emotions" class="form-label">Emotions</label>
+                        <textarea class="form-control" id="je-emotions" name="emotions" rows="3" required></textarea>
+                        <div class="invalid-feedback">Describe how you felt.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-mistakes" class="form-label">Mistakes</label>
+                        <textarea class="form-control" id="je-mistakes" name="mistakes" rows="3" required></textarea>
+                        <div class="invalid-feedback">Describe any mistakes, or write "none".</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-lessons" class="form-label">Lessons</label>
+                        <textarea class="form-control" id="je-lessons" name="lessons" rows="3" required></textarea>
+                        <div class="invalid-feedback">Write what you learned.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="je-general-notes" class="form-label">General notes</label>
+                        <textarea class="form-control" id="je-general-notes" name="general_notes" rows="3" required></textarea>
+                        <div class="invalid-feedback">Add a general note.</div>
+                    </div>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+    <div class="card-footer text-end">
+        <button type="submit" class="btn btn-primary" form="journalNotesForm" id="je-notes-submit" disabled>Record notes</button>
+    </div>
+</div>
+
+<!-- ================= STEP 3: CHARTS ================= -->
+<div class="card mb-4" id="je-card-charts">
+    <div class="card-header">
+        <h3 class="h6 mb-0">Step 3: Charts</h3>
+    </div>
+    <div class="card-body">
+        <div id="je-charts-alert" class="alert d-none" role="alert"></div>
+
+        <form id="journalChartsForm" novalidate>
+            <fieldset id="je-charts-fieldset" disabled>
+                <input type="hidden" name="trade_id" id="je-charts-trade-id">
+                <label for="je-charts-files" class="form-label">Chart screenshots</label>
+                <input type="file" class="form-control" id="je-charts-files" name="charts" accept="image/*" multiple required>
+                <div class="form-text">You can select several images. Each file is saved on its own, so one failure won't block the others.</div>
+                <div class="invalid-feedback">Choose at least one image.</div>
+            </fieldset>
+        </form>
+
+        <!-- JS lists the per-file outcome here (saved / failed + reason) -->
+        <ul id="je-charts-results" class="list-group list-group-flush mt-3"></ul>
+    </div>
+    <div class="card-footer text-end">
+        <button type="submit" class="btn btn-primary" form="journalChartsForm" id="je-charts-submit" disabled>Upload charts</button>
+    </div>
+</div>
+
+<!-- ================= STEP 4: PARAMETERS ================= -->
+<div class="card mb-5" id="je-card-parameters">
+    <div class="card-header">
+        <h3 class="h6 mb-0">Step 4: Parameters</h3>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning" role="note">
+            Submitting parameters grades the trade, and a graded trade can't be graded again.
+            Finish notes and charts first.
+        </div>
+        <div id="je-parameters-alert" class="alert d-none" role="alert"></div>
+
+        <form id="journalParametersForm" novalidate>
+            <fieldset id="je-parameters-fieldset" disabled>
+                <input type="hidden" name="trade_id" id="je-parameters-trade-id">
+                <legend class="form-label fs-6">Parameters present in this trade</legend>
+
+                <!-- JS builds one checkbox per parameter from the parameters list.
+                     Each checkbox: name="parameters_list", value = parameter_name -->
+                <div id="je-parameters-options" class="row row-cols-1 row-cols-md-2 g-2">
+                    <div class="col text-secondary">Loading...</div>
+                </div>
+                <div class="form-text mt-2">Leave everything unticked if no parameters were present.</div>
+            </fieldset>
+        </form>
+    </div>
+    <div class="card-footer text-end">
+        <button type="submit" class="btn btn-primary" form="journalParametersForm" id="je-parameters-submit" disabled>Record parameters and grade trade</button>
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+<!-- Page-specific JS: orchestrates the four steps. Written separately. -->
+<script type="module" src="/static/js/recordJournalEntry.js"></script>
+{% endblock scripts %}
