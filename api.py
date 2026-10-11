@@ -9,7 +9,7 @@ from starlette.templating import _TemplateResponse
 import services as s
 from dependencies import JournalDep
 from routers import accounts, notes, parameters, trades, trading_models
-from schemas import TradeResponse
+from schemas import TradeResponse, JournalEntry
 
 #HTTP REQUEST IN -> API.PY CALLS A SERVICES.PY FUNCTION -> SERVICERESULT OUT -> HTTP RESPONSE OUT!
 #METHOD + PATH + REQUEST SHAPE + RESPONSE SHAPE + FAILURE MODE TO STATUS CODE MAPPING
@@ -41,7 +41,7 @@ def home(request: Request) -> _TemplateResponse:
 
 @app.get(path="/trades", include_in_schema=False)
 def trades_page(request: Request, journal: JournalDep) -> _TemplateResponse:
-    results = s.fetch_all_trades(journal= journal)
+    results = s.view_all_trades(journal= journal)
 
     if not results.success:
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail= "NO TRADES FOUND!")
@@ -62,6 +62,48 @@ def trade_page(trade_id: int, request: Request, journal: JournalDep) -> _Templat
     trade_response: TradeResponse = TradeResponse.model_validate(results.data, from_attributes=True)
 
     return templates.TemplateResponse(request= request, name="trade_detail.html", context={"trade": trade_response})
+
+@app.get(path="/journal_entry", include_in_schema=False)
+def journal_entry_form(request: Request) -> _TemplateResponse:
+
+    return templates.TemplateResponse(request= request, name="journal_entry.html")
+
+@app.get(path="/calculator", include_in_schema=False)
+def trading_calculator_page(request: Request) -> _TemplateResponse:
+
+    return templates.TemplateResponse(request=request, name="calculator.html")
+
+@app.get(path="/statics", include_in_schema=False)
+def models_page(request: Request, journal: JournalDep) -> _TemplateResponse:
+
+    models = s.view_trading_models(journal)
+    executions = s.view_entry_execution(journal)
+    managements = s.view_trade_management(journal)
+    parameters = s.view_parameters_list(journal)
+
+    return templates.TemplateResponse(
+        request= request,
+        name= "statics.html",
+        context= {
+            "models": models.data,
+            "entry_executions": executions.data,
+            "trade_managements": managements.data,
+            "parameters": parameters.data,
+        }
+    )
+
+#@app.get(path="/journal-entry/{trade_id}", include_in_schema=False)
+def journal_entry_page():
+    pass
+    #results = s.fetch_journal_entry(trade_id, journal)
+    #if not results.success:
+        #raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="INVALID TRADE_ID. JOURNAL ENTRY NOT FOUND")
+
+    #response = JournalEntry.model_validate(obj=results.data, from_attribute=True)
+
+    #return templates.TemplateResponse(request=request, name="journal_entry_page.html", context={"journal_entry": response})
+
+
 
 #SET UP HREF PAGE LINKS TO INDIVIDUAL PAGES FROM HOME.LAYOUT USING URL_FOR("trade_page", trade_id=trade.trade_id)
 
