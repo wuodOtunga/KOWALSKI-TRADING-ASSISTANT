@@ -398,7 +398,7 @@ class Kowalski:
     def _render_all_trades_table(self):
         st.subheader("RECORD OF ALL TRADES")
         if st.session_state.show_all_trades:
-            results = s.fetch_all_trades(self.journal)
+            results = s.view_all_trades(self.journal)
             st.session_state.all_trades_results = results
 
             if results.success:

@@ -84,6 +84,13 @@ class ParametersResponse(ParametersBase):
     """REPRESENTS SHAPE OF TRADE PARAMETERS RESPONSE CLIENT GETS TO SEE"""
     model_config = ConfigDict(from_attributes=True)
 
+class JournalEntry(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    trade: TradeResponse
+    charts: ChartsBatchResponse
+    trade_notes: NotesResponse
+    parameters: ParametersResponse
 
 class TradeChanges(BaseModel):
     """REPRESENTS THE TRADE CHANGES BASE MODEL AS PARENT MODEL CLASS"""

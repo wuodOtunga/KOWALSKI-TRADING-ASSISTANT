@@ -201,10 +201,10 @@ class Journal:
 
         return trade
 
-    def get_all_trades(self) -> list[Trade]:
+    def fetch_all_trades(self) -> list[Trade]:
 
         try:
-            trades = self.db.get_all_trade_rows()
+            trades = self.db.get_all_trade_rows()  #CHANGE 1
             return trades
         except t.EmptyTradesTableError as e:
             raise t.TradesNotFoundError(f"EMPTY TRADES DATABASE TABLE: {e}") from e
@@ -360,14 +360,14 @@ class Journal:
         except t.InvalidAccountError:
             raise t.AccountNotFoundError("INVALID ACCOUNT_ID. NO ACCOUNT MATCHES!")
 
-    def fetch_trade_notes(self, trade_id: int) -> TradeNotes:
+    def fetch_trade_notes(self, trade_id: int) -> TradeNotes | None:
 
         try:
             notes = self.db.get_trade_notes(trade_id)
         except t.TradeNotFoundError as e:
             raise t.InvalidTradeIDError(f"NO TRADE MATCHES THIS TRADEID {trade_id}, {e}") from e
         except t.NotesNotFoundError as e:
-            raise
+            return None
 
         return notes
 

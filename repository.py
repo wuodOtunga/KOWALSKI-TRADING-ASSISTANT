@@ -4,9 +4,9 @@ from collections.abc import Generator, Iterable, Mapping
 from contextlib import contextmanager
 from dataclasses import fields
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TypeVar, get_args
 
-from sqlalchemy import Engine, create_engine, delete, exc, exists, func, select
+from sqlalchemy import Engine, create_engine, delete, event, exc, exists, func, select
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -36,8 +36,8 @@ from models import (
     TradeNotes,
 )
 
-_DB_PATH = Path(__file__).resolve().parent / "kowalski.db"
-SQLALCHEMY_DATABASE_URL = URL.create(drivername="sqlite", database=str(_DB_PATH))
+_DB_PATH: Path = Path(__file__).resolve().parent / "kowalski.db"
+SQLALCHEMY_DATABASE_URL: URL = URL.create(drivername="sqlite", database=str(object=_DB_PATH))
 
 T = TypeVar("T")
 
@@ -55,7 +55,7 @@ _PARAMETERS_COLUMNS = ("parameter_name",)
 # -------------------------------------------------------------------------
 #   ENGINE CONSTRUCTION
 # -------------------------------------------------------------------------
-def _enable_sqlite_foreign_keys(db_connection: Any) -> None:
+def _enable_sqlite_foreign_keys(db_connection: Any, _connection_record: Any = None) -> None:
     """SET PRAGMA FOR THE FOREIGN KEYS"""
     """sqlite ignores FK constraints unless the PRAGMA is set
     this needs to be set on all new connections created. SQLAlchemy doesn't set it"""
@@ -67,7 +67,7 @@ def _enable_sqlite_foreign_keys(db_connection: Any) -> None:
 def create_database_engine(url: str | URL = SQLALCHEMY_DATABASE_URL, *, echo: bool = True) -> Engine:
     """CREATE THE DATABASE ENGINE WITH SQLITE SPECIFIC CONFIGURATIONS"""
 
-    url = make_url(url)
+    url = make_url(name_or_url=url)
     kwargs: dict[str, Any] = {"echo": echo}
 
     if url.get_backend_name() == "sqlite":
@@ -76,10 +76,10 @@ def create_database_engine(url: str | URL = SQLALCHEMY_DATABASE_URL, *, echo: bo
     if url.database in (None, "", ":memory:"):
         kwargs["poolclass"] = StaticPool
 
-    engine = create_engine(url, **kwargs)
+    engine: Engine = create_engine(url, **kwargs)
 
-    #if engine.dialect.name == "sqlite":
-    #    event.listen(engine, "connect", _enable_sqlite_foreign_keys)
+    if engine.dialect.name == "sqlite":
+        event.listen(engine, "connect", _enable_sqlite_foreign_keys)
 
     return engine
 
@@ -89,7 +89,7 @@ def create_database_engine(url: str | URL = SQLALCHEMY_DATABASE_URL, *, echo: bo
 def _to_domain(cls: type[T], row: Any) -> T:
     """MAPS THE ORM ROW OBJECTS TO DOMAIN DATACLASS OBJECTS"""
 
-    return cls(**{f.name: getattr(row, f.name) for f in fields(cls)})  # type: ignore
+    return cls(**{f.name: getattr(row, f.name) for f in fields(class_or_instance=cls)})  # type: ignore
 
 def _field_values(obj: Any, exclude: Iterable[str] = ()) -> dict[str, Any]:
     """DATACLASS TO KWARGS DICTS FOR ORM CONSTRUCTOR"""
@@ -100,8 +100,9 @@ def _field_values(obj: Any, exclude: Iterable[str] = ()) -> dict[str, Any]:
     # set() requires an Iterable as an argument and so we import Iterable from collections.abc
     # exclude will mostly contain the primary keys like trade_id that aren't user populated but
     # rather are the unique IDs populated by the repository for every database insert.
-    skip = set(exclude)
-    return {f.name: getattr(obj, f.name) for f in fields(obj) if f not in skip}
+    # a bare string would be split into characters by set(), so normalise it first
+    skip = {exclude} if isinstance(exclude, str) else set(exclude)
+    return {f.name: getattr(obj, f.name) for f in fields(obj) if f.name not in skip}
 
 
 def _named(columns: tuple[str, ...], rows: Iterable) -> list[dict[str, Any]]:
@@ -120,7 +121,7 @@ def _db_message(error: exc.SQLAlchemyError) -> str:
     of all the errors having a generic name. We need the specific name to tailor our
     domain error messages and to return accurate FastAPI status codes responses"""
 
-    return str(getattr(error, "orig", None) or error)
+    return str(object=getattr(error, "orig", None) or error)
 
 # --------------------------------------------------------------------------
 #   PRIVATE HELPERS FOR COMMON QUERIES SHARED ACROSS DIFFERENT METHODS
@@ -180,7 +181,7 @@ def _check_foreign_keys(trade: Trade, session: Session) -> None:
                 EntryExecutionModel.entry_execution_id == trade.entry_execution_id
             ),
         )
-    )
+    ).one()  # ONE ROW, FOUR BOOLEAN COLUMNS. ITERATING THE RESULT YIELDS ROWS, NOT COLUMNS.
 
     names = ("model_id", "account_id", "management_id", "entry_execution_id")
 
@@ -224,7 +225,7 @@ class Repository:
         Base.metadata.create_all(bind=self.engine)
 
         with self._transaction() as session:
-            _seed_if_empty(session, Models, _named(_MODELS_COLUMNS, seed_data.models))
+            _seed_if_empty(session, db_model=Models, rows=_named(columns=_MODELS_COLUMNS, rows=seed_data.models))
             _seed_if_empty(
                 session,
                 EntryExecutionModel,
@@ -271,11 +272,10 @@ class Repository:
 
         # Check for validity of foreign keys and raise exception loudly
         # before doing anything else.
-        _check_foreign_keys(trade, Session())
-
         row = TradeModel(**_field_values(trade, exclude="trade_id"))
 
         with self._transaction() as session:
+            _check_foreign_keys(trade, session)
             session.add(row)
             session.flush()
 
@@ -285,7 +285,6 @@ class Repository:
         """RETRIEVE A TRADE FROM THE REPOSITORY"""
 
         with self._transaction() as session:
-            _ensure_trade_exists(trade_id, session)
             return _to_domain(Trade, _get_trade_row(trade_id, session))
 
     def get_all_trades(self) -> list[Trade]:
@@ -309,7 +308,7 @@ class Repository:
     def update_trade_field(self, trade_id: int, new_value: Any, column: AmendableColumns) -> None:
         """UPDATES A DYNAMIC TRADE COLUMN BASED ON TRADER PREFERENCE"""
 
-        if column not in AmendableColumns:
+        if column not in get_args(AmendableColumns):
             raise t.InvalidColumnNameError("CAN'T UPDATE INVALID COLUMN")
 
         # use setattr() to dynamically update the trade column with the new_value
@@ -355,7 +354,7 @@ class Repository:
 
             row = session.get(TradeNotesModel, new_notes.trade_id)
             if row is None:
-                session.add(TradeNotesModel(**_field_values(new_notes, exclude="trade_id")))
+                session.add(TradeNotesModel(**_field_values(new_notes)))
             else:
                 for name, value in _field_values(new_notes, exclude="trade_id").items():
                     setattr(row, name, value)
@@ -401,13 +400,11 @@ class Repository:
     def create_trading_account(self, account: Account) -> int:
         """PERSIST A NEW TRADING ACCOUNT TO THE REPOSITORY"""
 
-        row = Account(**_field_values(account, exclude="account_id"))
+        row = AccountsModel(**_field_values(account, exclude="account_id"))
         with self._transaction() as session:
             session.add(row)
             session.flush()
-            account_id = row.account_id
-
-            return account_id  # type: ignore
+            return row.account_id
 
     def get_trading_accounts(self) -> list[Account]:
         """RETRIEVE ALL AVAILABLE ACCOUNTS FROM THE REPOSITORY"""
@@ -458,7 +455,7 @@ class Repository:
             if session.get(AccountsModel, account_id) is None:
                 raise t.InvalidAccountError("INVALID ACCOUNT_ID. ACCOUNT NOT FOUND")
 
-            trade_count = session.execute(
+            trade_count = session.scalar(
                 select(func.count())
                 .select_from(TradeModel)
                 .where(TradeModel.account_id == account_id)
@@ -609,6 +606,18 @@ class Repository:
 
             return points
 
+    def get_models_list(self):
+        pass
+
+    def get_entry_executions_list(self):
+        pass
+
+    def get_trade_managements_list(self):
+        pass
+
+    def get_parameters_list(self):
+        pass
+
 #-------REPORTS/STATISTICS/ANALYTICS AGGREGATION DATABASE METHODS FOR REPORTS.PY-------
 
     def get_global_stats_rows(self):
@@ -616,4 +625,3 @@ class Repository:
         pass
 
 
-#Repository(db_url=SQLALCHEMY_DATABASE_URL, echo=True)

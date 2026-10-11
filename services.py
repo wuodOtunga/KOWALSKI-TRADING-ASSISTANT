@@ -255,9 +255,9 @@ def fetch_trade(trade_id: int, journal: Journal) -> ServiceResult:
 
     return ServiceResult(success= True, message= "TRADE FETCHED SUCCESSFULLY!", data= trade, error_type=None)
 
-def fetch_all_trades(journal: Journal) -> ServiceResult:
+def view_all_trades(journal: Journal) -> ServiceResult:
     try:
-        trades: list[Trade] = journal.get_all_trades()
+        trades: list[Trade] = journal.fetch_all_trades()
     except t.TradesNotFoundError as e:
         return ServiceResult(success= False, message= f"NO TRADES FOUND: {e}", data= None, error_type=SET.NOT_FOUND)
 
@@ -275,7 +275,7 @@ def fetch_journal_entry(trade_id: int, journal: Journal) -> ServiceResult:
 def view_trade_notes(trade_id: int, journal: Journal) -> ServiceResult:
 
     try:
-        trade_notes: TradeNotes = journal.fetch_trade_notes(trade_id)
+        trade_notes: TradeNotes | None = journal.fetch_trade_notes(trade_id)
     except t.InvalidTradeIDError as e:
         return ServiceResult(
             success= False,

@@ -12,7 +12,7 @@ MAX_CHART_BYTES = 10 * 1024 * 1024    #max chart size == 10MB
 @router.get(path="", response_model=list[TradeResponse])
 def get_all_trades(journal: JournalDep):
 
-    results = s.fetch_all_trades(journal=journal)
+    results = s.view_all_trades(journal=journal)
 
     if not results.success:
         raise HTTPException(
@@ -20,7 +20,6 @@ def get_all_trades(journal: JournalDep):
         )
 
     return results.data
-
 
 @router.post(
     path="",

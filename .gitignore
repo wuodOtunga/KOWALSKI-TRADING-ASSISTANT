@@ -10,3 +10,4 @@ venv/
 .vscode/
 EOF
 uploaded_charts/
+.env
