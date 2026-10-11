@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}KOWALSKI | Models &amp; Archetypes{% endblock title %}
+
+{% block content %}
+
+<!--
+  MODELS & ARCHETYPES PAGE (read-only reference)
+  Context expected from the page route:
+    models              -> list of TradingModel      (model_id, model_name, description)
+    entry_executions    -> list of EntryExecution    (entry_execution_id, archetype, description, points, grade)
+    trade_managements   -> list of TradeManagement   (management_id, archetype, description, points, grade)
+    parameters          -> list of Parameter         (parameter_id, parameter_name)
+  Nothing is hardcoded here: the seeded static tables drive every row.
+-->
+
+{# Badge colour per grade. One macro so both archetype tables stay consistent. #}
+{% macro grade_badge(grade) -%}
+    {%- set colours = {'A+': 'success', 'B': 'info', 'C': 'warning', 'D': 'orange', 'F': 'danger'} -%}
+    {%- set colour = colours.get(grade, 'secondary') -%}
+    <span class="badge {% if colour == 'orange' %}text-bg-warning{% else %}text-bg-{{ colour }}{% endif %} font-monospace">{{ grade }}</span>
+{%- endmacro %}
+
+<div class="mb-4">
+    <h2 class="h4 mb-1">Models &amp; Archetypes</h2>
+    <p class="text-secondary mb-0">
+        The fixed reference data behind every journal entry: the models you trade,
+        how you executed and managed the trade, and the checklist parameters used for grading.
+    </p>
+</div>
+
+<!--QUICK JUMP-->
+<ul class="nav nav-pills mb-4 gap-1">
+    <li class="nav-item"><a class="nav-link" href="#models">Models</a></li>
+    <li class="nav-item"><a class="nav-link" href="#entry-execution">Entry execution</a></li>
+    <li class="nav-item"><a class="nav-link" href="#trade-management">Trade management</a></li>
+    <li class="nav-item"><a class="nav-link" href="#parameters">Parameters</a></li>
+</ul>
+
+<!-- ===================================================================== -->
+<!-- TRADING MODELS                                                        -->
+<!-- ===================================================================== -->
+<section id="models" class="mb-5">
+    <h2 class="h5 mb-3">Trading Models</h2>
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-bordered align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col" class="text-center" style="width: 5rem;">ID</th>
+                    <th scope="col" class="text-nowrap">Model</th>
+                    <th scope="col">Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for model in models %}
+                <tr>
+                    <td class="text-center text-secondary">{{ model.model_id }}</td>
+                    <td class="fw-semibold text-nowrap">{{ model.model_name }}</td>
+                    <td>{{ model.description }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="text-center text-secondary py-4">No models found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- ENTRY EXECUTION ARCHETYPES                                            -->
+<!-- ===================================================================== -->
+<section id="entry-execution" class="mb-5">
+    <h2 class="h5 mb-1">Entry Execution Archetypes</h2>
+    <p class="text-secondary small mb-3">How well you executed the entry. Points feed the trade's overall grade.</p>
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-bordered align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col" class="text-center" style="width: 5rem;">ID</th>
+                    <th scope="col" class="text-nowrap">Archetype</th>
+                    <th scope="col">Description</th>
+                    <th scope="col" class="text-center" style="width: 6rem;">Points</th>
+                    <th scope="col" class="text-center" style="width: 6rem;">Grade</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in entry_executions %}
+                <tr>
+                    <td class="text-center text-secondary">{{ item.entry_execution_id }}</td>
+                    <td class="fw-semibold text-nowrap">{{ item.archetype }}</td>
+                    <td>{{ item.description }}</td>
+                    <td class="text-center font-monospace">{{ item.points }}/5</td>
+                    <td class="text-center">{{ grade_badge(item.grade) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-secondary py-4">No entry execution archetypes found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- TRADE MANAGEMENT ARCHETYPES                                           -->
+<!-- ===================================================================== -->
+<section id="trade-management" class="mb-5">
+    <h2 class="h5 mb-1">Trade Management Archetypes</h2>
+    <p class="text-secondary small mb-3">How you handled the trade once it was live. Points feed the trade's overall grade.</p>
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-bordered align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col" class="text-center" style="width: 5rem;">ID</th>
+                    <th scope="col" class="text-nowrap">Archetype</th>
+                    <th scope="col">Description</th>
+                    <th scope="col" class="text-center" style="width: 6rem;">Points</th>
+                    <th scope="col" class="text-center" style="width: 6rem;">Grade</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in trade_managements %}
+                <tr>
+                    <td class="text-center text-secondary">{{ item.management_id }}</td>
+                    <td class="fw-semibold text-nowrap">{{ item.archetype }}</td>
+                    <td>{{ item.description }}</td>
+                    <td class="text-center font-monospace">{{ item.points }}/5</td>
+                    <td class="text-center">{{ grade_badge(item.grade) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-secondary py-4">No trade management archetypes found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- PARAMETERS CHECKLIST                                                  -->
+<!-- ===================================================================== -->
+<section id="parameters" class="mb-5">
+    <h2 class="h5 mb-1">Trade Parameters</h2>
+    <p class="text-secondary small mb-3">The model checklist. Each parameter present in a trade adds one point to its grade.</p>
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-bordered align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col" class="text-center" style="width: 5rem;">ID</th>
+                    <th scope="col">Parameter</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for parameter in parameters %}
+                <tr>
+                    <td class="text-center text-secondary">{{ parameter.parameter_id }}</td>
+                    <td>{{ parameter.parameter_name }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" class="text-center text-secondary py-4">No parameters found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endblock content %}

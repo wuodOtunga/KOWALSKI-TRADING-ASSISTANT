@@ -1,0 +1,136 @@
+<!--AMEND TRADE MODAL-->
+<!--API CONTRACT: PATCH /api/trades/{trade_id} with body {column_name, new_value}. ONE COLUMN PER AMENDMENT.-->
+<!--SUCCESS RESPONSE (ChangesResponse): trade_id, change_id, column_name, new_value, old_value, amended_at-->
+<!--The value control changes with the column chosen. Only ONE of the four value controls is enabled at a time.-->
+<!--Disabled controls are skipped by checkValidity() and left out of FormData, so all four can share name="new_value".-->
+
+<div class="modal fade" id="amendTradeModal" tabindex="-1" aria-labelledby="amendTradeLabel" aria-hidden="true"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+
+        <!--MODAL CONTENT DIV SECTION-->
+        <div class="modal-content">
+
+            <!--MODAL HEADER DIV SECTION-->
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="amendTradeLabel">Amend Trade</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <!--MODAL BODY DIV SECTION-->
+            <div class="modal-body">
+                <div id="amendTradeAlert" class="alert d-none" role="alert"></div>
+
+                <form id="amendTradeForm" novalidate>
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+                            <label for="at-trade-id" class="form-label">Trade ID</label>
+                            <input type="number" min="1" class="form-control" id="at-trade-id" name="trade_id" required>
+                            <div class="invalid-feedback">Enter the ID of the trade to amend.</div>
+                        </div>
+
+                        <!--OPTION VALUES MUST MATCH AmendableColumns EXACTLY-->
+                        <!--data-input TELLS JS WHICH VALUE CONTROL TO ENABLE FOR THE CHOSEN COLUMN-->
+                        <div class="col-md-6">
+                            <label for="at-column" class="form-label">Field to change</label>
+                            <select class="form-select" id="at-column" name="column_name" required>
+                                <option value="" selected disabled>Choose...</option>
+                                <optgroup label="Prices and size">
+                                    <option value="entry_price" data-input="number">Entry price</option>
+                                    <option value="exit_price" data-input="number">Exit price</option>
+                                    <option value="take_profit" data-input="number">Take profit</option>
+                                    <option value="stop_loss" data-input="number">Stop loss</option>
+                                    <option value="position_size" data-input="number">Position size</option>
+                                </optgroup>
+                                <optgroup label="Classification">
+                                    <option value="asset" data-input="asset">Asset</option>
+                                    <option value="direction" data-input="direction">Direction</option>
+                                </optgroup>
+                                <optgroup label="Linked records">
+                                    <option value="model_id" data-input="fk" data-source="/api/static_models/models" data-value-key="model_id" data-label-key="model_name">Model</option>
+                                    <option value="account_id" data-input="fk" data-source="/api/accounts" data-value-key="account_id" data-label-key="account_name">Account</option>
+                                    <option value="management_id" data-input="fk" data-source="/api/static_models/trade_management" data-value-key="management_id" data-label-key="archetype">Trade management</option>
+                                    <option value="entry_execution_id" data-input="fk" data-source="/api/static_models/entry_execution" data-value-key="entry_execution_id" data-label-key="archetype">Entry execution</option>
+                                </optgroup>
+                            </select>
+                            <div class="invalid-feedback">Choose the field to change.</div>
+                        </div>
+
+                        <!--NEW VALUE: FIVE WRAPPERS, ONLY ONE VISIBLE AND ENABLED AT A TIME-->
+                        <div class="col-12">
+
+                            <!--PLACEHOLDER: SHOWN UNTIL A COLUMN IS CHOSEN. HAS NO NAME SO IT NEVER SUBMITS.-->
+                            <div id="at-group-placeholder">
+                                <label for="at-value-placeholder" class="form-label">New value</label>
+                                <input type="text" class="form-control" id="at-value-placeholder" placeholder="Choose a field first" disabled>
+                            </div>
+
+                            <div id="at-group-number" class="d-none">
+                                <label for="at-value-number" class="form-label">New value</label>
+                                <input type="number" step="any" class="form-control" id="at-value-number" name="new_value" required disabled>
+                                <div class="invalid-feedback">Enter a number.</div>
+                            </div>
+
+                            <div id="at-group-asset" class="d-none">
+                                <label for="at-value-asset" class="form-label">New asset</label>
+                                <select class="form-select" id="at-value-asset" name="new_value" required disabled>
+                                    <option value="" selected disabled>Choose...</option>
+                                    <option>XAUUSD</option>
+                                    <option>XAGUSD</option>
+                                    <option>NQ</option>
+                                    <option>ES</option>
+                                </select>
+                                <div class="invalid-feedback">Choose an asset.</div>
+                            </div>
+
+                            <div id="at-group-direction" class="d-none">
+                                <label for="at-value-direction" class="form-label">New direction</label>
+                                <select class="form-select" id="at-value-direction" name="new_value" required disabled>
+                                    <option value="" selected disabled>Choose...</option>
+                                    <option>long</option>
+                                    <option>short</option>
+                                </select>
+                                <div class="invalid-feedback">Choose a direction.</div>
+                            </div>
+
+                            <!--OPTIONS REBUILT BY JS EACH TIME A LINKED-RECORD COLUMN IS CHOSEN-->
+                            <div id="at-group-fk" class="d-none">
+                                <label for="at-value-fk" class="form-label" id="at-value-fk-label">New value</label>
+                                <select class="form-select" id="at-value-fk" name="new_value" required disabled>
+                                    <option value="" selected disabled>Loading...</option>
+                                </select>
+                                <div class="invalid-feedback">Choose a value.</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </form>
+
+                <!--SUCCESS PANEL: HIDDEN UNTIL JS FILLS IT FROM THE ChangesResponse-->
+                <div id="at-result" class="card mt-4 d-none">
+                    <div class="card-header h6 mb-0">Amendment recorded</div>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-striped align-middle mb-0">
+                            <tbody>
+                                <tr><th scope="row">Amendment ID</th><td id="at-result-change-id"></td></tr>
+                                <tr><th scope="row">Trade ID</th><td id="at-result-trade-id"></td></tr>
+                                <tr><th scope="row">Field</th><td id="at-result-column"></td></tr>
+                                <tr><th scope="row">Old value</th><td id="at-result-old"></td></tr>
+                                <tr><th scope="row">New value</th><td id="at-result-new"></td></tr>
+                                <tr><th scope="row">Amended at</th><td id="at-result-time"></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!--MODAL FOOTER DIV SECTION-->
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" class="btn btn-primary" form="amendTradeForm" id="at-submit">Amend trade</button>
+            </div>
+        </div>
+
+    </div>
+</div>

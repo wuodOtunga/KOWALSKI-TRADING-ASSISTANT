@@ -53,18 +53,16 @@
                                         CHARTS
                                     </button></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#journalEntryModal">
-                                        JOURNAL ENTRY
-                                    </button></li>
+                                    <li><a class="dropdown-item" href="/journal_entry">JOURNAL ENTRY</a></li>
                                     <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#amendTradeModal">
                                         AMEND TRADE
                                     </button></li>
                                 </ul>
                             </li>
-                            <li class="nav-item"><a class="nav-link" href="/calculator.html">Calculator</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/calculator">Calculator</a></li>
                             <li class="nav-item"><a class="nav-link" href="/analytics.html">Analytics</a></li>
                             <li class="nav-item"><a class="nav-link" href="/records.html">Records</a></li>
-                            <li class="nav-item"><a class="nav-link" href="/models.html">Models &amp; Archetypes</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/statics">Models &amp; Archetypes</a></li>
                         </ul>
                     </div>
                 </div>
@@ -96,6 +94,7 @@
         {% include "/modals/record_notes_modal.html" %}
         {% include "/modals/record_parameters_modal.html" %}
         {% include "/modals/record_charts_modal.html" %}
+        {% include "/modals/amend_trade_modal.html" %}
         {% include "/modals/successModal.html" %}
         <!-- Bootstrap JS bundle (Popper included) -->
         <script src="{{ url_for('static', path='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>

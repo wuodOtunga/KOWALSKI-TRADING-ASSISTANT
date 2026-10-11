@@ -1,8 +1,10 @@
 <!--RECORD NOTES MODAL-->
+<!--IDs, names and form id are unchanged from the old version, so recordNotes.js works without edits.-->
+<!--Free-form notes use <textarea> instead of <input type="text">, one field per row so each gets full width.-->
 
 <div class="modal fade" id="recordNotesModal" tabindex="-1" aria-labelledby="recordNotesLabel" aria-hidden="true"
      data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
 
         <!--MODAL CONTENT DIV SECTION-->
         <div class="modal-content">
@@ -16,29 +18,45 @@
             <!--MODAL BODY DIV SECTION-->
             <div class="modal-body">
                 <div id="recordNotesAlert" class="alert d-none" role="alert"></div>
+
                 <form id="recordNotesForm" novalidate>
                     <!--INPUTS: TRADE_ID, EMOTIONS, MISTAKES, LESSONS, GENERAL_NOTES-->
                     <div class="row g-3">
-                        <div class="col-md-6">
+
+                        <div class="col-md-4">
                             <label for="nt-trade-id" class="form-label">Trade ID</label>
-                            <input type="number" class="form-control" id="nt-trade-id" name="trade_id" required>
+                            <input type="number" min="1" class="form-control" id="nt-trade-id" name="trade_id" required>
+                            <div class="invalid-feedback">Enter a valid trade ID.</div>
                         </div>
-                        <div class="col-md-6">
+
+                        <div class="col-12">
                             <label for="nt-emotions" class="form-label">Emotions</label>
-                            <input type="text" class="form-control" id="nt-emotions" name="emotions" required>
+                            <textarea class="form-control" id="nt-emotions" name="emotions" rows="5"
+                                      placeholder="How did you feel before, during and after the trade?" required></textarea>
+                            <div class="invalid-feedback">Describe how you felt.</div>
                         </div>
-                        <div class="col-md-6">
+
+                        <div class="col-12">
                             <label for="nt-mistakes" class="form-label">Mistakes</label>
-                            <input type="text" class="form-control" id="nt-mistakes" name="mistakes" required>
+                            <textarea class="form-control" id="nt-mistakes" name="mistakes" rows="5"
+                                      placeholder="What went wrong? Write &quot;none&quot; if nothing did." required></textarea>
+                            <div class="invalid-feedback">Describe any mistakes, or write "none".</div>
                         </div>
-                        <div class="col-md-6">
+
+                        <div class="col-12">
                             <label for="nt-lessons" class="form-label">Lessons</label>
-                            <input type="text" class="form-control" id="nt-lessons" name="lessons" required>
+                            <textarea class="form-control" id="nt-lessons" name="lessons" rows="5"
+                                      placeholder="What will you do differently next time?" required></textarea>
+                            <div class="invalid-feedback">Write what you learned.</div>
                         </div>
-                        <div class="col-md-6">
-                            <label for="nt-general-notes" class="form-label">General Notes</label>
-                            <input type="text" class="form-control" id="nt-general-notes" name="general_notes" required>
+
+                        <div class="col-12">
+                            <label for="nt-general-notes" class="form-label">General notes</label>
+                            <textarea class="form-control" id="nt-general-notes" name="general_notes" rows="8"
+                                      placeholder="Market context, setup details, anything else worth remembering." required></textarea>
+                            <div class="invalid-feedback">Add a general note.</div>
                         </div>
+
                     </div>
                 </form>
             </div>

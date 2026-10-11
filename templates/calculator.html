@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block title %}KOWALSKI | Calculator{% endblock title %}
+
+{% block content %}
+
+<!--
+  CALCULATOR PAGE
+  Two tools on one page, switched with Bootstrap tabs:
+    1. Trade calculator  -> profit/loss + risk/reward   (services.run_calculator)
+    2. Position sizing   -> lot size                     (services.position_sizing)
+  Forms use novalidate + was-validated, same pattern as the journal modals.
+  JS (calculator.js) fills the *-alert and *-result elements. Nothing here talks to the API.
+  Field names match the keys the service functions read from their dicts.
+-->
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-2">
+    <div>
+        <h2 class="h4 mb-1">Trade Calculator</h2>
+        <p class="text-secondary mb-0">Plan the trade before you take it: know your risk, reward and size up front.</p>
+    </div>
+</div>
+
+<!--TABS-->
+<ul class="nav nav-tabs mb-4" id="calculatorTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tc-tab" data-bs-toggle="tab" data-bs-target="#tc-pane"
+                type="button" role="tab" aria-controls="tc-pane" aria-selected="true">
+            Profit &amp; Risk-Reward
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="ps-tab" data-bs-toggle="tab" data-bs-target="#ps-pane"
+                type="button" role="tab" aria-controls="ps-pane" aria-selected="false">
+            Position Sizing
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+    <!-- ===================================================================== -->
+    <!-- TAB 1: PROFIT/LOSS + RISK/REWARD                                      -->
+    <!-- ===================================================================== -->
+    <div class="tab-pane fade show active" id="tc-pane" role="tabpanel" aria-labelledby="tc-tab" tabindex="0">
+        <div class="row g-4">
+
+            <!--INPUTS-->
+            <div class="col-lg-7">
+                <div class="card h-100">
+                    <div class="card-header h6 mb-0 py-3">Trade setup</div>
+                    <div class="card-body">
+                        <div id="tcAlert" class="alert d-none" role="alert"></div>
+
+                        <form id="tradeCalcForm" novalidate>
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+                                    <label for="tc-asset" class="form-label">Asset</label>
+                                    <select class="form-select" id="tc-asset" name="asset" required>
+                                        <option value="" selected disabled>Choose...</option>
+                                        <option>XAUUSD</option>
+                                        <option>XAGUSD</option>
+                                        <option>NQ</option>
+                                        <option>ES</option>
+                                    </select>
+                                    <div class="invalid-feedback">Choose an asset.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <span class="form-label d-block" id="tc-direction-label">Direction</span>
+                                    <div class="btn-group w-100" role="group" aria-labelledby="tc-direction-label">
+                                        <input type="radio" class="btn-check" name="direction" id="tc-long" value="long" required>
+                                        <label class="btn btn-outline-success" for="tc-long">Long</label>
+
+                                        <input type="radio" class="btn-check" name="direction" id="tc-short" value="short" required>
+                                        <label class="btn btn-outline-danger" for="tc-short">Short</label>
+                                    </div>
+                                    <div class="invalid-feedback d-block-if-invalid">Choose a direction.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="tc-entry-price" class="form-label">Entry price</label>
+                                    <input type="number" step="any" min="0" class="form-control" id="tc-entry-price" name="entry_price" required>
+                                    <div class="invalid-feedback">Enter an entry price.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="tc-exit-price" class="form-label">Exit price</label>
+                                    <input type="number" step="any" min="0" class="form-control" id="tc-exit-price" name="exit_price" required>
+                                    <div class="invalid-feedback">Enter an exit price.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="tc-stop-loss" class="form-label">Stop loss</label>
+                                    <input type="number" step="any" min="0" class="form-control" id="tc-stop-loss" name="stop_loss" required>
+                                    <div class="invalid-feedback">Enter a stop loss.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="tc-take-profit" class="form-label">Take profit</label>
+                                    <input type="number" step="any" min="0" class="form-control" id="tc-take-profit" name="take_profit" required>
+                                    <div class="invalid-feedback">Enter a take profit.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="tc-position-size" class="form-label">Position size</label>
+                                    <div class="input-group">
+                                        <input type="number" step="any" min="0" class="form-control" id="tc-position-size" name="position_size" required>
+                                        <span class="input-group-text">lots / contracts</span>
+                                        <div class="invalid-feedback">Enter a position size.</div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="tc-account-balance" class="form-label">Account balance</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="any" min="0" class="form-control" id="tc-account-balance" name="account_balance" required>
+                                        <div class="invalid-feedback">Enter an account balance.</div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card-footer d-flex gap-2 justify-content-end py-3">
+                        <button type="reset" class="btn btn-outline-secondary" form="tradeCalcForm" id="tc-reset">Reset</button>
+                        <button type="submit" class="btn btn-primary px-4" form="tradeCalcForm" id="tc-submit">Calculate</button>
+                    </div>
+                </div>
+            </div>
+
+            <!--RESULTS-->
+            <div class="col-lg-5">
+                <div class="card h-100">
+                    <div class="card-header h6 mb-0 py-3 d-flex justify-content-between align-items-center">
+                        <span>Results</span>
+                        <span id="tc-result-badge" class="badge text-bg-secondary d-none"></span>
+                    </div>
+                    <div class="card-body">
+
+                        <!--EMPTY STATE: JS HIDES THIS AFTER A SUCCESSFUL CALCULATION-->
+                        <div id="tc-result-empty" class="text-secondary text-center py-5">
+                            Fill in the setup and press <strong>Calculate</strong>.
+                        </div>
+
+                        <div id="tc-result" class="d-none">
+
+                            <!--HEADLINE NUMBER: JS TOGGLES text-success / text-danger-->
+                            <div class="text-center pb-3 mb-3 border-bottom border-secondary-subtle">
+                                <div class="text-secondary small text-uppercase">Profit / Loss</div>
+                                <div class="display-5 fw-semibold font-monospace" id="tc-result-dollar">&mdash;</div>
+                                <div class="text-secondary" id="tc-result-percent">&mdash;</div>
+                            </div>
+
+                            <div class="row g-3 text-center">
+                                <div class="col-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-secondary small text-uppercase">RR multiple</div>
+                                        <div class="fs-4 fw-semibold font-monospace" id="tc-result-rr">&mdash;</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-secondary small text-uppercase">Risk of account</div>
+                                        <div class="fs-4 fw-semibold font-monospace" id="tc-result-risk-percent">&mdash;</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-secondary small text-uppercase">Risk amount</div>
+                                        <div class="fs-5 font-monospace text-danger" id="tc-result-risk-amount">&mdash;</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-secondary small text-uppercase">Reward amount</div>
+                                        <div class="fs-5 font-monospace text-success" id="tc-result-reward-amount">&mdash;</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 2: POSITION SIZING                                                -->
+    <!-- ===================================================================== -->
+    <div class="tab-pane fade" id="ps-pane" role="tabpanel" aria-labelledby="ps-tab" tabindex="0">
+        <div class="row g-4">
+
+            <!--INPUTS-->
+            <div class="col-lg-7">
+                <div class="card h-100">
+                    <div class="card-header h6 mb-0 py-3">Sizing inputs</div>
+                    <div class="card-body">
+                        <div id="psAlert" class="alert d-none" role="alert"></div>
+
+                        <form id="positionSizeForm" novalidate>
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+                                    <label for="ps-asset" class="form-label">Asset</label>
+                                    <select class="form-select" id="ps-asset" name="asset" required>
+                                        <option value="" selected disabled>Choose...</option>
+                                        <option>XAUUSD</option>
+                                        <option>XAGUSD</option>
+                                        <option>NQ</option>
+                                        <option>ES</option>
+                                    </select>
+                                    <div class="invalid-feedback">Choose an asset.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="ps-account-balance" class="form-label">Account balance</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="any" min="0" class="form-control" id="ps-account-balance" name="account_balance" required>
+                                        <div class="invalid-feedback">Enter an account balance.</div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="ps-entry-price" class="form-label">Entry price</label>
+                                    <input type="number" step="any" min="0" class="form-control" id="ps-entry-price" name="entry_price" required>
+                                    <div class="invalid-feedback">Enter an entry price.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="ps-stop-loss" class="form-label">Stop loss</label>
+                                    <input type="number" step="any" min="0" class="form-control" id="ps-stop-loss" name="stop_loss" required>
+                                    <div class="invalid-feedback">Enter a stop loss.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="ps-risk-percent" class="form-label">Risk per trade</label>
+                                    <div class="input-group">
+                                        <input type="number" step="any" min="0" max="100" class="form-control" id="ps-risk-percent" name="risk_percent" required>
+                                        <span class="input-group-text">%</span>
+                                        <div class="invalid-feedback">Enter a risk percent.</div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card-footer d-flex gap-2 justify-content-end py-3">
+                        <button type="reset" class="btn btn-outline-secondary" form="positionSizeForm" id="ps-reset">Reset</button>
+                        <button type="submit" class="btn btn-primary px-4" form="positionSizeForm" id="ps-submit">Calculate size</button>
+                    </div>
+                </div>
+            </div>
+
+            <!--RESULT-->
+            <div class="col-lg-5">
+                <div class="card h-100">
+                    <div class="card-header h6 mb-0 py-3">Recommended size</div>
+                    <div class="card-body d-flex align-items-center justify-content-center">
+
+                        <div id="ps-result-empty" class="text-secondary text-center">
+                            Enter your risk parameters and press <strong>Calculate size</strong>.
+                        </div>
+
+                        <div id="ps-result" class="text-center d-none">
+                            <div class="text-secondary small text-uppercase">Position size</div>
+                            <div class="display-4 fw-semibold font-monospace text-warning" id="ps-result-size">&mdash;</div>
+                            <div class="text-secondary">lots / contracts</div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+{% endblock content %}
+
+{% block scripts %}
+<!--calculator.js: submit handlers for #tradeCalcForm and #positionSizeForm (to be written)-->
+<script type="module" src="/static/js/calculator.js"></script>
+{% endblock scripts %}
