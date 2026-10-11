@@ -224,6 +224,9 @@ class TradeAmendmentsModel(Base):
     __tablename__ = "trade_amendments"
 
     amendment_id: Mapped[int] = mapped_column(primary_key=True)
+    #DECIDE IF YOU WANT TRADE_ID TO BE A FK ON THIS TABLE.
+    #IF AUDITS ARE TO PERSIST AFTER A TRADE IS DELETED THEN YOU MUST DROP
+    #THE TRADE_ID FOREIGN KEY. DEBATE LATER.
     trade_id: Mapped[int | None] = mapped_column(ForeignKey("trades.trade_id"))
     column_name: Mapped[AmendableColumns] = mapped_column(nullable=False)
     old_value: Mapped[str] = mapped_column(Text, nullable=False)
