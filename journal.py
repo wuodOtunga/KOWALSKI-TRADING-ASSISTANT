@@ -2,10 +2,12 @@ from datetime import datetime
 
 import exceptions as t
 import trade_calculator as y
-from database import Database
+from typing import get_args
+from repository import Repository
 from models import (
     Account,
     Amendments,
+    AmendableColumns,
     EntryExecution,
     JournalEntry,
     Parameter,
@@ -22,12 +24,12 @@ from models import (
 )
 from validation import validate_trade_data
 
-
 class Journal:
 
-    def __init__(self, db: Database):
-        self.db = db
+    def __init__(self, db: Repository):
+        self.db: Repository = db
 
+    #A) SINGLE WRITE METHOD
     def record_trade(self, trade: Trade) -> Trade:
         """RECORDS A TRADE IN THE JOURNAL"""
 
@@ -38,25 +40,24 @@ class Journal:
         #FINALIZE_GRADE() METHOD WILL HANDLE GRADING AND UPDATING OF OVERALL_TRADE_GRADE
 
         #2: VALIDATE THE TRADE DATA.
-        valid_trade = validate_trade_data(trade)
+        valid_trade: Trade = validate_trade_data(trade)
 
         #3: PERSIST TO THE DATABASE & #4: TRANSLATE THE ERRORS.
         try:
-            trade_id = self.db.save_trade(valid_trade)
-            trade.trade_id = trade_id
-            self.db.commit()
+            trade_id: int = self.db.save_trade(trade=valid_trade)
+            setattr(trade, "trade_id", trade_id)
         except t.DatabaseError as e:
-            self.db.rollback()
             raise t.TradeRecordingError(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}") from e
 
         #5: RETURN SOMETHING MEANINGFUL.
         return trade
 
+
 #DOLLAR_AMOUNT, RESULT, RR_MULTIPLE, DURATION ARE DERIVED.
     def _compute_derived_fields(self, trade: Trade) -> Trade:
         """COMPUTES DERIVED FIELDS USING THE CALCULATOR MODULE."""
 
-        setup = self._convert_to_trade_setup(trade)
+        setup: TradeSetup = self._convert_to_trade_setup(trade)
 
         results = y.calculate_profit_loss(setup)
         dollar_amount = results["DOLLAR_AMOUNT"]
@@ -108,12 +109,9 @@ class Journal:
         try:
             chart_id = self.db.add_chart(chart)
             chart.chart_id = chart_id
-            self.db.commit()
         except t.ConstraintViolationError as e:
-            self.db.rollback()
             raise t.ChartUploadError(f"CONSTRAINT VIOLATION ERROR DETECTED {e}") from e
         except t.TradeNotFoundError as e:
-            self.db.rollback()
             raise t.InvalidTradeIDError(f"TRADE_ID PROVIDED {chart.trade_id} DOESN'T EXIST: {e}") from e
 
         #4: RETURN SOMETHING MEANINGFUL.
@@ -157,20 +155,22 @@ class Journal:
 
         #GRADING OF TRADE BASED ON TRADE_POINTS.
         #(POINTS, GRADE) -> (8, A), (6/7, A), (5, B), (4, C), (3, D) (<3, F)
-        grading_system = [(8, TradeGrade.A), (7, TradeGrade.A),
+        grading_system: list[tuple[int, TradeGrade]] = [(8, TradeGrade.A), (7, TradeGrade.A),
                           (6, TradeGrade.A), (5, TradeGrade.B),
                           (4, TradeGrade.C), (3, TradeGrade.D),
                           (2, TradeGrade.F), (1, TradeGrade.F), (0, TradeGrade.F)]
+
         for points, grade in grading_system:
             if trade_points == points:
-                trade_grade = grade
+                setattr(trade, "overall_trade_grade", grade)
 
-        trade.overall_trade_grade = trade_grade # type: ignore
+        #trade_grade is possibly unbound
+        #UnboundLocalError: cannot access local variable 'trade_grade' where it is not associated with a value
         #UPDATE THE GRADE OF THE TRADE FROM NONE TO TRADE_GRADE
         try:
-            self.db.update_trade_grade(trade.trade_id, trade_grade) # type: ignore
+            self.db.update_trade_grade(trade_id=trade.trade_id, new_grade=trade.overall_trade_grade) # type: ignore
         except t.InvalidGradeError as e:
-            raise t.GradingError(f"{trade_grade} IS INVALID. SHOULD BE BETWEEN (A - F), {e}") from e # type: ignore
+            raise t.GradingError(f"{trade.overall_trade_grade} IS INVALID. SHOULD BE BETWEEN (A - F), {e}") from e
         except t.TradeNotFoundError as e:
             raise t.InvalidTradeIDError(f"{trade.trade_id} IS INVALID. PROVIDE VALID TRADE_ID, {e}") from e
 
@@ -181,12 +181,9 @@ class Journal:
         #THIN WRAPPER METHOD, ONLY SERVES TO TRANSLATES ERRORS.
         try:
             self.db.add_trade_notes(trade_notes)
-            self.db.commit()
         except t.ConstraintViolationError as e:
-            self.db.rollback()
             raise t.NotesRecordingError(f"TRADE_ID MUST BE UNIQUE AND ALL INPUTS ARE REQUIRED: {e}") from e
         except t.TradeNotFoundError as e:
-            self.db.rollback()
             raise t.InvalidTradeIDError("INVALID TRADE_ID. CAN'T ADD NOTES FOR INVALID TRADE.")
 
         return trade_notes
@@ -204,7 +201,7 @@ class Journal:
     def fetch_all_trades(self) -> list[Trade]:
 
         try:
-            trades = self.db.get_all_trade_rows()  #CHANGE 1
+            trades: list[Trade] = self.db.get_all_trades()
             return trades
         except t.EmptyTradesTableError as e:
             raise t.TradesNotFoundError(f"EMPTY TRADES DATABASE TABLE: {e}") from e
@@ -217,12 +214,12 @@ class Journal:
         """READ AN ENTIRE JOURNAL ENTRY FROM DATABASE AT ONCE."""
 
         try:
-            trade = self.db.get_by_id(trade_id)
-            trade_notes = self.db.get_trade_notes(trade_id)
-            trade_charts = self.db.get_trade_charts(trade_id)
-            parameter_ids = self.db.get_trade_parameters(trade_id)
+            trade: Trade = self.db.get_by_id(trade_id)
+            trade_notes: TradeNotes = self.db.get_trade_notes(trade_id)
+            trade_charts: list[TradeChart] = self.db.get_trade_charts(trade_id)
+            parameter_ids: list[int] = self.db.get_trade_parameters(trade_id)
             if parameter_ids:
-                parameter_names = self.db.get_parameter_names(parameter_ids)
+                parameter_names: list[str] = self.db.get_parameter_names(parameter_ids)
         except t.DatabaseError as e:
             raise t.JournalEntryError(f"JOURNAL ENTRY CAN'T BE RETRIEVED DUE TO DATABASE ERRORS: {e}") from e
 
@@ -243,9 +240,8 @@ class Journal:
 #WITH THE GIVEN STREAMLIT CODE PATH, THERE IS NO USE FOR THE JOURNAL METHOD.
 #IN THE FUTURE IF NEED ARISES, YOU CAN REWRITE IT.
 
-    def amend_trade_entry(self, trade_id: int, amendment: Amendments) -> Amendments:
-        forbidden_columns = ["dollar_amount", "duration", "result", "rr_multiple", "overall_trade_grade", "risk_percent"]
-        if amendment.column_name in forbidden_columns:
+    def amend_trade_entry(self, amendment: Amendments) -> Amendments:
+        if amendment.column_name not in get_args(AmendableColumns):
             raise t.InvalidColumnNameError(f"CAN'T AMEND COLUMN: {amendment.column_name}")
 
         recompute_values = {
@@ -284,26 +280,24 @@ class Journal:
             raise t.TradeValidationError("TRADE VALIDATION FAILED")
 
         try:
-            trade = self.db.get_by_id(trade_id)
-            amendment.old_value = getattr(trade, amendment.column_name)
-            setattr(trade, amendment.column_name, amendment.new_value)
+            with self.db.transaction():
+                trade = self.db.get_by_id(trade_id=amendment.trade_id)
+                amendment.old_value = getattr(trade, amendment.column_name)
+                setattr(trade, amendment.column_name, amendment.new_value)
 
-            recompute_method = recompute_values.get(amendment.column_name)
-            if recompute_method:
-                recompute_method(trade)
+                recompute_method = recompute_values.get(amendment.column_name)
+                if recompute_method:
+                    recompute_method(trade)
 
-            #MAJOR BUG IN THE CODE: NONE OF THE RECOMPUTED VALUES ARE STORED BACK TO THE DATABASE.
-            #ONLY THE AMENDED COLUMN IS STORED IN THE DATABASE. THE RECOMPUTES GO STALE.
-            valid_trade = validate_trade_data(trade)
-            self.db.update_trade_field(valid_trade.trade_id, amendment.column_name, amendment.new_value) # type: ignore
-            amendment.amended_at = datetime.now()
-            amendment.amendment_id = self.db.add_trade_amendments(trade_id, amendment)
-            self.db.commit()
+                #MAJOR BUG IN THE CODE: NONE OF THE RECOMPUTED VALUES ARE STORED BACK TO THE DATABASE.
+                #ONLY THE AMENDED COLUMN IS STORED IN THE DATABASE. THE RECOMPUTES GO STALE.
+                valid_trade: Trade = validate_trade_data(trade)
+                self.db.update_trade_field(trade_id=valid_trade.trade_id, new_value=amendment.new_value, column=amendment.column_name) # type: ignore
+                amendment.amended_at = datetime.now()
+                amendment.amendment_id = self.db.add_trade_amendments(amendment)
         except t.TradeNotFoundError as e:
-            self.db.rollback()
             raise t.InvalidTradeIDError(f"TRADE WITH THAT ID DOESN'T EXIST: {e}")
         except t.ConstraintViolationError as e:
-            self.db.rollback()
             raise t.TradeRecordingError(f"COULDN'T RECORD NEW TRADE UPDATE: {e}") from e
 
         return amendment
@@ -311,26 +305,24 @@ class Journal:
     def finalize_grade(self, trade_id: int, parameter_names: list) -> Trade:
 
         if parameter_names:
-            parameter_ids = self.db.get_parameter_ids(parameter_names)
+            parameter_ids: list[int] = self.db.get_parameter_ids(parameter_names)
         else:
             parameter_ids = []
 
         #TRADE IS ALREADY GRADED AND CLIENT RESUBMITS SAME PARENTERS. = INTERNAL
         #TRADE_ID DOESN'T EXIST, FK CONSTRAINT FAILS == INTERNAL
         try:
-            trade = self.db.get_by_id(trade_id)
-            if trade.overall_trade_grade is None:
-                graded_trade = self.grade_trade(trade)
-            else:
-                raise t.TradeAlreadyGradedError("GRADING ERROR: TRADE HAS ALREADY BEEN GRADED")
-            for parameter in parameter_ids: # type: ignore
-                self.db.add_trade_parameters(trade_id, parameter)
-            self.db.commit()
+            with self.db.transaction():
+                trade: Trade = self.db.get_by_id(trade_id)
+                for parameter in parameter_ids: # type: ignore
+                    self.db.add_trade_parameters(trade_id, parameter_id=parameter)
+                if trade.overall_trade_grade is None:
+                    graded_trade: Trade = self.grade_trade(trade)
+                else:
+                    raise t.TradeAlreadyGradedError("GRADING ERROR: TRADE HAS ALREADY BEEN GRADED")
         except t.ConstraintViolationError as e:
-            self.db.rollback()
             raise t.ParametersJunctionTableConflict(f"PARAMETERS VIOLATE JUNCTION TABLE JOINT PK CONSTRAINT: {e}") from e
         except t.TradeNotFoundError:
-            self.db.rollback()
             raise t.InvalidTradeIDError("PROVIDED TRADE_ID IS INVALID")
 
         return graded_trade

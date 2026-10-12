@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 
 import services as s
-from database import Database
+from repository import Repository
 from journal import Journal
 from models import TradeAsset, TradeDirection
 from seed_data import (
@@ -28,18 +28,18 @@ from seed_data import (
 )
 
 min_date = datetime(1990, 1, 1)
-max_date = datetime.now()
+max_date: datetime = datetime.now()
 
 @st.cache_resource
-def get_database():
-    return Database()
+def get_database() -> Repository:
+    return Repository()
 
 @st.cache_resource
-def get_journal():
-    return Journal(get_database())
+def get_journal() -> Journal:
+    return Journal(db=get_database())
 
 def main():
-    journal = get_journal()
+    journal: Journal = get_journal()
     kowalski = Kowalski(journal)
     kowalski._render_widgets()
 

@@ -156,6 +156,7 @@ class ServiceResult:
     message : str
     data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | list[Account] | list[TradeManagement] | list[TradingModel] | list[EntryExecution] | list[Parameter] | list[TradeChart] | None
     error_type: ServiceErrorType | None
+    
 @dataclass
 class ChartUploadOutcome:
     """OUTCOME FOR A SINGLE FILE WITHIN A BATCH UPLOAD"""

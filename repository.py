@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Generator, Iterable, Mapping
 from contextlib import contextmanager
+from contextvars import ContextVar, Token
 from dataclasses import fields
 from pathlib import Path
-from typing import Any, TypeVar, get_args
+from typing import Any, Tuple, TypeVar, get_args
 
-from sqlalchemy import Engine, create_engine, delete, event, exc, exists, func, select
+from sqlalchemy import Engine, Row, ScalarResult, create_engine, delete, event, exc, exists, func, select
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -21,7 +22,7 @@ from database_models import (
     Models,
     ParametersModel,
     TradeAmendmentsModel,
-    TradeManagement,
+    TradeManagementModel,
     TradeModel,
     TradeNotesModel,
     TradeParametersModel,
@@ -34,12 +35,36 @@ from models import (
     TradeChart,
     TradeGrade,
     TradeNotes,
+    TradingModel,
+    EntryExecution,
+    TradeManagement,
+    Parameter,
 )
 
 _DB_PATH: Path = Path(__file__).resolve().parent / "kowalski.db"
 SQLALCHEMY_DATABASE_URL: URL = URL.create(drivername="sqlite", database=str(object=_DB_PATH))
 
 T = TypeVar("T")
+
+#ContextVar for context variables.
+#Think of it as a variable whose value depends on who is asking.
+#For the app, one request’s chain router → services → journal → repository runs in a single worker thread.
+#So when Journal calls self.db.transaction() and sets the variable, every repository method deeper in that chain reads the same session.
+#A different request in another thread reads its own value.
+#The variable gives you a “current transaction” that doesn’t have to be passed as an argument.
+
+#ADDITIONAL INFO: PROCESS VERSUS THREAD.
+#A process is a running program with its own private memory. Two processes can’t see each other’s variables.
+#If they need to share data, they go through a file, a socket, or a database.
+#A thread is a separate line of execution inside one process.
+#Threads share the same memory, so they can all see the same variables, objects, and connections.
+#That’s useful, but it’s also the source of the danger.
+#Analogy: a process is a separate kitchen with its own pantry.
+#Threads are several cooks in one kitchen sharing the same pantry.
+#Cooks work faster together, but two cooks grabbing the same bowl at once is a problem.
+
+#Module level context variable that holds the session of the transaction currently open in this context.
+_active_session: ContextVar[Session | None] = ContextVar("active_session", default=None)
 
 # I am providing the column names for the seed data for the static database tables.
 # the seed data is inside seed_data.py as a list of tuples.
@@ -51,6 +76,7 @@ _MODELS_COLUMNS = ("model_name", "description")
 _TRADE_MANAGEMENT_COLUMNS = ("archetype", "description", "points", "grade")
 _ENTRY_EXECUTION_COLUMNS = ("archetype", "description", "points", "grade")
 _PARAMETERS_COLUMNS = ("parameter_name",)
+_ACCOUNTS_COLUMNS = ("account_name", "account_type", "broker", "starting_balance", "is_active")
 
 # -------------------------------------------------------------------------
 #   ENGINE CONSTRUCTION
@@ -64,7 +90,7 @@ def _enable_sqlite_foreign_keys(db_connection: Any, _connection_record: Any = No
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
-def create_database_engine(url: str | URL = SQLALCHEMY_DATABASE_URL, *, echo: bool = True) -> Engine:
+def create_database_engine(url: str | URL = SQLALCHEMY_DATABASE_URL, *, echo: bool = False) -> Engine:
     """CREATE THE DATABASE ENGINE WITH SQLITE SPECIFIC CONFIGURATIONS"""
 
     url = make_url(name_or_url=url)
@@ -102,7 +128,7 @@ def _field_values(obj: Any, exclude: Iterable[str] = ()) -> dict[str, Any]:
     # rather are the unique IDs populated by the repository for every database insert.
     # a bare string would be split into characters by set(), so normalise it first
     skip = {exclude} if isinstance(exclude, str) else set(exclude)
-    return {f.name: getattr(obj, f.name) for f in fields(obj) if f.name not in skip}
+    return {f.name: getattr(obj, f.name) for f in fields(class_or_instance=obj) if f.name not in skip}
 
 
 def _named(columns: tuple[str, ...], rows: Iterable) -> list[dict[str, Any]]:
@@ -170,12 +196,12 @@ def _check_foreign_keys(trade: Trade, session: Session) -> None:
 
     # using exists() is more efficient than select() since we are doing existence checks.
     # we don't want to load an entire row just to check if the FK exists and is valid.
-    found = session.execute(
+    found: Row[Tuple[bool, bool, bool, bool]] = session.execute(
         select(
             exists(Models).where(Models.model_id == trade.model_id),
             exists(AccountsModel).where(AccountsModel.account_id == trade.account_id),
-            exists(TradeManagement).where(
-                TradeManagement.management_id == trade.management_id
+            exists(TradeManagementModel).where(
+                TradeManagementModel.management_id == trade.management_id
             ),
             exists(EntryExecutionModel).where(
                 EntryExecutionModel.entry_execution_id == trade.entry_execution_id
@@ -202,7 +228,7 @@ def _seed_if_empty(session: Session, db_model: type[Any], rows: Iterable[Mapping
     # model_one = Models(model_name=2022 fvg, description=description wording)
     # for row in rows runs the loop for the number of rows in the list, each loop creates one db_model
     # each db_model is a row in the database.
-    if (session.scalars(select(db_model)).first() is None):  # checks if table rows are populated.
+    if session.scalars(select(db_model)).first() is None:  # checks if table rows are populated.
         session.add_all(db_model(**row) for row in rows)
 
 
@@ -210,7 +236,7 @@ class Repository:
     """REPOSITORY ACCESS FOR TRADES, NOTES, CHARTS AND AMENDMENTS"""
 
     def __init__(
-        self, db_url: str | URL = SQLALCHEMY_DATABASE_URL, *, echo: bool = True
+        self, db_url: str | URL = SQLALCHEMY_DATABASE_URL, *, echo: bool = False
     ):
 
         self.engine = create_database_engine(url=db_url, echo=echo)
@@ -225,21 +251,30 @@ class Repository:
         Base.metadata.create_all(bind=self.engine)
 
         with self._transaction() as session:
-            _seed_if_empty(session, db_model=Models, rows=_named(columns=_MODELS_COLUMNS, rows=seed_data.models))
             _seed_if_empty(
-                session,
-                EntryExecutionModel,
-                _named(_ENTRY_EXECUTION_COLUMNS, seed_data.entry_execution),
+                session=session,
+                db_model=Models,
+                rows=_named(columns=_MODELS_COLUMNS, rows=seed_data.models)
+            )
+            _seed_if_empty(
+                session=session,
+                db_model=AccountsModel,
+                rows=_named(columns=_ACCOUNTS_COLUMNS, rows=seed_data.accounts)
             )
             _seed_if_empty(
                 session,
-                ParametersModel,
-                _named(_PARAMETERS_COLUMNS, seed_data.parameter_values),
+                db_model=EntryExecutionModel,
+                rows=_named(_ENTRY_EXECUTION_COLUMNS, seed_data.entry_execution),
             )
             _seed_if_empty(
                 session,
-                TradeManagement,
-                _named(_TRADE_MANAGEMENT_COLUMNS, seed_data.trade_management),
+                db_model=ParametersModel,
+                rows=_named(_PARAMETERS_COLUMNS, seed_data.parameter_values),
+            )
+            _seed_if_empty(
+                session,
+                db_model=TradeManagementModel,
+                rows=_named(_TRADE_MANAGEMENT_COLUMNS, seed_data.trade_management),
             )
 
     def close_db_connection(self):
@@ -257,26 +292,58 @@ class Repository:
         must be caught first. Our own domain exceptions are not SQLAlchemy
         errors; they pass straight through after the automatic rollback.
         """
+        #A with block needs an object with __enter__ and __exit__ methods.
+        #@contextmanager lets you write one as a generator with a single yield
+        #If the body raises, Python re-raises the exception at the yield line.
+        #That is why a try/except wrapped around the yield can catch errors from the body.
+        #The except clauses in _transaction() work this way:
+        #they catch anything thrown inside the caller’s with block and translate it.
+        #The rule is that the generator must yield exactly once. Every code path through it reaches one yield.
+
+        #check whether a transaction is open.
+        outer: Session | None = _active_session.get()
 
         try:
-            with self.SessionFactory.begin() as session:
-                yield session
+            if outer is not None:
+                #if transaction is open, yield associated session
+                #a transaction is already open, so hand the same session to the caller.
+                yield outer
+            else:
+                #if no transaction is open, create a session.
+                #Owner branch. Nothing is open, so create a session.
+                #begin() is itself a context manager: it commits on clean exit and rolls back on exception.
+                with self.SessionFactory.begin() as session:
+                    #Publish the session so nested calls can find it, run the body, and always unpublish, even on exceptions.
+                    #set() returns a token that remembers the previous value, and reset(token) restores it.
+                    #Without the finally, a failed transaction would leave a dead session in the variable
+                    #and the next call would try to join it.
+                    token: Token[Session | None] = _active_session.set(session)
+                    try:
+                        yield session
+                    finally:
+                        _active_session.reset(token)
+        #The outer try/except translates SQLAlchemy errors into your domain exceptions, in both branches.
         except exc.IntegrityError as e:
             raise t.ConstraintViolationError(f"CONSTRAINT VIOLATION: {_db_message(e)}") from e
         except exc.SQLAlchemyError as e:
             raise t.DatabaseError(f"DATABASE ERROR: {_db_message(e)}") from e
 
-    # TRADE DOMAIN MODEL DATABASE METHODS; CRUd
+    def transaction(self):
+        """PUBLIC INTERFACE FOR THE JOURNAL MODULE"""
+
+        return self._transaction()
+
+#----------------- TRADE DOMAIN MODEL DATABASE METHODS----------------------------
     def save_trade(self, trade: Trade) -> int:
         """PERSIST A TRADE TO THE REPOSITORY"""
 
         # Check for validity of foreign keys and raise exception loudly
         # before doing anything else.
-        row = TradeModel(**_field_values(trade, exclude="trade_id"))
+        row = TradeModel(**_field_values(obj=trade, exclude="trade_id"))
 
         with self._transaction() as session:
             _check_foreign_keys(trade, session)
-            session.add(row)
+            session.add(instance=row)
             session.flush()
 
             return row.trade_id
@@ -291,7 +358,7 @@ class Repository:
         """RETRIEVES ALL TRADES FROM THE REPOSITORY"""
 
         with self._transaction() as session:
-            rows = list(session.execute(select(TradeModel)).scalars().all())
+            rows: list[TradeModel] = list(session.execute(select(TradeModel)).scalars().all())
             return [_to_domain(Trade, row) for row in rows]
 
     def update_trade_grade(self, trade_id: int, new_grade: TradeGrade) -> None:
@@ -304,6 +371,7 @@ class Repository:
         with self._transaction() as session:
             _ensure_trade_exists(trade_id, session)
             _get_trade_row(trade_id, session).overall_trade_grade = new_grade
+            session.flush()
 
     def update_trade_field(self, trade_id: int, new_value: Any, column: AmendableColumns) -> None:
         """UPDATES A DYNAMIC TRADE COLUMN BASED ON TRADER PREFERENCE"""
@@ -315,6 +383,7 @@ class Repository:
         with self._transaction() as session:
             _ensure_trade_exists(trade_id, session)
             setattr(_get_trade_row(trade_id, session), column, new_value)
+            session.flush()
 
     def delete_trade(self, trade_id: int) -> None:
         """DELETES A TRADE ROW FROM THE REPOSITORY"""
@@ -352,12 +421,13 @@ class Repository:
         with self._transaction() as session:
             _ensure_trade_exists(new_notes.trade_id, session) # type: ignore
 
-            row = session.get(TradeNotesModel, new_notes.trade_id)
+            row: TradeNotesModel | None = session.get(TradeNotesModel, new_notes.trade_id)
             if row is None:
                 session.add(TradeNotesModel(**_field_values(new_notes)))
             else:
                 for name, value in _field_values(new_notes, exclude="trade_id").items():
                     setattr(row, name, value)
+                session.flush()
 
 #------------TRADE PARAMETERS DOMAIN MODEL DATABASE METHODS; JUNCTION TABLE--------------------------------
     def add_trade_parameters(self, trade_id: int, parameter_id: int) -> None:
@@ -378,9 +448,8 @@ class Repository:
 
             # at this point, both FKs have been checked, so we rule out Foreign key constraint violation.
             # we have no dataclass for trade parameters, so we can't use _field_values() only manual construction
-            session.add(
-                TradeParametersModel(trade_id=trade_id, parameter_id=parameter_id)
-            )
+            session.add( TradeParametersModel(trade_id=trade_id, parameter_id=parameter_id))
+            session.flush()
 
     def get_trade_parameters(self, trade_id: int) -> list[int]:
         """RETRIEVE THE TRADE PARAMETERS FROM THE JUNCTION TABLE"""
@@ -543,7 +612,7 @@ class Repository:
 
             return parameter_ids
 
-    def get_parameter_names(self, parameter_ids: list) -> list[int]:
+    def get_parameter_names(self, parameter_ids: list) -> list[str]:
         """RETRIEVE THE PARAMETER_NAME CORRESPONDING TO A PARAMETER_ID"""
 
         # We have a list of IDs for the parameters present for a trade fetched from the
@@ -551,7 +620,7 @@ class Repository:
         # We need to show the trader which parameters were present for the trade but a parameter_id
         # doesn't offer any informational value to the trader. We need the actual parameter names so we query.
 
-        parameter_names = []
+        parameter_names: list[str] = []
 
         with self._transaction() as session:
             for parameter_id in parameter_ids:
@@ -594,8 +663,8 @@ class Repository:
 
         with self._transaction() as session:
             points = session.execute(
-                select(TradeManagement.points).where(
-                    TradeManagement.management_id == management_id
+                select(TradeManagementModel.points).where(
+                    TradeManagementModel.management_id == management_id
                 )
             ).scalar_one_or_none()
 
@@ -606,17 +675,30 @@ class Repository:
 
             return points
 
-    def get_models_list(self):
-        pass
+    def get_models_list(self) -> list[TradingModel]:
+        with self._transaction() as session:
+            rows: ScalarResult[Models] = session.scalars(statement=select(Models))
 
-    def get_entry_executions_list(self):
-        pass
+            return [_to_domain(cls=TradingModel, row=row) for row in rows]
 
-    def get_trade_managements_list(self):
-        pass
+
+    def get_entry_executions_list(self) -> list[EntryExecution]:
+        with self._transaction() as session:
+            rows: ScalarResult[EntryExecutionModel] = session.scalars(statement=select(EntryExecutionModel))
+
+            return [_to_domain(cls=EntryExecution, row=row) for row in rows]
+
+    def get_trade_managements_list(self) -> list[TradeManagement]:
+        with self._transaction() as session:
+            rows: ScalarResult[TradeManagementModel] = session.scalars(statement=select(TradeManagementModel))
+
+            return [_to_domain(cls=TradeManagement, row=row) for row in rows]
 
     def get_parameters_list(self):
-        pass
+        with self._transaction() as session:
+            rows: ScalarResult[ParametersModel] = session.scalars(statement=select(ParametersModel))
+
+            return [_to_domain(cls=Parameter, row=row) for row in rows]
 
 #-------REPORTS/STATISTICS/ANALYTICS AGGREGATION DATABASE METHODS FOR REPORTS.PY-------
 

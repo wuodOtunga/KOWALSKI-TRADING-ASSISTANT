@@ -233,7 +233,7 @@ def submit_amendment(trade_amendment: dict, journal: Journal) -> ServiceResult:
         return ServiceResult(success= False, message= f"INVALID KEY REFERENCE: {e}", data=None, error_type=SET.VALIDATION)
 
     try:
-        changes: Amendments = journal.amend_trade_entry(amendment.trade_id, amendment)
+        changes: Amendments = journal.amend_trade_entry(amendment)
     except t.InvalidTradeIDError as e:
         return ServiceResult(success= False, message= f"TRADE NOT FOUND: {e}", data=None, error_type=SET.NOT_FOUND)
     except t.TradeRecordingError as e:
@@ -395,7 +395,7 @@ def create_trading_account(account_info: dict, journal: Journal) -> ServiceResul
 
 def view_trading_accounts(journal: Journal) -> ServiceResult:
     try:
-        available_accounts = journal.fetch_all_trading_accounts()
+        available_accounts: list[Account] = journal.fetch_all_trading_accounts()
     except t.AccountsNotFoundError as e:
         return ServiceResult(success= False, message= f"NO ACCOUNTS FOUND! {e}", data= None, error_type=SET.NOT_FOUND)
 

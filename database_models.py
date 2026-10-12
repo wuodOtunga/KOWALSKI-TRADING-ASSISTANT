@@ -90,7 +90,7 @@ class TradeModel(Base):
 
     model: Mapped[Models] = relationship(back_populates="trades")
     account: Mapped[AccountsModel] = relationship(back_populates="trades")
-    management: Mapped[TradeManagement] = relationship(back_populates="trades")
+    management: Mapped[TradeManagementModel] = relationship(back_populates="trades")
     execution: Mapped[EntryExecutionModel] = relationship(back_populates="trades")
 
     notes: Mapped[TradeNotesModel] = relationship(back_populates="trade", cascade="all, delete-orphan")
@@ -133,7 +133,7 @@ class EntryExecutionModel(Base):
     )
 
 
-class TradeManagement(Base):
+class TradeManagementModel(Base):
     __tablename__ = "trade_management"
 
     management_id: Mapped[int] = mapped_column(primary_key=True)
