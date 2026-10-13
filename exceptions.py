@@ -1,121 +1,132 @@
 #MODULE TO HANDLE VALIDATION AND EXCEPTION INSTANCES.
 
 #RESEARCH ON THESE SQLITE3 ERRORS BETTER FROM SQLITE3 MODULE DOCS.
-#WE HAVE TWO CATEGORIES OF EXCEPTIONS/THINGS GOING WRONG.
-#1: BAD ARGUMENTS FROM THE CALLER. CONTRACT VIOLATION BETWEEN MODULES. JOURNAL.PY/DATABASE.PY
-#THIS IS FOR GUARDING YOUR OWN FUNCTION CONTRACTS.
-#EXAMPLES: JOURNAL.PY USING IDENTIFIERS LIKE MANAGEMENT_ID/TRADE_ID THAT ARE NEGATIVE INTS.
+######
+#Using e.orig to pin down the SQLite error
+#SQLAlchemy wraps the drivers exception. e is sqlalchemy.exc.IntegrityError,
+#and e.orig is the original sqlite3.IntegrityError.
+#On Python 3.11+ that object carries two attributes the code ignores today:
 
-#2: THE SQLITE3 EXCEPTION HIERARCHY
-#BUILT-IN EXCEPTION CLASSES IN SQLITE3 INCLUDE:
-#ERROR AS PARENT CLASS. DATABASEERROR AND INTERFACEERROR AS SUB CLASSES.
+#sqlite_errorname, e.g. "SQLITE_CONSTRAINT_UNIQUE"
+#sqlite_errorcode, the numeric version
 
-#DATABASEERROR - PROBLEMS WITH THE DATABASE OPERATIONS.
-#INTERFACEEEROR: FIRES WITH A PROBLEM WITH THE PYTHON-SQLITE3 INTERFACE LAYER ITSELF. RARE.
-#EXAMPLE: PASSING A PYTHON OBJECT TYPE SQLITE HAS NO IDEA HOW TO BIND.
-#LIKE PASSING A RAW TRADE DATACLASS ITSELF AS A PARAMETER INSTEAD OF THE INDIVIDUAL FIELDS LIKE TRADE_ID.
+#The constraint subtypes are _FOREIGNKEY, _UNIQUE, _PRIMARYKEY, _CHECK and _NOTNULL.
+#The message text adds detail the code doesnt:
 
-#DATABASEERROR SUBCLASSES INCLUDE: DATAERROR, INTEGRITYERROR, INTERNALERROR,
-#NOTSUPPORTEDERROR, OPERATIONALERROR, PROGRAMMINGERROR
+#UNIQUE constraint failed: charts.filename gives you table and column.
+#CHECK constraint failed: ck_trades_asset gives you the constraint name,
+# which is why naming your constraints pays off.
+#FOREIGN KEY constraint failed gives you nothing more,
+#so FK violations are best prevented by pre-checks
+#####
 
-#INTEGRITYERROR: FIRES WHEN A CONSTRAINT DEFINED IN SCHEMA.SQL IS VIOLATED. TABLE/COLUMN CONSTRAINTS VIOLATIONS.
-#EXAMPLES: FOREIGN KEY VIOLATION: INSERT INTO TRADE_PARAMETERS TABLE WITH A PARAMETER_ID THAT DOESN'T EXIST IN THE PARAMETERS TABLE.
-#EXAMPLES: VIOLATING JOINT PRIMARY KEY. INSERT A DUPLICATE (TRADE_ID, PARAMETER_ID) INTO TRADE_PARAMETERS JUNCTION TABLE.
+#SQLITE3 EXCEPTION CLASSES HIERARCHY
+#Exception as the base class.
+#Under the Exception base class, we have two child classes: Error and Warning.
+#Under the Error class, we have two child classes: DatabaseError and InterfaceError.
+#Under DatabaseError class, we have 6 child classes all inheriting from their parent, DatabaseError.
+#DataError, IntegrityError, InternalError, NotSupportedError, OperationalError, ProgrammingError.
 
-#OPERATIONALERROR - FIRES WITH A PROBLEM OF DATABASE OPERATION ITSELF AT RUNTIME. DATABASE FILE IS LOCKED BY ANOTHER PROCESS,
-#DISK IS FULL. EXAMPLE: YOU REFERENCE A TABLE NAME OR COLUMN NAME THAT DOESN'T EXIST DUE TO TYPING ERROR.
+# --------------------------------------------------------------------------
+#   PARENT BASE CLASS EXCEPTIONS FOR APP ERRORS
+# --------------------------------------------------------------------------
 
-#PROGRAMMINGERROR: FIRES WITH MISUSE OF THE API ITSELF.
-#EXAMPLE: WRONG NUMBER OF ? PLACEHOLDERS VERSUS PARAMS. 2 ? PLACEHOLDERS WITH 3 VALUE TUPLE OF PARAMS.
-#ERROR BINDING PARAMETER TYPE THAT IS NOT SUPPORTED.
+class KowalskiError(Exception):
+    """BASE CLASS FOR ALL APP EXCEPTIONS"""
 
-#DATAERROR: FIRES WITH PROBLEMS WITH THE DATA TYPE ITSELF RELATIVE TO WHAT THE COLUMN EXPECTS. RARE.
-#SQLITE DOESN'T STRICTLY ENFORCE DATA TYPES.
+# --------------------------------------------------------------------------
+#   CHILD CLASS EXCEPTIONS INHERITING FROM PARENT BASE CLASS
+# --------------------------------------------------------------------------
+class JournalingError(KowalskiError):
+    """EXCEPTION CLASS FOR JOURNAL WORKFLOW ERRORS"""
 
-#JOURNALING WORKFLOW DOMAIN ERRORS EXCEPTION CLASSES.
-class JournalingError(Exception):
-    """BASE CLASS FOR JOURNAL EXCEPTIONS"""
+class RepositoryError(KowalskiError):
+    """EXCEPTION CLASS FOR DATABASE QUERY EXCEPTIONS"""
 
+class InternalDomainError(KowalskiError):
+    """EXCEPTION CLASS FOR INTERNAL ERRORS LIKE RESOURCE RECORDING ERRORS"""
+
+# --------------------------------------------------------------------------
+#   JournalingError CLASS CHILD EXCEPTIONS FOR JOURNAL WORKFLOW EXCEPTIONS
+# --------------------------------------------------------------------------
 class TradeValidationError(JournalingError):
-    "EXCEPTION CLASS FOR VALIDATION ERROR"
-
-class TradeRecordingError(JournalingError):
-    """EXCEPTION CLASS FOR FAILED TRADE DATABASE SAVES."""
-
-class ChartUploadError(JournalingError):
-    """EXCEPTION CLASS FOR FAILED CHART UPLOADS TO CHARTS TABLE."""
+    """EXCEPTION CLASS FOR ALL DOMAIN VALIDATION ERRORS"""
 
 class GradingError(JournalingError):
     """EXCEPTION CLASS FOR HANDLING GRADING ERRORS."""
 
-class NotesRecordingError(JournalingError):
-    """EXCEPTION CLASS FOR FAILED TRADE NOTES DATABASE SAVES."""
+class ConflictError(JournalingError):
+    """EXCEPTION CLASS FOR JOURNAL WORKFLOW STATE CONFLICT ERRORS"""
 
-class InvalidTradeIDError(JournalingError):
-    """EXCEPTION CLASS FOR INVALID TRADEIDs"""
-
-class JournalEntryError(JournalingError):
-    "EXCEPTION CLASS FOR FAILED JOURNAL ENTRIES."
-
-class TradesNotFoundError(JournalingError):
-    "EXCEPTION CLASS FOR NO TRADES FOUND IN THE DATABASE"
-
-class AccountCreationError(JournalingError):
-    """EXCEPTION CLASS FOR FAILED DB ACCOUNT CREATION"""
-
-class AccountsNotFoundError(JournalingError):
-    """EXCEPTION CLASS FOR NO ACCOUNTS FOUND IN THE DATABASE"""
-
-class TradeAlreadyGradedError(JournalingError):
+class TradeAlreadyGradedError(ConflictError):
     """EXCEPTION CLASS FOR TRYING TO GRADE A GRADED TRADE"""
 
-class ParametersJunctionTableConflict(JournalingError):
+class ParametersConflictError(ConflictError):
     """EXCEPTION CLASS FOR JOINT PRIMARY KEY VIOLATION IN PARAMETERS TABLE"""
 
-class AccountNotFoundError(JournalingError):
-    """EXCEPTION CLASS FOR A MISSING ACCOUNT"""
+# --------------------------------------------------------------------------
+#   InternalDomainError CLASS CHILD EXCEPTIONS FOR RESOURCE UPLOAD ERRORS
+# --------------------------------------------------------------------------
 
-class TradeHasNoChartsError(JournalingError):  #super creative bro
-    """EXCEPTION CLASS FOR A TRADE WITH NO CHARTS ATTACHED"""
+class TradeRecordingError(InternalDomainError):
+    """EXCEPTION CLASS FOR TRADE RESOURCE UPLOAD ERRORS."""
 
-#SQLITE3 DATABASE DOMAIN ERRORS EXCEPTION CLASSES.
-#REVISIT WHY SQLITE3.DATABASEERRORS ARE NOT BEING CAUGHT.
-class DatabaseError(Exception):
-    """BASE CLASS FOR DATABASE EXCEPTIONS"""
+class ChartUploadError(InternalDomainError):
+    """EXCEPTION CLASS FOR CHARTS RESOURCE UPLOAD ERRORS."""
 
-class ConstraintViolationError(DatabaseError):
+class NotesRecordingError(InternalDomainError):
+    """EXCEPTION CLASS FOR NOTES RESOURCE UPLOAD ERRORS."""
+
+class JournalEntryError(InternalDomainError):
+    "EXCEPTION CLASS FOR JOURNAL ENTRY RESOURCE UPLOAD ERRORS."
+
+class AccountCreationError(InternalDomainError):
+    """EXCEPTION CLASS FOR ACCOUNTS RESOURCE CREATION ERRORS"""
+
+class ConstraintViolationError(InternalDomainError):
     """EXCEPTION CLASS FOR TABLE/COLUMN CONSTRAINTS VIOLATIONS"""
 
-class InvalidColumnNameError(DatabaseError):
-    """EXCEPTION CLASS FOR INVALID COLUMN NAME"""
+class ForeignKeyViolationError(ConstraintViolationError):
+    """EXCEPTION CLASS FOR FOREIGN KEY CONSTRAINT VIOLATION ERRORS"""
 
-class TradeNotFoundError(DatabaseError):
-    """EXCEPTION CLASS FOR INVALID TRADEID IDENTIFIER"""
+class UniqueViolationError(ConstraintViolationError):
+    """EXCEPTION CLASS FOR UNIQUE CONSTRAINT VIOLATION ERRORS"""
+    """this contains unique constraints for the UNIQUE column constraint
+    and the PRIMARY KEY unique column constraint"""
 
-class InvalidAccountError(DatabaseError):
-    """EXCEPTION CLASS FOR INVALID ACCOUNTID IDENTIFIER"""
+class CheckViolationError(ConstraintViolationError):
+    """EXCEPTION CLASS FOR CHECK CONSTRAINT VIOLATION ERRORS"""
+    """Domain enums for trade attributes like asset, direction, result
+    overall_trade_grade have CHECK constraints that validates that the input
+    values for these attributes are values that are members of the enums. If not
+    then a CHECK constraint violation occurs. Other CHECK constraints in the database include
+    entry_execution_points in entry_execution table must be integer values between 1 and 5
+    The entry_execution grade must be a value between A+ and F. These same CHECK constraints
+    apply for the trade_management table. Accounts table has a CHECK constraint that asserts that
+    account_type column must fall between three values of
+    'FUNDED CHALLENGE', 'FUNDED LIVE', 'PERSONAL LIVE'. Input values that don't match violates
+    the CHECK constraint causing a CheckViolationError."""
 
-class NotesNotFoundError(DatabaseError):
-    """NO AVAILABLE NOTES FOR THIS TRADE"""
+class NotNullViolationError(ConstraintViolationError):
+    """EXCEPTION CLASS FOR NOT NULL CONSTRAINT VIOLATION ERRORS."""
+    """this fires when the column value is required but the input was a None/NULL value"""
 
-class InvalidIdentifierError(DatabaseError):
-    """EXCEPTION CLASS FOR INVALID IDENTIFIERS"""
+# --------------------------------------------------------------------------
+#   RepositoryError CLASS CHILD EXCEPTIONS FOR RESOURCE QUERY ERRORS
+# --------------------------------------------------------------------------
+
+class NotFoundError(RepositoryError):
+    """EXCEPTION CLASS FOR A RESOURCE NOT FOUND IN THE DATABASE"""
+
+class TradeNotFoundError(NotFoundError):
+    """EXCEPTION CLASS FOR A TRADE NOT FOUND IN THE DATABASE"""
+
+class NotesNotFoundError(NotFoundError):
+    """EXCEPTION CLASS FOR NOTES NOT FOUND IN THE DATABASE"""
+
+class InvalidIdentifierError(NotFoundError):
+    """EXCEPTION CLASS FOR RESOURCES NOT FOUND DUE TO INVALID IDENTIFIERS"""
     """IDENTIFIERS INCLUDE ACCOUNTID, MANAGEMENTID, MODELID, ENTRY_EXECUTIONID"""
 
-class InvalidGradeError(DatabaseError):
-    """EXCEPTION CLASS FOR AN INVALID GRADE"""
-
-class InvalidAssetError(DatabaseError):
-    """EXCEPTION CLASS FOR AN INVALID ASSET"""
-
-class InvalidDirectionError(DatabaseError):
-    "EXCEPTION CLASS FOR AN INVALID DIRECTION STRING."
-
-class ChartsNotFoundError(DatabaseError):
-    """EXCEPTION CLASS FOR A TRADE WITH NO CHARTS ATTACHED"""
-
-class EmptyTradesTableError(DatabaseError):
-    """EXCEPTION CLASS FOR AN EMPTY TRADES TABLE IN THE DATABASE"""
-
-class EmptyAccountsTableError(DatabaseError):
-    """EXCEPTION CLASS FOR AN EMPTY ACCOUNTS TABLE IN THE DATABASE"""
+class ChartsNotFoundError(NotFoundError):
+    """EXCEPTION CLASS FOR CHARTS NOT FOUND IN THE DATABASE"""
