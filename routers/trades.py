@@ -1,10 +1,18 @@
-from fastapi import APIRouter, HTTPException, status, Response, UploadFile, File, Path
 from typing import Annotated, Any
+
+from fastapi import APIRouter, File, HTTPException, Path, Response, UploadFile, status
 
 import services as s
 from dependencies import JournalDep
-from schemas import ChangesResponse, NewChanges, NewTrade, TradeResponse, ChartOutcomeResponse, ChartsBatchResponse
 from models import ChartFile, ChartsBatchResult
+from schemas import (
+    ChangesResponse,
+    ChartOutcomeResponse,
+    ChartsBatchResponse,
+    NewChanges,
+    NewTrade,
+    TradeResponse,
+)
 
 router = APIRouter()
 MAX_CHART_BYTES = 10 * 1024 * 1024    #max chart size == 10MB
@@ -32,12 +40,12 @@ def create_new_trade(new_trade: NewTrade, journal: JournalDep):
     results = s.submit_trade(trade_details=trade_details, journal=journal)
 
     if not results.success:
-        if results.error_type.value == "INTERNAL":  # type: ignore
+        if results.error_type.value == "INTERNAL":  # pyright: ignore[reportOptionalMemberAccess]
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="TRADE NOT SAVED TO JOURNAL",
             )
-        elif results.error_type.value == "VALIDATION":  # type: ignore
+        elif results.error_type.value == "VALIDATION":  # pyright: ignore[reportOptionalMemberAccess]
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="TRADE VALIDATION FAILED. INVALID INPUT VALUES",
@@ -117,7 +125,9 @@ def upload_chart(
 
         files.append(ChartFile(name=upload.filename or "unnamed", content=upload.file.read()))
 
-    batch: ChartsBatchResult = s.submit_trade_charts(trade_charts={"trade_id": trade_id, "charts": files}, journal=journal)
+    batch: ChartsBatchResult = s.submit_trade_charts(
+        trade_charts={"trade_id": trade_id, "charts": files}, journal=journal
+    )
     response_body: ChartsBatchResponse = _to_response(trade_id=trade_id, batch=batch)
 
     if response_body.failed == 0:
@@ -139,38 +149,31 @@ def update_trade_field(trade_id: int, changes: NewChanges, journal: JournalDep):
     results = s.submit_amendment(trade_amendment=trade_changes, journal=journal)
 
     if not results.success:
-        if results.error_type.value == "NOT_FOUND":  # type: ignore
+        if results.error_type.value == "NOT_FOUND": # pyright: ignore[reportOptionalMemberAccess]
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="TRADE WITH THAT ID NOT FOUND!",
             )
 
-        if results.error_type.value == "INTERNAL":  # type: ignore
+        if results.error_type.value == "INTERNAL":  # pyright: ignore[reportOptionalMemberAccess]
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="DATABASE ERROR WHILE RECORDING TRADE CHANGES",
             )
 
-        if results.error_type.value == "VALIDATION":  # type: ignore
+        if results.error_type.value == "VALIDATION":  # pyright: ignore[reportOptionalMemberAccess]
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="TRADE VALIDATION FAILED. INVALID INPUT VALUES",
             )
 
-        if results.error_type.value == "CONFLICT":  # type: ignore
+        if results.error_type.value == "CONFLICT":  # pyright: ignore[reportOptionalMemberAccess]
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="RESTRICTED COLUMN NAME. COLUMN CAN'T BE CHANGED",
             )
 
-    return ChangesResponse(
-        trade_id=trade_id,
-        column_name=changes.column_name,
-        new_value=changes.new_value,
-        change_id=results.data.amendment_id,  # type: ignore
-        old_value=results.data.old_value,  # type: ignore
-        amended_at=results.data.amended_at,  # type: ignore
-    )
+    return trade_changes
 
 
 @router.delete(path="/{trade_id}", status_code=status.HTTP_204_NO_CONTENT)

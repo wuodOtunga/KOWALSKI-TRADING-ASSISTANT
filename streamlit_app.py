@@ -10,9 +10,9 @@ import pandas as pd
 import streamlit as st
 
 import services as s
-from repository import Repository
 from journal import Journal
 from models import TradeAsset, TradeDirection
+from repository import Repository
 from seed_data import (
     account_options,
     accounts_df,
@@ -27,7 +27,7 @@ from seed_data import (
     trade_management_options,
 )
 
-min_date = datetime(1990, 1, 1)
+min_date = datetime(year=1990, month=1, day=1)
 max_date: datetime = datetime.now()
 
 @st.cache_resource
@@ -77,7 +77,7 @@ def main():
         kowalski._render_position_sizing_form()
 
 class Kowalski:
-    def __init__(self, journal: Journal):
+    def __init__(self, journal: Journal):  # noqa: PLR0912, PLR0915
         self.journal = journal
 
         if "trade_details" not in st.session_state:
@@ -187,7 +187,9 @@ class Kowalski:
 
             st.number_input("POSITION SIZE", min_value=0.01, value=None, key= "position_size")
             st.selectbox("ASSET", list(TradeAsset), index=None, format_func=lambda a: a.value, key= "asset")
-            st.radio("DIRECTION", list(TradeDirection), index=None, format_func=lambda d: d.value, key= "direction")
+            st.radio(
+                "DIRECTION", list(TradeDirection), index=None, format_func=lambda d: d.value, key= "direction"
+            )
 
             st.time_input("ENTRY TIME", value=None, key= "entry_time")
             st.time_input("EXIT TIME", value=None, key= "exit_time")
@@ -199,7 +201,8 @@ class Kowalski:
                          format_func= lambda x: account_options[x], key= "account_id")
             st.selectbox(label= "MANAGEMENT ID", options= list(trade_management_options.keys()), index=None,
                          format_func= lambda x: trade_management_options[x], key= "management_id")
-            st.selectbox(label= "ENTRY EXECUTION ID", options= list(entry_execution_options.keys()), index=None,
+            st.selectbox(label= "ENTRY EXECUTION ID", options= list(entry_execution_options.keys()),
+                         index=None,
                          format_func= lambda x: entry_execution_options[x], key= "entry_execution_id")
 
             submit = st.form_submit_button(label="SUBMIT")
@@ -239,7 +242,7 @@ class Kowalski:
                     if st.session_state.last_trade_result and st.session_state.last_trade_result.success:
                         st.write("### RECORDED TRADE")
                         trade = st.session_state.last_trade_result.data
-                        for field, value in asdict(trade).items(): # type: ignore
+                        for field, value in asdict(trade).items(): # pyright: ignore[reportArgumentType]
                             st.write(f"{field} : {value}")
 
 
@@ -247,10 +250,18 @@ class Kowalski:
         st.header("TRADE NOTES ENTRY FORM")
         with st.form("TRADE NOTES", enter_to_submit=False):
             st.number_input("TRADE ID", value= None, key= "tradingID")
-            st.text_area("EMOTIONS DURING TRADE", key="emotions", placeholder="eg., Anxious at entry, confident during move.")
-            st.text_area("MISTAKES MADE", key="mistakes", placeholder="eg., Entered too early, added to loosers.")
+            st.text_area(
+                "EMOTIONS DURING TRADE", key="emotions",
+                placeholder="eg., Anxious at entry, confident during move."
+            )
+            st.text_area(
+                "MISTAKES MADE", key="mistakes", placeholder="eg., Entered too early, added to loosers."
+            )
             st.text_area("LESSONS LEARNT", key="lessons", placeholder="eg., Follow the trading model.")
-            st.text_area("GENERAL NOTES", key="general_notes", placeholder="Notes on trade grade, trade execution and management, etc")
+            st.text_area(
+                "GENERAL NOTES", key="general_notes",
+                placeholder="Notes on trade grade, trade execution and management, etc"
+            )
 
             submit = st.form_submit_button(label="SUBMIT")
             if submit:
@@ -277,10 +288,10 @@ class Kowalski:
                         st.session_state.last_trade_notes_results = results
                         st.error(results.message)
 
-                    if st.session_state.last_trade_notes_results and st.session_state.last_trade_notes_results.success:
+                    if st.session_state.last_trade_notes_results and st.session_state.last_trade_notes_results.success:  # noqa: E501
                         st.write("### RECORDED TRADE NOTES")
                         trading_notes = st.session_state.last_trade_notes_results.data
-                        for field, value in asdict(trading_notes).items(): # type: ignore
+                        for field, value in asdict(trading_notes).items(): # pyright: ignore[reportArgumentType]
                             st.write(f"{field}: {value}")
 
     def _render_trade_parameters_form(self):
@@ -309,17 +320,19 @@ class Kowalski:
                     st.error(results.message)
 
                 #DISPLAY THE GRADED TRADE BACK TO THE TRADER.
-                if st.session_state.last_parameters_results and st.session_state.last_parameters_results.success:
+                if st.session_state.last_parameters_results and st.session_state.last_parameters_results.success:  # noqa: E501
                     st.write(f"GRADED TRADE WITH ID OF {st.session_state.trade_identifier}")
                     trade = st.session_state.last_parameters_results.data
-                    for field, value in asdict(trade).items(): # type: ignore
+                    for field, value in asdict(trade).items(): # pyright: ignore[reportArgumentType]
                         st.write(f"{field}: {value}")
 
     def _render_trade_charts_form(self):
         st.header("TRADING CHARTS UPLOAD")
         with st.form("TRADING CHARTS", enter_to_submit=False):
             st.number_input("TRADING ID", value= None, key= "charting_id")
-            st.file_uploader("UPLOAD TRADING CHARTS", type=["png", "jpg", "jpeg"], key="charts", accept_multiple_files=True)
+            st.file_uploader(
+                "UPLOAD TRADING CHARTS", type=["png", "jpg", "jpeg"], key="charts", accept_multiple_files=True
+            )
 
             submit = st.form_submit_button(label="SUBMIT")
             if submit:
@@ -359,7 +372,9 @@ class Kowalski:
                     "new_value": st.session_state.new_value,
                 }
                 st.session_state.trade_amendment = trade_amendment
-                empty_values = [key for key, value in st.session_state.trade_amendment.items() if value is None]
+                empty_values: list[str] = [
+                    key for key, value in st.session_state.trade_amendment.items() if value is None
+                ]
                 if empty_values:
                     st.warning(f"Please fill in all the values: {','.join(empty_values)}")
                 else:
@@ -393,7 +408,7 @@ class Kowalski:
 
         if st.session_state.last_view_trade_results and st.session_state.last_view_trade_results.success:
             trade = st.session_state.last_view_trade_results.data
-            st.table(pd.DataFrame(asdict(trade), index=["info"])) # type: ignore
+            st.table(pd.DataFrame(asdict(trade), index=["info"])) # pyright: ignore[reportArgumentType]
 
     def _render_all_trades_table(self):
         st.subheader("RECORD OF ALL TRADES")
@@ -409,7 +424,7 @@ class Kowalski:
 
             if st.session_state.all_trades_results and st.session_state.all_trades_results.success:
                 trades = st.session_state.all_trades_results.data
-                st.table(pd.DataFrame(trades)) # type: ignore
+                st.table(pd.DataFrame(trades)) # pyright: ignore[reportArgumentType]
 
     def _render_journal_entry_data(self):
         st.subheader("VIEW JOURNAL ENTRY")
@@ -437,20 +452,20 @@ class Kowalski:
             st.divider()
 
             st.subheader("TRADE DETAILS INFO")
-            st.table(pd.DataFrame(asdict(journal_entry.trade), index= ["info"])) # type: ignore
+            st.table(pd.DataFrame(asdict(journal_entry.trade), index= ["info"])) # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
             st.divider()
 
             st.subheader("CHARTS ATTACHED TO THE TRADE")
-            for chart in journal_entry.charts: # type: ignore
+            for chart in journal_entry.charts: # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
                 st.image(image= chart.filepath, caption= chart.filename)
             st.divider()
 
             st.subheader("NOTES REGARDING THE TRADE")
-            st.table(pd.DataFrame(asdict(journal_entry.trade_notes), index= ["info"])) # type: ignore
+            st.table(pd.DataFrame(asdict(journal_entry.trade_notes), index= ["info"])) # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
             st.divider()
 
             st.subheader("TRADE PARAMETERS PRESENT")
-            for parameter in journal_entry.parameter_names: # type: ignore
+            for parameter in journal_entry.parameter_names: # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
                 st.write(parameter)
 
     def _render_account_creation_form(self):
@@ -458,7 +473,10 @@ class Kowalski:
 
         with st.form("ACCOUNT CREATION", clear_on_submit= True, enter_to_submit= False):
             st.text_input("ACCOUNT NAME", value= None, key= "account_name")
-            st.selectbox("ACCOUNT TYPE", ['FUNDED CHALLENGE', 'FUNDED LIVE', 'PERSONAL LIVE', 'DEMO ACCOUNT'], index= None, key= "account_type")
+            st.selectbox(
+                "ACCOUNT TYPE", ['FUNDED CHALLENGE', 'FUNDED LIVE', 'PERSONAL LIVE', 'DEMO ACCOUNT'],
+                index= None, key= "account_type"
+            )
             st.text_input("BROKER NAME", value= None, key= "broker_name")
             st.number_input("STARTING BALANCE", value= None, key= "starting_balance")
             st.radio("IS_ACTIVE", options= [True, False], index= None, key= "is_active")
@@ -490,7 +508,7 @@ class Kowalski:
         st.subheader("### REGISTERED ACCOUNT INFO")
         if st.session_state.account_info_results and st.session_state.account_info_results.success:
             account = st.session_state.account_info_results.data
-            for key, value in asdict(account).items(): # type: ignore
+            for key, value in asdict(account).items(): # pyright: ignore[reportArgumentType]
                 st.write(f"{key}: {value}")
 
     def _render_available_accounts_table(self):
@@ -506,10 +524,10 @@ class Kowalski:
             else:
                 st.error(results.message)
 
-            if st.session_state.available_accounts_results and st.session_state.available_accounts_results.success:
+            if st.session_state.available_accounts_results and st.session_state.available_accounts_results.success:  # noqa: E501
                 accounts = st.session_state.available_accounts_results.data
 
-                st.table(pd.DataFrame(accounts)) # type: ignore
+                st.table(pd.DataFrame(accounts)) # pyright: ignore[reportArgumentType]
 
     #THINK ABOUT WHETHER YOU ACTUALLY WANT CLEAR_ON_SUBMIT PARAMETER.
     #IN PRACTICE, I REALIZED THAT I WANT THE VALUES TO BE DISPLAYED.
@@ -521,8 +539,14 @@ class Kowalski:
             st.number_input("EXIT PRICE", value= None, key= "closing_price")
             st.number_input("STOP LOSS", value= None, key= "loss_price")
             st.number_input("TAKE PROFIT", value= None, key= "profit_price")
-            st.radio("ASSET", options= list(TradeAsset), index= None, format_func= lambda a: a.value, key= "instrument")
-            st.radio("DIRECTION", options= list(TradeDirection), index= None, format_func= lambda d: d.value, key= "trade_direction")
+            st.radio(
+                "ASSET", options= list(TradeAsset), index= None,
+                format_func= lambda a: a.value, key= "instrument"
+            )
+            st.radio(
+                "DIRECTION", options= list(TradeDirection), index= None,
+                format_func= lambda d: d.value, key= "trade_direction"
+            )
             st.number_input("POSITION SIZE", value= None, key= "lot_size")
             st.number_input("ACCOUNT BALANCE", value= None, key= "balance")
 
@@ -556,19 +580,21 @@ class Kowalski:
             st.subheader("CALCULATOR TRADE METRICS RESULTS")
             st.divider()
             st.write("PROFIT AND LOSS METRICS FOR THE TRADE SETUP")
-            for key, value in profit_loss.items(): # type: ignore
+            for key, value in profit_loss.items(): # pyright: ignore[reportOptionalMemberAccess]
                 st.write(f"{key}: {value}")
 
             st.divider()
             st.write("RISK-REWARD METRICS FOR THE TRADE SETUP")
-            for key, value in risk_reward.items(): # type: ignore
+            for key, value in risk_reward.items(): # pyright: ignore[reportOptionalMemberAccess]
                 st.write(f"{key}: {value}")
 
     def _render_position_sizing_form(self):
         with st.form("POSITION SIZE", enter_to_submit= False):
             st.number_input("ENTRY PRICE", value= None, key= "potential_entry")
             st.number_input("STOP LOSS", value= None, key= "potential_exit")
-            st.radio("ASSET", options= list(TradeAsset), index= None, format_func= lambda a: a.value, key= "symbol")
+            st.radio(
+                "ASSET", options= list(TradeAsset), index= None, format_func= lambda a: a.value, key= "symbol"
+            )
             st.number_input("ACCOUNT BALANCE", value= None, key= "available_balance")
             st.number_input("RISK PERCENT", value= None, key= "allowed_risk")
 
@@ -600,7 +626,7 @@ class Kowalski:
     def _render_landing_page(self):
         pass
 
-    def _render_widgets(self):
+    def _render_widgets(self):  # noqa: PLR0912, PLR0915
         st.title("KOWALSKI TRADING JOURNAL")
 
         st.sidebar.title("NAVIGATION")

@@ -38,13 +38,20 @@ class TradeModel(Base):
     take_profit: Mapped[float] = mapped_column(nullable=False)
     stop_loss: Mapped[float] = mapped_column(nullable=False)
     position_size: Mapped[float] = mapped_column(nullable=False)
-    entry_time: Mapped[time] = mapped_column(Time, nullable=False)  # FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
-    exit_time: Mapped[time] = mapped_column(Time, nullable=False)  # FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
-    date: Mapped[date] = mapped_column(Date, nullable=False)  # FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
+    #FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
+    entry_time: Mapped[time] = mapped_column(Time, nullable=False)
+    #FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
+    exit_time: Mapped[time] = mapped_column(Time, nullable=False)
+    #FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
+    date: Mapped[date] = mapped_column(Date, nullable=False)
     model_id: Mapped[int] = mapped_column(ForeignKey("models.model_id"), nullable=False)
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.account_id"), nullable=False)
-    management_id: Mapped[int] = mapped_column(ForeignKey("trade_management.management_id"), nullable=False)
-    entry_execution_id: Mapped[int] = mapped_column(ForeignKey("entry_execution.entry_execution_id"), nullable=False)
+    management_id: Mapped[int] = mapped_column(
+        ForeignKey("trade_management.management_id"), nullable=False
+    )
+    entry_execution_id: Mapped[int] = mapped_column(
+        ForeignKey("entry_execution.entry_execution_id"), nullable=False
+    )
     asset: Mapped[TradeAsset] = mapped_column(
         Enum(
             TradeAsset,
@@ -73,7 +80,7 @@ class TradeModel(Base):
             values_callable=lambda r: [i.value for i in r],
             native_enum=False,
             check_constraint=True,
-            name="ck_trades_direction",
+            name="ck_trades_result",
         )
     )
     rr_multiple: Mapped[float | None]
@@ -111,7 +118,7 @@ class Models(Base):
     trades: Mapped[list[TradeModel]] = relationship(back_populates="model")
 
     def __repr__(self) -> str:
-        return f"Models(model_id={self.model_id!r}, model_name={self.model_name!r}, description={self.description!r})"
+        return f"Models(model_id={self.model_id!r}, model_name={self.model_name!r}, description={self.description!r})"  # noqa: E501
 
 
 class EntryExecutionModel(Base):

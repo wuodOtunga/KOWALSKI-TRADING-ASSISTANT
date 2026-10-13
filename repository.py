@@ -59,18 +59,18 @@ T = TypeVar("T")
 
 #ContextVar for context variables.
 #Think of it as a variable whose value depends on who is asking.
-#For the app, one request’s chain router → services → journal → repository runs in a single worker thread.
+#For the app, one requests chain router → services → journal → repository runs in a single worker thread.
 #So when Journal calls self.db.transaction() and sets the variable,
 #every repository method deeper in that chain reads the same session.
 #A different request in another thread reads its own value.
-#The variable gives you a “current transaction” that doesn’t have to be passed as an argument.
+#The variable gives you a “current transaction” that doesnt have to be passed as an argument.
 
 #ADDITIONAL INFO: PROCESS VERSUS THREAD.
-#A process is a running program with its own private memory. Two processes can’t see each other’s variables.
+#A process is a running program with its own private memory. Two processes cant see each others variable.
 #If they need to share data, they go through a file, a socket, or a database.
 #A thread is a separate line of execution inside one process.
 #Threads share the same memory, so they can all see the same variables, objects, and connections.
-#That’s useful, but it’s also the source of the danger.
+#That’s useful, but it’s also the source of the danger.     # noqa: RUF003
 #Analogy: a process is a separate kitchen with its own pantry.
 #Threads are several cooks in one kitchen sharing the same pantry.
 #Cooks work faster together, but two cooks grabbing the same bowl at once is a problem.
@@ -135,7 +135,7 @@ def create_database_engine(url: str | URL = SQLALCHEMY_DATABASE_URL, *, echo: bo
 def _to_domain[T](cls: type[T], row: Any) -> T:
     """MAPS THE ORM ROW OBJECTS TO DOMAIN DATACLASS OBJECTS"""
 
-    return cls(**{f.name: getattr(row, f.name) for f in fields(class_or_instance=cls)})  # type: ignore  # noqa: PGH003
+    return cls(**{f.name: getattr(row, f.name) for f in fields(class_or_instance=cls)}) # pyright: ignore[reportArgumentType]
 
 def _field_values(obj: Any, exclude: Iterable[str] = ()) -> dict[str, Any]:
     """DATACLASS TO KWARGS DICTS FOR ORM CONSTRUCTOR"""
@@ -324,7 +324,7 @@ class Repository:
         #If the body raises, Python re-raises the exception at the yield line.
         #That is why a try/except wrapped around the yield can catch errors from the body.
         #The except clauses in _transaction() work this way:
-        #they catch anything thrown inside the caller’s with block and translate it.
+        #they catch anything thrown inside the caller’s with block and translate it.  # noqa: RUF003
         #The rule is that the generator must yield exactly once. Every code path through it reaches one yield.
 
         #check whether a transaction is open.
@@ -432,7 +432,7 @@ class Repository:
         #ForeignKeyViolation == trade_id
         #NotNullViolation == all columns
         with self._transaction() as session:
-            _ensure_trade_exists(notes.trade_id, session) # type: ignore  # noqa: PGH003
+            _ensure_trade_exists(notes.trade_id, session) # pyright: ignore[reportArgumentType]
             session.add(TradeNotesModel(**_field_values(notes)))
             session.flush()
 
@@ -450,7 +450,7 @@ class Repository:
         an upsert makes the method idempotent. making calls, same database state"""
 
         with self._transaction() as session:
-            _ensure_trade_exists(new_notes.trade_id, session) # type: ignore  # noqa: PGH003
+            _ensure_trade_exists(new_notes.trade_id, session) # pyright: ignore[reportArgumentType]
 
             row: TradeNotesModel | None = session.get(TradeNotesModel, new_notes.trade_id)
             if row is None:
@@ -541,7 +541,7 @@ class Repository:
                 )
             )
 
-            return float(starting_balance + pnl)  # type: ignore  # noqa: PGH003
+            return float(starting_balance + pnl) # pyright: ignore[reportOperatorIssue]
 
     def delete_account_from_db(self, account_id: int) -> None:
         """DELETE ACCOUNT DETAILS FROM THE ACCOUNTS TABLE"""
@@ -687,7 +687,7 @@ class Repository:
         """trade_management points is used in the grading logic of individual trades"""
 
         with self._transaction() as session:
-            points = session.execute(
+            points: int | None = session.execute(
                 select(TradeManagementModel.points).where(
                     TradeManagementModel.management_id == management_id
                 )

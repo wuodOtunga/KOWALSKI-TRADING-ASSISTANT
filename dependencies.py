@@ -3,8 +3,8 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from repository import Repository
 from journal import Journal
+from repository import Repository
 
 
 @lru_cache

@@ -14,7 +14,7 @@ router = APIRouter()
 def create_account(account: NewAccount, journal: JournalDep):
 
     account_details: dict = account.model_dump()
-    results = s.create_trading_account(account_info= account_details, journal= journal)
+    results: s.ServiceResult = s.create_trading_account(account_info= account_details, journal= journal)
 
     if not results.success:
         raise HTTPException(
@@ -27,7 +27,7 @@ def create_account(account: NewAccount, journal: JournalDep):
 @router.get(path= "", response_model= list[AccountResponse])
 def get_accounts(journal: JournalDep):
 
-    results = s.view_trading_accounts(journal= journal)
+    results: s.ServiceResult = s.view_trading_accounts(journal= journal)
     if not results.success:
         raise HTTPException(
             status_code= status.HTTP_404_NOT_FOUND,
@@ -39,6 +39,6 @@ def get_accounts(journal: JournalDep):
 @router.delete(path="/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_account(account_id: int, journal: JournalDep):
 
-    results = s.delete_account_info(account_id= account_id, journal= journal)
+    results: s.ServiceResult = s.delete_account_info(account_id= account_id, journal= journal)
     if not results.success:
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="ACCOUNT WITH THAT ID NOT FOUND!")

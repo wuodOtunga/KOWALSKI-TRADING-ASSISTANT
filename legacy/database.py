@@ -1,6 +1,7 @@
 import os
 import sqlite3
 from datetime import datetime, timedelta
+from typing import Any
 
 import exceptions as t
 from models import (
@@ -39,7 +40,7 @@ class Database:
         """CONNECTS TO THE DATABASE FILE"""
 
         self.db_path = db_path
-        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self.conn = sqlite3.connect(database=self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         cursor = self.conn.cursor()
         cursor.execute("PRAGMA foreign_keys = ON")
@@ -63,12 +64,16 @@ class Database:
         cursor.execute("SELECT COUNT(*) FROM entry_execution")
         if cursor.fetchone()[0] == 0:
             cursor.executemany(
-                "INSERT INTO entry_execution (archetype, description, points, grade) VALUES (?, ?, ?, ?)", entry_execution
+                "INSERT INTO entry_execution (archetype, description, points, grade) VALUES (?, ?, ?, ?)",
+                entry_execution
             )
 
         cursor.execute("SELECT COUNT(*) FROM trade_management")
         if cursor.fetchone()[0] == 0:
-            cursor.executemany("INSERT INTO trade_management (archetype, description, points, grade) VALUES (?, ?, ?, ?)", trade_management)
+            cursor.executemany(
+                "INSERT INTO trade_management (archetype, description, points, grade) VALUES (?, ?, ?, ?)",
+                trade_management
+            )
 
         cursor.execute("SELECT COUNT(*) FROM parameters")
         if cursor.fetchone()[0] == 0:
@@ -76,7 +81,11 @@ class Database:
 
         cursor.execute("SELECT COUNT(*) FROM accounts")
         if cursor.fetchone()[0] == 0:
-            cursor.executemany("INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES (?, ?, ?, ?, ?)", accounts)
+            cursor.executemany(
+                "INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active)" \
+                "VALUES (?, ?, ?, ?, ?)",
+                accounts
+            )
 
         self.conn.commit()
 
@@ -124,18 +133,23 @@ class Database:
         #I PASSED TRADE_ID AS A PARAMETER INSTEAD OF A ONE ELEMENT TUPLE LIKE SO (TRADE_ID,)
         #DATABASE IS CURRENTLY LOCKED. FIND OUT WHAT CAUSES THIS AND A FIX.
         try:
-            cursor.execute("INSERT INTO trades (entry_price, exit_price, take_profit, stop_loss, position_size, entry_time, exit_time," \
-            "date, model_id, account_id, management_id, entry_execution_id, asset, direction, dollar_amount, duration, result, rr_multiple,\
-            risk_percent, overall_trade_grade) VALUES"
+            cursor.execute(
+            "INSERT INTO trades" \
+            "(entry_price, exit_price, take_profit, stop_loss, position_size, entry_time, exit_time,"
+            "date, model_id, account_id, management_id, entry_execution_id, asset, direction, dollar_amount,"
+            "duration, result, rr_multiple, risk_percent, overall_trade_grade) VALUES"
             "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (trade.entry_price, trade.exit_price, trade.take_profit, trade.stop_loss, trade.position_size,
-             trade.entry_time.strftime("%I:%M %p"), trade.exit_time.strftime("%I:%M %p"), trade.date.isoformat(), trade.model_id,
-            trade.account_id, trade.management_id, trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
-            trade.duration.total_seconds(), trade.result, trade.rr_multiple, trade.risk_percent, trade.overall_trade_grade)) # type: ignore
+             trade.entry_time.strftime("%I:%M %p"), trade.exit_time.strftime("%I:%M %p"),
+             trade.date.isoformat(), trade.model_id, trade.account_id, trade.management_id,
+             trade.entry_execution_id, trade.asset, trade.direction, trade.dollar_amount,
+            trade.duration.total_seconds(), trade.result, trade.rr_multiple, # pyright: ignore[reportOptionalMemberAccess]
+            trade.risk_percent, trade.overall_trade_grade))
         except sqlite3.IntegrityError as e:
-            raise t.ConstraintViolationError(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
+            raise t.ConstraintViolationError(
+                f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
-        return cursor.lastrowid # type: ignore
+        return cursor.lastrowid # pyright: ignore[reportReturnType]
 
     def get_by_id(self, trade_id: int) -> Trade:
         """GET TRADE DETAILS BY ID FROM DATABASE"""
@@ -147,11 +161,8 @@ class Database:
         if row is None:
             raise t.TradeNotFoundError(f"TRADEID {trade_id} NOT FOUND.")
 
-    #WE ARE IGNORING THE NOQA: DTZ007 BECAUSE WE DON'T NEED TIMEZONE INFO.
-    #NAIVE DATETIME OBJECTS ARE FINE FOR NOW, MIGHT CHANGE LATER IF WE NEED
-    #FUNCTIONALITY FOR TIMEZONES.
-        row_dict = dict(row)
-        trade = self._row_to_trade(row_dict)
+        row_dict: dict[Any, Any] = dict(row)
+        trade: Trade = self._row_to_trade(row_dict)
         return trade
 
     def get_all_trade_rows(self) -> list[Trade]:
@@ -176,7 +187,9 @@ class Database:
             raise t.GradingError(f"{overall_trade_grade} IS INVALID.")
 
         cursor = self.conn.cursor()
-        cursor.execute("UPDATE trades SET overall_trade_grade = ? WHERE trade_id = ?", (overall_trade_grade, trade_id))
+        cursor.execute(
+            "UPDATE trades SET overall_trade_grade = ? WHERE trade_id = ?", (overall_trade_grade, trade_id)
+        )
         if cursor.rowcount == 0:
             raise t.TradeNotFoundError(f"TRADE_ID {trade_id} NOT FOUND.")
 
@@ -184,7 +197,8 @@ class Database:
     def update_trade_field(self, trade_id: int, column: str, value) -> None:
         """UPDATES A DYNAMIC TRADE COLUMN BASED ON TRADER PREFERENCE"""
 
-        sql = f"UPDATE trades SET {column} = ? WHERE trade_id = ?"
+        #POSSIBLE SQL INJECTION VECTOR IS PROTECTED BY THE CALLER
+        sql = f"UPDATE trades SET {column} = ? WHERE trade_id = ?"  # noqa: S608
         cursor = self.conn.cursor()
         cursor.execute(sql, (value, trade_id))
         if cursor.rowcount == 0:
@@ -207,12 +221,13 @@ class Database:
 
         cursor = self.conn.cursor()
         try:
-            cursor.execute("INSERT INTO charts (trade_id, filepath, filename, upload_date) VALUES (?, ?, ?, ?)",
-                            (chart.trade_id, chart.filepath, chart.filename, chart.upload_date))
+            cursor.execute(
+                "INSERT INTO charts (trade_id, filepath, filename, upload_date) VALUES (?, ?, ?, ?)",
+                (chart.trade_id, chart.filepath, chart.filename, chart.upload_date))
         except sqlite3.IntegrityError as e:
             raise t.ConstraintViolationError(f"CHECK FOR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
-        return cursor.lastrowid # type: ignore
+        return cursor.lastrowid # pyright: ignore[reportReturnType]
 
     def add_trade_notes(self, trade_notes: TradeNotes) -> None:
         """ATTACH TRADE NOTES TO DATABASE"""
@@ -220,12 +235,15 @@ class Database:
         """ARGS: trade_id IDENTIFIER, TRADENOTE OBJECT"""
 
         #check for validity of the trade_id FK and rule out FK constraint violation error.
-        self._ensure_trade_exists(trade_notes.trade_id) # type: ignore
+        self._ensure_trade_exists(trade_notes.trade_id) # pyright: ignore[reportArgumentType]
 
         cursor = self.conn.cursor()
         try:
-            cursor.execute("INSERT INTO trade_notes (trade_id, emotions, mistakes, lessons, general_notes) VALUES" \
-            "(?, ?, ?, ?, ?)", (trade_notes.trade_id, trade_notes.emotions, trade_notes.mistakes, trade_notes.lessons, trade_notes.general_notes))
+            cursor.execute(
+                "INSERT INTO trade_notes (trade_id, emotions, mistakes, lessons, general_notes) VALUES" \
+            "(?, ?, ?, ?, ?)",
+            (trade_notes.trade_id, trade_notes.emotions, trade_notes.mistakes,
+             trade_notes.lessons, trade_notes.general_notes))
         except sqlite3.IntegrityError as e:
             raise t.ConstraintViolationError(f"CHECK FOR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
@@ -241,7 +259,8 @@ class Database:
             WHERE trade_id = ?
             (?, ?, ?, ?, ?)
             """,
-            (trade_notes.emotions, trade_notes.mistakes, trade_notes.lessons, trade_notes.general_notes, trade_notes.trade_id)
+            (trade_notes.emotions, trade_notes.mistakes, trade_notes.lessons,
+             trade_notes.general_notes, trade_notes.trade_id)
         )
         if cursor.rowcount == 0:
             raise t.TradeNotFoundError("TRADE_ID IS INVALID. NO TRADE MATCHES")
@@ -251,12 +270,15 @@ class Database:
 
         cursor = self.conn.cursor()
         try:
-            cursor.execute("INSERT INTO trade_amendments (trade_id, column_name, old_value, new_value, amended_at) VALUES " \
-            "(?, ?, ?, ?, ?)", (trade_id, amendment.column_name, amendment.old_value, amendment.new_value, amendment.amended_at))
+            cursor.execute(
+            "INSERT INTO trade_amendments (trade_id, column_name, old_value, new_value, amended_at) VALUES " \
+            "(?, ?, ?, ?, ?)",
+            (trade_id, amendment.column_name, amendment.old_value, amendment.new_value, amendment.amended_at))
         except sqlite3.IntegrityError as e:
-            raise t.ConstraintViolationError(f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
+            raise t.ConstraintViolationError(
+                f"CHECK FOR FOREIGN KEY VIOLATION OR COLUMN CONSTRAINT VIOLATION: {e}.") from e
 
-        return cursor.lastrowid # type: ignore
+        return cursor.lastrowid # pyright: ignore[reportReturnType]
 
     def get_entry_execution_points(self, entry_execution_id: int) -> int:
         """GET ENTRY EXECUTION POINTS FROM DATABASE"""
@@ -264,7 +286,9 @@ class Database:
         """RETURNS AN INT AS NUMBER OF POINTS SCORED BY TRADE"""
 
         cursor = self.conn.cursor()
-        cursor.execute("SELECT points FROM entry_execution WHERE entry_execution_id = ?", (entry_execution_id,))
+        cursor.execute(
+            "SELECT points FROM entry_execution WHERE entry_execution_id = ?", (entry_execution_id,)
+        )
         row = cursor.fetchone()
         if row is None:
             raise t.InvalidIdentifierError(f"ENTRY EXECUTION ID {entry_execution_id} NOT FOUND.")
@@ -288,9 +312,12 @@ class Database:
         """POPULATES THE TRADE_PARAMETERS JUNCTION TABLE."""
         """ARGS: TRADE_ID, PARAMETER_ID: JOINT PRIMARY KEY"""
 
-        cursor = self.conn.cursor()
+        cursor: sqlite3.Cursor = self.conn.cursor()
         try:
-            cursor.execute("INSERT INTO trade_parameters (trade_id, parameter_id) VALUES (?, ?)", (trade_id, parameter_id))
+            cursor.execute(
+                "INSERT INTO trade_parameters (trade_id, parameter_id) VALUES (?, ?)",
+                (trade_id, parameter_id)
+            )
         except sqlite3.IntegrityError as e:
             raise t.ConstraintViolationError(f"CAN'T LINK {trade_id} TO {parameter_id} : {e}") from e
 
@@ -319,8 +346,11 @@ class Database:
 
         cursor = self.conn.cursor()
         try:
-            cursor.execute("INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES" \
-            "(?, ?, ?, ?, ?)", (account.account_name, account.account_type, account.broker, account.starting_balance, account.is_active))
+            cursor.execute(
+            "INSERT INTO accounts (account_name, account_type, broker, starting_balance, is_active) VALUES" \
+            "(?, ?, ?, ?, ?)",
+            (account.account_name, account.account_type, account.broker,
+             account.starting_balance, account.is_active))
         except sqlite3.IntegrityError as e:
             raise t.ConstraintViolationError(f"CHECK FOR COLUMN CONSTRAINT VIOLATION: {e}") from e
 
@@ -375,7 +405,9 @@ class Database:
         row = cursor.fetchone()
         starting_balance = row["starting_balance"]
 
-        cursor.execute("SELECT COALESCE(SUM(DOLLAR_AMOUNT), 0) FROM trades WHERE account_id = ?", (account_id,))
+        cursor.execute(
+            "SELECT COALESCE(SUM(DOLLAR_AMOUNT), 0) FROM trades WHERE account_id = ?", (account_id,)
+        )
         total_pnl = cursor.fetchone()[0]
 
         return starting_balance + total_pnl

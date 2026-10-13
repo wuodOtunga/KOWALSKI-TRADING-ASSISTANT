@@ -9,7 +9,7 @@ from starlette.templating import _TemplateResponse
 import services as s
 from dependencies import JournalDep
 from routers import accounts, notes, parameters, trades, trading_models
-from schemas import TradeResponse, JournalEntry
+from schemas import TradeResponse
 
 #HTTP REQUEST IN -> API.PY CALLS A SERVICES.PY FUNCTION -> SERVICERESULT OUT -> HTTP RESPONSE OUT!
 #METHOD + PATH + REQUEST SHAPE + RESPONSE SHAPE + FAILURE MODE TO STATUS CODE MAPPING
@@ -33,8 +33,8 @@ app.include_router(router=trading_models.router, prefix="/api/static_models", ta
 
 
 #HTML PAGE ROUTES FOR RENDERING PROPER HTML FOR BROWSER CONSUMER
-#SET UP HREF PAGE LINKS TO INDIVIDUAL PAGES FROM HOME.LAYOUT USING URL_FOR("trade_page", trade_id=trade.trade_id)
-#ASK CLAUDE WHY WE NEED BOTH FROM FASTAPI.EXCEPTIONS IMPORT HTTPEXCEPTIONS AND ALSO FROM STARLETTE.EXCEPTIONS IMPORT HTTPEXCEPTIONS
+#SET UP HREF PAGE LINKS TO INDIVIDUAL PAGES FROM HOME.LAYOUT
+#USING URL_FOR("trade_page", trade_id=trade.trade_id)
 @app.get(path="/", include_in_schema=False)
 def home(request: Request) -> _TemplateResponse:
     return templates.TemplateResponse(request= request, name="index.html")
@@ -47,9 +47,11 @@ def trades_page(request: Request, journal: JournalDep) -> _TemplateResponse:
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail= "NO TRADES FOUND!")
 
     trades = results.data
-    trade_responses = [TradeResponse.model_validate(trade, from_attributes=True) for trade in trades] # type: ignore
+    trade_responses = [TradeResponse.model_validate(trade, from_attributes=True) for trade in trades] # pyright: ignore[reportGeneralTypeIssues, reportOptionalIterable]
 
-    return templates.TemplateResponse(request= request, name="trades_list.html", context={"trades": trade_responses})
+    return templates.TemplateResponse(
+        request= request, name="trades_list.html", context={"trades": trade_responses}
+    )
 
 
 @app.get(path="/trades/{trade_id}", include_in_schema=False)
@@ -61,7 +63,9 @@ def trade_page(trade_id: int, request: Request, journal: JournalDep) -> _Templat
 
     trade_response: TradeResponse = TradeResponse.model_validate(results.data, from_attributes=True)
 
-    return templates.TemplateResponse(request= request, name="trade_detail.html", context={"trade": trade_response})
+    return templates.TemplateResponse(
+        request= request, name="trade_detail.html", context={"trade": trade_response}
+    )
 
 @app.get(path="/journal_entry", include_in_schema=False)
 def journal_entry_form(request: Request) -> _TemplateResponse:
@@ -97,27 +101,32 @@ def journal_entry_page():
     pass
     #results = s.fetch_journal_entry(trade_id, journal)
     #if not results.success:
-        #raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="INVALID TRADE_ID. JOURNAL ENTRY NOT FOUND")
+        #raise HTTPException(
+        #status_code= status.HTTP_404_NOT_FOUND, detail="INVALID TRADE_ID. JOURNAL ENTRY NOT FOUND")
 
     #response = JournalEntry.model_validate(obj=results.data, from_attribute=True)
 
-    #return templates.TemplateResponse(request=request, name="journal_entry_page.html", context={"journal_entry": response})
+    #return templates.TemplateResponse(
+    #request=request, name="journal_entry_page.html", context={"journal_entry": response})
 
-
-
-#SET UP HREF PAGE LINKS TO INDIVIDUAL PAGES FROM HOME.LAYOUT USING URL_FOR("trade_page", trade_id=trade.trade_id)
-
-#PROBLEM: CURRENTLY, A HTTP 404 RESPONSE FOR A TRADE THAT DOESN'T EXIST RETURNS JSON FOR BOTH THE API ENDPOINT AND HTML PAGE ROUTES.
+#PROBLEM:
+#CURRENTLY, A HTTP 404 RESPONSE FOR A TRADE THAT DOESN'T EXIST
+#RETURNS JSON FOR BOTH THE API ENDPOINT AND HTML PAGE ROUTES.
 #WE NEED TO RETURN AN ERROR HTML PAGE FOR TRADE NOT FOUND WHILE STILL RETURNING JSON FOR THE API ENDPOINT.
-#YOU NEED TO DIFFERENTIATE BETWEEN THE TWO SO WE NEED AN EXCEPTION HANDLER FUNCTION THAT DIFFERENTIATES BETWEEN THE TWO AND
+#YOU NEED TO DIFFERENTIATE BETWEEN THE TWO
+#SO WE NEED AN EXCEPTION HANDLER FUNCTION THAT DIFFERENTIATES BETWEEN THE TWO AND
 #RETURNS THE APPROPRIATE RESPONSE FOR THE CLIENT WHETHER IT'S AN API CLIENT OR HTML BROWSER CLIENT.
 
-#SOME QUESTIONS: WHY DO WE NEED TO IMPORT REQUESTVALIDATIONERROR IF FASTAPI THROUGH PYDANTIC HANDLES VALIDATION ERRORS BEFORE CALLING THE ENDPOINT FUNCTION?
+#SOME QUESTIONS: WHY DO WE NEED TO IMPORT REQUESTVALIDATIONERROR
+#IF FASTAPI THROUGH PYDANTIC HANDLES VALIDATION ERRORS BEFORE CALLING THE ENDPOINT FUNCTION?
 #WHY DO WE NEED BOTH HTTPEXCEPTION FROM STARTLETTE AND FASTAPI, WHAT'S THE DIFFERENCE?
-#THIS FUNCTION HANDLES THE QUESTION: WHAT DOES FASTAPI RETURN FOR A 404 WHEN THE CLIENT WANTS EITHER HTML OR JSON?
+#THIS FUNCTION HANDLES THE QUESTION:
+#WHAT DOES FASTAPI RETURN FOR A 404 WHEN THE CLIENT WANTS EITHER HTML OR JSON?
 
 @app.exception_handler(exc_class_or_status_code=StarletteHTTPException)
-def general_exception_handler(request: Request, exception: StarletteHTTPException) -> JSONResponse | _TemplateResponse:
+def general_exception_handler(
+    request: Request, exception: StarletteHTTPException
+) -> JSONResponse | _TemplateResponse:
     #WE CREATE A CUSTOM MESSAGE IF STARTLETTE HANDLES AN EXCEPTION WITHOUT A DETAIL
     message = (
         exception.detail
@@ -144,16 +153,22 @@ def general_exception_handler(request: Request, exception: StarletteHTTPExceptio
         status_code= exception.status_code
     )
 
-#PROBLEM: WE HAVE A GENERAL EXCEPTION HANDLER THAT HANDLES HTTPEXCEPTION INSTANCES BUT IT DOESN'T CATCH VALIDATION ERRORS.
-#VALIDATION ERRORS INCLUDE INSTANCES WHERE A CLIENT PASSES IN A STRING LIKE HELLO FOR AN EXPECTED INT TYPE FOR TRADE_ID VALUE.
-#THIS IS BECAUSE VALIDATION ERRORS ARE A DIFFERENT EXCEPTION CLASS FROM HTTPEXCEPTION. THEY ARE RequestValidationError CLASS.
-#NOW OUT HTML PAGE ROUTES ARE RETURNING JSON FOR VALIDATION ERRORS, SO WE NEED TO TURN THESE INTO HTML PAGE RESPONSES.
+#PROBLEM: WE HAVE A GENERAL EXCEPTION HANDLER THAT HANDLES HTTPEXCEPTION INSTANCES
+#BUT IT DOESN'T CATCH VALIDATION ERRORS.
+#VALIDATION ERRORS INCLUDE INSTANCES WHERE
+#A CLIENT PASSES IN A STRING LIKE HELLO FOR AN EXPECTED INT TYPE FOR TRADE_ID VALUE.
+#THIS IS BECAUSE VALIDATION ERRORS ARE A DIFFERENT EXCEPTION CLASS FROM HTTPEXCEPTION.
+#THEY ARE RequestValidationError CLASS.
+#NOW OUT HTML PAGE ROUTES ARE RETURNING JSON FOR VALIDATION ERRORS,
+#SO WE NEED TO TURN THESE INTO HTML PAGE RESPONSES.
 
 @app.exception_handler(exc_class_or_status_code=RequestValidationError)
-def validation_exception_handler(request: Request, exception: RequestValidationError) -> JSONResponse | _TemplateResponse:
-    #VALIDATION EXCEPTIONS DON'T HAVE A SINGLE MESSAGE VALUE. IT'S A LIST OF ERROR DETAILS.
-    #EXCEPTION.ERRORS() RETURNS THIS LIST OF ERROR DETAILS.
-    #VALIDATION ERRORS DON'T HAVE A STATUS_CODE ATTRIBUTE SINCE THE CODE IS ALWAYS A HTTP_422_UNPROCESSABLE_CONTENT.
+def validation_exception_handler(
+    request: Request, exception: RequestValidationError
+) -> JSONResponse | _TemplateResponse:
+#VALIDATION EXCEPTIONS DON'T HAVE A SINGLE MESSAGE VALUE. IT'S A LIST OF ERROR DETAILS.
+#EXCEPTION.ERRORS() RETURNS THIS LIST OF ERROR DETAILS.
+#VALIDATION ERRORS DONT HAVE A STATUS_CODE ATTRIBUTE SINCE THE CODE IS ALWAYS A HTTP_422_UNPROCESSABLE_CONTENT
 
     if request.url.path.startswith("/api"):
         return JSONResponse(

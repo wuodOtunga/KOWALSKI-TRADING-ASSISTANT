@@ -83,7 +83,7 @@ class Journal:
 
     def _convert_to_trade_setup(self, trade: Trade) -> TradeSetup:
 
-        live_account_balance = self.db.get_current_account_balance(trade.account_id) # type: ignore  # noqa: PGH003
+        live_account_balance = self.db.get_current_account_balance(trade.account_id) # pyright: ignore[reportArgumentType]
         setup = TradeSetup(
             entry_price= trade.entry_price,
             exit_price= trade.exit_price,
@@ -123,7 +123,7 @@ class Journal:
         try:
             entry_score = self.db.get_entry_execution_points(trade.entry_execution_id)
             management_score = self.db.get_trade_management_points(trade.management_id)
-            trade_parameters = self.db.get_trade_parameters(trade.trade_id) # type: ignore  # noqa: PGH003
+            trade_parameters = self.db.get_trade_parameters(trade.trade_id) # pyright: ignore[reportArgumentType]
         except t.InvalidIdentifierError as e:
             raise t.NotFoundError(f"PROVIDED IDs ARE INVALID: {e}") from e
 
@@ -165,7 +165,7 @@ class Journal:
         #where it is not associated with a value
         #UPDATE THE GRADE OF THE TRADE FROM NONE TO TRADE_GRADE
         self.db.update_trade_grade(
-            trade_id=trade.trade_id, new_grade=trade.overall_trade_grade) # type: ignore  # noqa: PGH003
+            trade_id=trade.trade_id, new_grade=trade.overall_trade_grade) # pyright: ignore[reportArgumentType]
 
         return trade
 
@@ -219,7 +219,7 @@ class Journal:
             trade= trade,
             charts= trade_charts,
             trade_notes= trade_notes,
-            parameter_names= parameter_names, # type: ignore  # noqa: PGH003
+            parameter_names= parameter_names, # pyright: ignore[reportPossiblyUnboundVariable]
         )
 
 #RECORD_JOURNAL_ENTRY METHOD ISN'T BEING CALLED BY STREAMLIT UI
@@ -285,7 +285,7 @@ class Journal:
                 #ONLY THE AMENDED COLUMN IS STORED IN THE DATABASE. THE RECOMPUTES GO STALE.
                 valid_trade: Trade = validate_trade_data(trade)
                 self.db.update_trade_field(
-                    trade_id=valid_trade.trade_id, # type: ignore  # noqa: PGH003
+                    trade_id=valid_trade.trade_id, # pyright: ignore[reportArgumentType]
                     new_value=amendment.new_value,
                     column=amendment.column_name) # type: ignore  # noqa: PGH003
                 amendment.amended_at = datetime.now()

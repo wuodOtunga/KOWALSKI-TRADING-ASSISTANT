@@ -30,7 +30,9 @@ def _input_validation(setup: TradeSetup) -> TradeSetup:
 
     for field_name, value, expected_type, positive_check in valid_types:
         if not isinstance(value, expected_type):
-            raise t.TradeValidationError(f"{field_name} MUST BE OF TYPE {expected_type}. GOT {type(value).__name__}")
+            raise t.TradeValidationError(
+                f"{field_name} MUST BE OF TYPE {expected_type}. GOT {type(value).__name__}"
+            )
 
         if positive_check and value <= 0:
             raise t.TradeValidationError(f"{field_name} MUST BE GREATER THAN 0. GOT {value}.")
@@ -47,7 +49,7 @@ def calculate_profit_loss(setup: TradeSetup) -> dict:
     contract_size = INSTRUMENT_SPECS[valid_setup.asset]["contract_size"]
     multiplier = MULTIPLIER[valid_setup.direction]
 
-    dollar_amount = (valid_setup.exit_price - valid_setup.entry_price) * multiplier * valid_setup.position_size * contract_size
+    dollar_amount = (valid_setup.exit_price - valid_setup.entry_price) * multiplier * valid_setup.position_size * contract_size  # noqa: E501
     dollar_percent = (dollar_amount / valid_setup.account_balance) * 100
 
     verdict = "PROFIT" if dollar_amount > 0 else "LOSS"
@@ -109,7 +111,9 @@ def calculate_position_size(sizing: PositionSizing) -> float | int:
 
     for field_name, value, expected_type, positive_check in rules:
         if not isinstance(value, expected_type):
-            raise t.TradeValidationError(f"{field_name} MUST BE OF TYPE {expected_type}. GOT {type(value).__name__}")
+            raise t.TradeValidationError(
+                f"{field_name} MUST BE OF TYPE {expected_type}. GOT {type(value).__name__}"
+            )
 
         if positive_check and value <= 0:
             raise t.TradeValidationError(f"{field_name} MUST BE GREATER THAN 0. GOT {value}.")
@@ -127,8 +131,8 @@ def calculate_position_size(sizing: PositionSizing) -> float | int:
 def calculate_trade_duration(setup: TradeSetup) -> timedelta:
     #INPUTS: ENTRY_TIME, EXIT_TIME, DATE
     valid_setup = _input_validation(setup)
-    entry_dt = datetime.combine(valid_setup.date, valid_setup.entry_time) # type: ignore
-    exit_dt = datetime.combine(valid_setup.date, valid_setup.exit_time) # type: ignore
+    entry_dt = datetime.combine(valid_setup.date, valid_setup.entry_time) # pyright: ignore[reportArgumentType]
+    exit_dt = datetime.combine(valid_setup.date, valid_setup.exit_time) # pyright: ignore[reportArgumentType]
 
     if exit_dt < entry_dt:
         raise t.TradeValidationError("EXIT TIME CAN'T BE LESS THAN ENTRY TIME.")
