@@ -5,9 +5,20 @@ from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import fields
 from pathlib import Path
-from typing import Any, Tuple, TypeVar, get_args
+from typing import Any, TypeVar
 
-from sqlalchemy import Engine, Row, ScalarResult, create_engine, delete, event, exc, exists, func, select
+from sqlalchemy import (
+    Engine,
+    Row,
+    ScalarResult,
+    create_engine,
+    delete,
+    event,
+    exc,
+    exists,
+    func,
+    select,
+)
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -31,14 +42,14 @@ from models import (
     Account,
     AmendableColumns,
     Amendments,
+    EntryExecution,
+    Parameter,
     Trade,
     TradeChart,
     TradeGrade,
+    TradeManagement,
     TradeNotes,
     TradingModel,
-    EntryExecution,
-    TradeManagement,
-    Parameter,
 )
 
 _DB_PATH: Path = Path(__file__).resolve().parent / "kowalski.db"
@@ -49,7 +60,8 @@ T = TypeVar("T")
 #ContextVar for context variables.
 #Think of it as a variable whose value depends on who is asking.
 #For the app, one request’s chain router → services → journal → repository runs in a single worker thread.
-#So when Journal calls self.db.transaction() and sets the variable, every repository method deeper in that chain reads the same session.
+#So when Journal calls self.db.transaction() and sets the variable,
+#every repository method deeper in that chain reads the same session.
 #A different request in another thread reads its own value.
 #The variable gives you a “current transaction” that doesn’t have to be passed as an argument.
 
@@ -77,6 +89,14 @@ _TRADE_MANAGEMENT_COLUMNS = ("archetype", "description", "points", "grade")
 _ENTRY_EXECUTION_COLUMNS = ("archetype", "description", "points", "grade")
 _PARAMETERS_COLUMNS = ("parameter_name",)
 _ACCOUNTS_COLUMNS = ("account_name", "account_type", "broker", "starting_balance", "is_active")
+
+_SQLITE_CONSTRAINTS = {
+    "SQLITE_CONSTRAINT_FOREIGNKEY": t.ForeignKeyViolationError,
+    "SQLITE_CONSTRAINT_UNIQUE":     t.UniqueViolationError,
+    "SQLITE_CONSTRAINT_PRIMARYKEY": t.UniqueViolationError,
+    "SQLITE_CONSTRAINT_CHECK":      t.CheckViolationError,
+    "SQLITE_CONSTRAINT_NOTNULL":    t.NotNullViolationError,
+}
 
 # -------------------------------------------------------------------------
 #   ENGINE CONSTRUCTION
@@ -112,10 +132,10 @@ def create_database_engine(url: str | URL = SQLALCHEMY_DATABASE_URL, *, echo: bo
 # --------------------------------------------------------------------------
 # SMALL PURE PRIVATE HELPERS WITH NO DATABASE ACCESS
 # --------------------------------------------------------------------------
-def _to_domain(cls: type[T], row: Any) -> T:
+def _to_domain[T](cls: type[T], row: Any) -> T:
     """MAPS THE ORM ROW OBJECTS TO DOMAIN DATACLASS OBJECTS"""
 
-    return cls(**{f.name: getattr(row, f.name) for f in fields(class_or_instance=cls)})  # type: ignore
+    return cls(**{f.name: getattr(row, f.name) for f in fields(class_or_instance=cls)})  # type: ignore  # noqa: PGH003
 
 def _field_values(obj: Any, exclude: Iterable[str] = ()) -> dict[str, Any]:
     """DATACLASS TO KWARGS DICTS FOR ORM CONSTRUCTOR"""
@@ -148,6 +168,13 @@ def _db_message(error: exc.SQLAlchemyError) -> str:
     domain error messages and to return accurate FastAPI status codes responses"""
 
     return str(object=getattr(error, "orig", None) or error)
+
+def _translate_integrity(e: exc.IntegrityError) -> t.ConstraintViolationError:
+    error_name: str | None = _db_message(error=e)
+
+    exception = _SQLITE_CONSTRAINTS.get(error_name, t.ConstraintViolationError)
+
+    return exception
 
 # --------------------------------------------------------------------------
 #   PRIVATE HELPERS FOR COMMON QUERIES SHARED ACROSS DIFFERENT METHODS
@@ -196,8 +223,8 @@ def _check_foreign_keys(trade: Trade, session: Session) -> None:
 
     # using exists() is more efficient than select() since we are doing existence checks.
     # we don't want to load an entire row just to check if the FK exists and is valid.
-    found: Row[Tuple[bool, bool, bool, bool]] = session.execute(
-        select(
+    found: Row[tuple[bool, bool, bool, bool]] = session.execute(
+        statement=select(
             exists(Models).where(Models.model_id == trade.model_id),
             exists(AccountsModel).where(AccountsModel.account_id == trade.account_id),
             exists(TradeManagementModel).where(
@@ -313,10 +340,11 @@ class Repository:
                 #Owner branch. Nothing is open, so create a session.
                 #begin() is itself a context manager: it commits on clean exit and rolls back on exception.
                 with self.SessionFactory.begin() as session:
-                    #Publish the session so nested calls can find it, run the body, and always unpublish, even on exceptions.
-                    #set() returns a token that remembers the previous value, and reset(token) restores it.
-                    #Without the finally, a failed transaction would leave a dead session in the variable
-                    #and the next call would try to join it.
+            #Publish the session so nested calls can find it,
+            #run the body, and always unpublish, even on exceptions.
+            #set() returns a token that remembers the previous value, and reset(token) restores it.
+            #Without the finally, a failed transaction would leave a dead session in the variable
+            #and the next call would try to join it.
                     token: Token[Session | None] = _active_session.set(session)
                     try:
                         yield session
@@ -326,7 +354,7 @@ class Repository:
         except exc.IntegrityError as e:
             raise t.ConstraintViolationError(f"CONSTRAINT VIOLATION: {_db_message(e)}") from e
         except exc.SQLAlchemyError as e:
-            raise t.DatabaseError(f"DATABASE ERROR: {_db_message(e)}") from e
+            raise t.KowalskiError(f"DATABASE ERROR: {_db_message(e)}") from e
 
     def transaction(self):
         """PUBLIC INTERFACE FOR THE JOURNAL MODULE"""
@@ -337,8 +365,11 @@ class Repository:
     def save_trade(self, trade: Trade) -> int:
         """PERSIST A TRADE TO THE REPOSITORY"""
 
-        # Check for validity of foreign keys and raise exception loudly
-        # before doing anything else.
+        #UniqueConstraintViolation == trade_id
+        #ForeignKeyViolation == model_id, account_id, management_id, entry_execution_id
+        #CheckConstraintViolation == asset, direction, result, overall_trade_grade
+        #NotNullViolation == All non-derived attributes
+        #TradeValidationError == validation of attributes via validate_trade_data()
         row = TradeModel(**_field_values(obj=trade, exclude="trade_id"))
 
         with self._transaction() as session:
@@ -366,7 +397,7 @@ class Repository:
         """updating trade.overall_trade_grade happens often enough that it deserves it's own method"""
 
         if not isinstance(new_grade, TradeGrade):
-            raise t.InvalidGradeError("GRADE NEEDS TO BE OF TYPE TRADEGRADE.")
+            raise t.GradingError(f"{new_grade} IS INVALID. GRADE MUST BE OF TYPE TRADE_GRADE")
 
         with self._transaction() as session:
             _ensure_trade_exists(trade_id, session)
@@ -375,9 +406,6 @@ class Repository:
 
     def update_trade_field(self, trade_id: int, new_value: Any, column: AmendableColumns) -> None:
         """UPDATES A DYNAMIC TRADE COLUMN BASED ON TRADER PREFERENCE"""
-
-        if column not in get_args(AmendableColumns):
-            raise t.InvalidColumnNameError("CAN'T UPDATE INVALID COLUMN")
 
         # use setattr() to dynamically update the trade column with the new_value
         with self._transaction() as session:
@@ -400,8 +428,11 @@ class Repository:
     def add_trade_notes(self, notes: TradeNotes) -> None:
         """PERSISTS TRADE NOTES TO THE REPOSITORY"""
 
+        #UniqueConstraintViolation == trade_id
+        #ForeignKeyViolation == trade_id
+        #NotNullViolation == all columns
         with self._transaction() as session:
-            _ensure_trade_exists(notes.trade_id, session) # type: ignore
+            _ensure_trade_exists(notes.trade_id, session) # type: ignore  # noqa: PGH003
             session.add(TradeNotesModel(**_field_values(notes)))
             session.flush()
 
@@ -419,7 +450,7 @@ class Repository:
         an upsert makes the method idempotent. making calls, same database state"""
 
         with self._transaction() as session:
-            _ensure_trade_exists(new_notes.trade_id, session) # type: ignore
+            _ensure_trade_exists(new_notes.trade_id, session) # type: ignore  # noqa: PGH003
 
             row: TradeNotesModel | None = session.get(TradeNotesModel, new_notes.trade_id)
             if row is None:
@@ -446,8 +477,7 @@ class Repository:
             if session.get(ParametersModel, parameter_id) is None:
                 raise t.InvalidIdentifierError("INVALID PARAMETER ID. PARAMETER NOT FOUND")
 
-            # at this point, both FKs have been checked, so we rule out Foreign key constraint violation.
-            # we have no dataclass for trade parameters, so we can't use _field_values() only manual construction
+            #at this point, both FKs have been checked, so we rule out Foreign key constraint violation.
             session.add( TradeParametersModel(trade_id=trade_id, parameter_id=parameter_id))
             session.flush()
 
@@ -479,7 +509,6 @@ class Repository:
         """RETRIEVE ALL AVAILABLE ACCOUNTS FROM THE REPOSITORY"""
         """an empty accounts table returns an empty list"""
 
-        # orm_queryguide_select_orm_entities - contrasts the behavior of _orm.Session.execute to _orm.Session.scalars
         with self._transaction() as session:
             accounts = list(
                 session.scalars(
@@ -504,7 +533,7 @@ class Repository:
             )
 
             if starting_balance is None:
-                raise t.InvalidAccountError("INVALID ACCOUNT ID. NO ACCOUNT FOUND")
+                raise t.InvalidIdentifierError("INVALID ACCOUNT ID. NO ACCOUNT FOUND")
 
             pnl = session.scalar(
                 select(func.coalesce(func.sum(TradeModel.dollar_amount), 0)).where(
@@ -512,7 +541,7 @@ class Repository:
                 )
             )
 
-            return float(starting_balance + pnl)  # type: ignore
+            return float(starting_balance + pnl)  # type: ignore  # noqa: PGH003
 
     def delete_account_from_db(self, account_id: int) -> None:
         """DELETE ACCOUNT DETAILS FROM THE ACCOUNTS TABLE"""
@@ -522,7 +551,7 @@ class Repository:
 
         with self._transaction() as session:
             if session.get(AccountsModel, account_id) is None:
-                raise t.InvalidAccountError("INVALID ACCOUNT_ID. ACCOUNT NOT FOUND")
+                raise t.InvalidIdentifierError("INVALID ACCOUNT_ID. ACCOUNT NOT FOUND")
 
             trade_count = session.scalar(
                 select(func.count())
@@ -599,10 +628,6 @@ class Repository:
                     )
                 ).scalar_one_or_none()
 
-                # We shouldn't be getting None as a value after the query but if
-                # parameter_names list somehow has an invalid parameter name, then raise exception.
-                # I thought about using scalar_one() to enforce the domain invariant but I don't want
-                # a non-domain exception firing and leaking out into the higher level modules like journal.py.
                 if not parameter_id:
                     raise t.InvalidIdentifierError(
                         "INVALID PARAMETER NAME. CHECK INPUTS"
@@ -650,7 +675,7 @@ class Repository:
                 )
             ).scalar_one_or_none()
 
-            if not points:
+            if points is None:
                 raise t.InvalidIdentifierError(
                     "INVALID ENTRY EXECUTION ID. CHECK INPUTS"
                 )
@@ -668,7 +693,7 @@ class Repository:
                 )
             ).scalar_one_or_none()
 
-            if not points:
+            if points is None:
                 raise t.InvalidIdentifierError(
                     "INVALID TRADE MANAGEMENT ID. CHECK INPUTS"
                 )

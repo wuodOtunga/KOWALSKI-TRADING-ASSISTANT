@@ -2,17 +2,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
+
+from exceptions import KowalskiError
 
 
 #The column names returned by SQL must match the dataclass field names.
-class TradeDirection(str, Enum):
+class TradeDirection(StrEnum):
     """THIS CLASS REPRESENTS DIRECTION AS A TYPE"""
     LONG = "long"
     SHORT = "short"
 
-class TradeAsset(str, Enum):
+class TradeAsset(StrEnum):
     """THIS CLASS REPRESENTS ASSET AS A TYPE"""
     XAUUSD = "XAUUSD"
     XAGUSD = "XAGUSD"
@@ -20,7 +22,7 @@ class TradeAsset(str, Enum):
     ES = "ES"
 
 #FIGURE HOW TO TYPE A+ INTO THE ENUM
-class TradeGrade(str, Enum):
+class TradeGrade(StrEnum):
     """THIS CLASS REPRESENTS GRADE AS A TYPE"""
     A = "A"
     B = "B"
@@ -28,12 +30,12 @@ class TradeGrade(str, Enum):
     D = "D"
     F = "F"
 
-class TradeResult(str, Enum):
+class TradeResult(StrEnum):
     """THIS CLASS REPRESENTS RESULT AS A TYPE"""
     PROFIT = "PROFIT"
     LOSS = "LOSS"
 
-class ServiceErrorType(str, Enum):
+class ServiceErrorType(StrEnum):
     """REPRESENTS EXCEPTION TYPE TO RESPONSE SHAPE MAPPING FOR API CLIENTS"""
     VALIDATION = "VALIDATION"
     INTERNAL = "INTERNAL"
@@ -154,9 +156,10 @@ class ServiceResult:
     """MANAGES RETURN TYPES OF SERVICE FUNCTIONS"""
     success : bool
     message : str
-    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | list[Account] | list[TradeManagement] | list[TradingModel] | list[EntryExecution] | list[Parameter] | list[TradeChart] | None
+    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | list[Account] | list[TradeManagement] | list[TradingModel] | list[EntryExecution] | list[Parameter] | list[TradeChart] | None  # noqa: E501
     error_type: ServiceErrorType | None
-    
+    error: KowalskiError | None
+
 @dataclass
 class ChartUploadOutcome:
     """OUTCOME FOR A SINGLE FILE WITHIN A BATCH UPLOAD"""
@@ -172,7 +175,7 @@ class ChartsBatchResult:
 
     @property
     def succeeded(self) -> list[TradeChart]:
-        return [o.chart for o in self.outcomes if o.success] # type: ignore
+        return [o.chart for o in self.outcomes if o.success] # type: ignore  # noqa: PGH003
 
     @property
     def failed(self) -> list[ChartUploadOutcome]:

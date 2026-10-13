@@ -9,8 +9,16 @@ import pytest
 from sqlalchemy import exc
 
 import exceptions as t
-from models import (Account, Amendments, Trade, TradeAsset, TradeChart,
-                    TradeDirection, TradeNotes, TradeResult)
+from models import (
+    Account,
+    Amendments,
+    Trade,
+    TradeAsset,
+    TradeChart,
+    TradeDirection,
+    TradeNotes,
+    TradeResult,
+)
 from repository import Repository
 
 
@@ -61,12 +69,12 @@ def test_get_all_trades_empty_is_empty_list(repo):
 def test_update_trade_field(repo, account_id):
     trade_id = repo.save_trade(make_trade(account_id))
     repo.update_trade_field(trade_id, 120.0, "exit_price")
-    assert repo.get_by_id(trade_id).exit_price == 120.0
+    assert repo.get_by_id(trade_id).exit_price == 120.0  # noqa: PLR2004
 
 
 def test_update_trade_field_rejects_derived_column(repo, account_id):
     trade_id = repo.save_trade(make_trade(account_id))
-    with pytest.raises(t.InvalidColumnNameError):
+    with pytest.raises(t.TradeValidationError):
         repo.update_trade_field(trade_id, 5.0, "dollar_amount")
 
 
@@ -118,7 +126,7 @@ def test_delete_trade_cascades_children_but_keeps_amendments(repo, account_id):
 
     assert repo.get_all_trades() == []
     with repo.engine.connect() as c:
-        left = lambda tbl: c.exec_driver_sql(f"SELECT COUNT(*) FROM {tbl}").scalar()
+        left = lambda tbl: c.exec_driver_sql(f"SELECT COUNT(*) FROM {tbl}").scalar()  # noqa: E731, S608
         assert left("trade_notes") == 0
         assert left("charts") == 0
         assert left("trade_parameters") == 0
@@ -139,12 +147,11 @@ def test_delete_account_with_trades_is_refused(repo, account_id):
 
 def test_balance_includes_trade_pnl(repo, account_id):
     repo.save_trade(make_trade(account_id))      # dollar_amount = 1000.0
-    assert repo.get_current_account_balance(account_id) == 2000.0
+    assert repo.get_current_account_balance(account_id) == 2000.0  # noqa: PLR2004
 
 
 # ---- engine ---------------------------------------------------------------
 def test_sqlite_foreign_keys_are_enforced(repo):
-    with pytest.raises(exc.IntegrityError):
-        with repo.engine.begin() as c:
-            c.exec_driver_sql(
-                "INSERT INTO charts (trade_id, filepath, filename) VALUES (999, 'a', 'b')")
+    with pytest.raises(exc.IntegrityError), repo.engine.begin() as c:
+        c.exec_driver_sql(
+            "INSERT INTO charts (trade_id, filepath, filename) VALUES (999, 'a', 'b')")

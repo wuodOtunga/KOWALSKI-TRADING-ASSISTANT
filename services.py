@@ -29,7 +29,7 @@ from models import (
     TradingModel,
 )
 from models import (
-    ServiceErrorType as SET,
+    ServiceErrorType as SET,  # noqa: N817
 )
 
 
@@ -64,20 +64,35 @@ def submit_trade(trade_details: dict, journal: Journal) -> ServiceResult:
             overall_trade_grade= None
         )
     except KeyError as e:
-        return ServiceResult(success= False, message= f"KEYERROR. VALUE ISN'T IN DICTIONARY: {e}", data= None, error_type=SET.VALIDATION)
+        return ServiceResult(
+            success= False, message= f"KEYERROR. VALUE ISN'T IN DICTIONARY: {e}",
+            data= None, error_type=SET.VALIDATION, error=None
+        )
     except ValueError as e:
-        return ServiceResult(success= False, message= f"TYPE CASTING FAILED: {e}", data= None, error_type=SET.VALIDATION)
+        return ServiceResult(
+            success= False, message= f"TYPE CASTING FAILED: {e}",
+            data= None, error_type=SET.VALIDATION, error=None
+        )
 
     #STEP #3: CALL JOURNAL.PY METHOD # #STEP #4: CATCH/TRANSLATE ERRORS
     try:
-        recorded_trade = journal.record_trade(trade)
+        recorded_trade: Trade = journal.record_trade(trade)
     except t.TradeRecordingError as e:
-        return ServiceResult(success= False, message= f"TRADE NOT SAVED TO JOURNAL: {e}", data= None, error_type=SET.INTERNAL)
+        return ServiceResult(
+            success= False, message= f"TRADE NOT SAVED TO JOURNAL: {e}",
+            data= None, error_type=SET.INTERNAL, error=e
+        )
     except t.TradeValidationError as e:
-        return ServiceResult(success= False, message= f"TRADE VALIDATION FAILED: {e}", data= None, error_type=SET.VALIDATION)
+        return ServiceResult(
+            success= False, message= f"TRADE VALIDATION FAILED: {e}",
+            data= None, error_type=SET.VALIDATION, error=e
+        )
 
     #STEP #5: RETURN UI VALID OBJECT
-    return ServiceResult(success= True, message= "TRADE RECORDED SUCCESSFULLY!", data= recorded_trade, error_type=None)
+    return ServiceResult(
+        success= True, message= "TRADE RECORDED SUCCESSFULLY!",
+        data= recorded_trade, error_type=None, error=None
+    )
 
 def submit_trade_notes(trade_notes: dict, journal: Journal) -> ServiceResult:
 
@@ -90,16 +105,32 @@ def submit_trade_notes(trade_notes: dict, journal: Journal) -> ServiceResult:
             general_notes= trade_notes["general_notes"]
         )
     except KeyError as e:
-        return ServiceResult(success= False, message= f"SOME VALUES MISSING: {e}", data= None, error_type=SET.VALIDATION)
+        return ServiceResult(
+            success= False,
+            message= f"SOME VALUES MISSING: {e}",
+            data= None, error_type=SET.VALIDATION, error=None
+        )
 
     try:
-        journal.add_reflection_notes(trading_notes)
+        journal.add_reflection_notes(trade_notes=trading_notes)
     except t.NotesRecordingError as e:
-        return ServiceResult(success= False, message= f"ERROR OCCURRED WHILE RECORDING NOTES: {e}", data= None, error_type=SET.CONFLICT)
-    except t.InvalidTradeIDError as e:
-        return ServiceResult(success=False, message=f"TRADE DOESN'T EXIST: {e}", data=None, error_type=SET.NOT_FOUND)
+        return ServiceResult(
+            success= False,
+            message= f"ERROR OCCURRED WHILE RECORDING NOTES: {e}",
+            data= None, error_type=SET.CONFLICT, error=e
+        )
+    except t.TradeNotFoundError as e:
+        return ServiceResult(
+            success=False,
+            message=f"TRADE DOESN'T EXIST: {e}",
+            data=None, error_type=SET.NOT_FOUND, error=e
+        )
 
-    return ServiceResult(success= True, message= "TRADE NOTES RECORDED SUCCESSFULLY!", data= trading_notes, error_type=None)
+    return ServiceResult(
+        success= True,
+        message= "TRADE NOTES RECORDED SUCCESSFULLY!",
+        data= trading_notes, error_type=None, error=None
+    )
 
 def submit_trade_parameters(trade_parameters: dict, journal: Journal) -> ServiceResult:
     #ASSUMPTIONS INCLUDE: TRADE IS ALREADY IN THE TRADES DATABASE TABLE.
@@ -113,26 +144,45 @@ def submit_trade_parameters(trade_parameters: dict, journal: Journal) -> Service
     try:
         graded_trade = journal.finalize_grade(trade_id, parameters_list)
 
-    except t.InvalidTradeIDError:  #WE DON'T NEED AS e BECAUSE THE ERROR MESSAGE IS SIMILAR TO .message
-        return ServiceResult(success= False, message= f"PROVIDED TRADE_ID IS INVALID. GOT {trade_id}", data= None, error_type=SET.NOT_FOUND)
+    except t.TradeNotFoundError as e:
+        return ServiceResult(
+            success= False,
+            message= f"PROVIDED TRADE_ID IS INVALID. GOT {trade_id}",
+            data= None, error_type=SET.NOT_FOUND, error=e
+        )
     except t.GradingError as e:
-        return ServiceResult(success= False, message= f"PROVIDED GRADE IS INVALID: {e}", data= None, error_type=SET.VALIDATION)
-    except t.TradeAlreadyGradedError:
+        return ServiceResult(
+            success= False,
+            message= f"PROVIDED GRADE IS INVALID: {e}",
+            data= None, error_type=SET.VALIDATION, error=e
+        )
+    except t.TradeAlreadyGradedError as e:
         return ServiceResult(
             success=False,
             message="GRADING ERROR: TRADE HAS ALREADY BEEN GRADED",
             data=None,
-            error_type=SET.CONFLICT,
+            error_type=SET.CONFLICT, error=e
         )
-    except t.ParametersJunctionTableConflict:
+    except t.ParametersConflictError as e:
         return ServiceResult(
             success=False,
             message="PARAMETERS VIOLATE JUNCTION TABLE JOINT PK CONSTRAINT",
             data=None,
-            error_type=SET.INTERNAL,
+            error_type=SET.CONFLICT, error=e
+        )
+    except t.NotFoundError as e:
+        return ServiceResult(
+            success=False,
+            message="MODEL IDENTIFIERS LIKE MODEL_ID, ACCOUNT_ID, ETC ARE INVALID",
+            data=None,
+            error_type=SET.INTERNAL, error=e
         )
 
-    return ServiceResult(success= True, message= "TRADE PARAMETERS SUBMITTED SUCCESSFULLY!", data= graded_trade, error_type=None)
+    return ServiceResult(
+        success= True,
+        message= "TRADE PARAMETERS SUBMITTED SUCCESSFULLY!",
+        data= graded_trade, error_type=None, error=None
+    )
 
 
 def submit_trade_charts(trade_charts: dict, journal: Journal) -> ChartsBatchResult:
@@ -149,7 +199,7 @@ def submit_trade_charts(trade_charts: dict, journal: Journal) -> ChartsBatchResu
     #CHECK LEGITIMACY OF TRADE_ID BEFORE BATCH LOOPING OPERATIONS
     try:
         journal.get_trade(trade_id)
-    except t.InvalidTradeIDError:
+    except t.TradeNotFoundError:
         return ChartsBatchResult(outcomes=[
             ChartUploadOutcome(filename= f.name, success= False,
                                chart= None, error_message= f"TRADE_ID {trade_id} INVALID")
@@ -202,12 +252,12 @@ def submit_trade_charts(trade_charts: dict, journal: Journal) -> ChartsBatchResu
 
 
 def _save_uploaded_charts(uploaded_file) -> tuple[str, str]:
-    UPLOAD_DIR = "uploaded_charts"
-    Path(UPLOAD_DIR).mkdir(exist_ok=True)
+    upload_dir = "uploaded_charts"
+    Path(upload_dir).mkdir(exist_ok=True)
 
     original_name = Path(uploaded_file.name)  #.name is the string filename attribute
     unique_filename: str = f"{uuid.uuid4().hex[:8]}_{original_name.stem}{original_name.suffix}"
-    filepath: str = os.path.join(UPLOAD_DIR, unique_filename)
+    filepath: str = os.path.join(upload_dir, unique_filename)
 
     with open(filepath, "wb") as f:
         f.write(uploaded_file.content)
@@ -230,72 +280,107 @@ def submit_amendment(trade_amendment: dict, journal: Journal) -> ServiceResult:
             amended_at= None
         )
     except KeyError as e:
-        return ServiceResult(success= False, message= f"INVALID KEY REFERENCE: {e}", data=None, error_type=SET.VALIDATION)
+        return ServiceResult(
+            success= False, message= f"INVALID KEY REFERENCE: {e}",
+            data=None, error_type=SET.VALIDATION, error=None
+        )
 
     try:
         changes: Amendments = journal.amend_trade_entry(amendment)
-    except t.InvalidTradeIDError as e:
-        return ServiceResult(success= False, message= f"TRADE NOT FOUND: {e}", data=None, error_type=SET.NOT_FOUND)
+    except t.TradeNotFoundError as e:
+        return ServiceResult(
+            success= False, message= f"TRADE NOT FOUND: {e}",
+            data=None, error_type=SET.NOT_FOUND, error=e
+        )
     except t.TradeRecordingError as e:
-        return ServiceResult(success= False, message= f"ERROR RECORDING AMENDMENT: {e}", data= None, error_type=SET.INTERNAL)
+        return ServiceResult(
+            success= False, message= f"ERROR RECORDING AMENDMENT: {e}",
+            data= None, error_type=SET.INTERNAL, error=e
+        )
     except t.TradeValidationError as e:
-        return ServiceResult(success= False, message= f"INVALID AMENDMENT VALUES: {e}", data= None, error_type=SET.VALIDATION)
-    except t.InvalidColumnNameError as e:
-        return ServiceResult(success= False, message= f"COLUMN NAME CAN'T BE AMENDED: {e}", data= None, error_type=SET.CONFLICT)
+        return ServiceResult(
+            success= False, message= f"INVALID AMENDMENT VALUES: {e}",
+            data= None, error_type=SET.VALIDATION, error=e
+        )
+    except t.ConflictError as e:
+        return ServiceResult(
+            success= False, message= f"COLUMN NAME CAN'T BE AMENDED: {e}",
+            data= None, error_type=SET.CONFLICT, error=e
+        )
 
-    return ServiceResult(success= True, message= "AMENDMENT RECORDED SUCCESSFULLY!", data= changes, error_type=None)
+    return ServiceResult(
+        success= True, message= "AMENDMENT RECORDED SUCCESSFULLY!",
+        data= changes, error_type=None, error=None
+    )
 
 
 #STREAMLIT DISPLAY SERVICE FUNCTIONS
 def fetch_trade(trade_id: int, journal: Journal) -> ServiceResult:
     try:
         trade: Trade = journal.get_trade(trade_id)
-    except t.InvalidTradeIDError as e:
-        return ServiceResult(success= False, message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}, {e}", data= None, error_type=SET.NOT_FOUND)
+    except t.TradeNotFoundError as e:
+        return ServiceResult(
+            success= False,
+            message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}, {e}",
+            data= None, error_type=SET.NOT_FOUND, error=e
+        )
 
-    return ServiceResult(success= True, message= "TRADE FETCHED SUCCESSFULLY!", data= trade, error_type=None)
+    return ServiceResult(
+        success= True, message= "TRADE FETCHED SUCCESSFULLY!",
+        data= trade, error_type=None, error=None
+    )
 
 def view_all_trades(journal: Journal) -> ServiceResult:
-    try:
-        trades: list[Trade] = journal.fetch_all_trades()
-    except t.TradesNotFoundError as e:
-        return ServiceResult(success= False, message= f"NO TRADES FOUND: {e}", data= None, error_type=SET.NOT_FOUND)
 
-    return ServiceResult(success= True, message= "AVAILABLE TRADES FOUND SUCCESSFULLY", data= trades, error_type=None)
+    trades: list[Trade] = journal.fetch_all_trades()
+
+    return ServiceResult(
+        success= True,
+        message= "AVAILABLE TRADES FOUND SUCCESSFULLY",
+        data= trades, error_type=None, error=None
+    )
 
 def fetch_journal_entry(trade_id: int, journal: Journal) -> ServiceResult:
 
     try:
         journal_entry: JournalEntry = journal.get_journal_entry(trade_id)
-    except t.JournalEntryError as e:
-        return ServiceResult(success= False, message= f"ERROR RETRIEVING JOURNAL ENTRY: {e}", data= None, error_type=SET.INTERNAL)
+    except t.TradeNotFoundError as e:
+        return ServiceResult(
+            success= False,
+            message= f"INVALID TRADE_ID. TRADE NOT FOUND: {e}",
+            data= None, error_type=SET.NOT_FOUND, error=e
+        )
+    except t.NotesNotFoundError as e:
+        return ServiceResult(
+            success=False,
+            message=f"NO NOTES FOUND FOR THIS TRADE: {e}",
+            data=None, error_type=SET.NOT_FOUND, error=e
+        )
 
-    return ServiceResult(success= True, message= "JOURNAL ENTRY RETRIEVED SUCCESSFULLY", data= journal_entry, error_type=None)
+    return ServiceResult(
+        success= True,
+        message= "JOURNAL ENTRY RETRIEVED SUCCESSFULLY",
+        data= journal_entry, error_type=None, error=None
+    )
 
 def view_trade_notes(trade_id: int, journal: Journal) -> ServiceResult:
 
     try:
         trade_notes: TradeNotes | None = journal.fetch_trade_notes(trade_id)
-    except t.InvalidTradeIDError as e:
+    except t.TradeNotFoundError as e:
         return ServiceResult(
-            success= False,
-            message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}. {e}",
-            data= None,
-            error_type=SET.VALIDATION
+            success= False, message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}. {e}",
+            data= None, error_type=SET.VALIDATION, error=None
         )
     except t.NotesNotFoundError as e:
         return ServiceResult(
-            success=False,
-            message="THE TRADE HAS NO AVAILABLE NOTES ATTACHED",
-            data=None,
-            error_type=SET.NOT_FOUND,
+            success=False, message="THE TRADE HAS NO AVAILABLE NOTES ATTACHED",
+            data=None, error_type=SET.NOT_FOUND, error=e
         )
 
     return ServiceResult(
-        success= True,
-        message= "TRADE NOTES RETRIEVED SUCCESSFULLY!",
-        data= trade_notes,
-        error_type=None,
+        success= True, message= "TRADE NOTES RETRIEVED SUCCESSFULLY!",
+        data= trade_notes, error_type=None, error=None
     )
 
 def amend_trade_notes(updated_notes: dict, journal: Journal) -> ServiceResult:
@@ -310,65 +395,56 @@ def amend_trade_notes(updated_notes: dict, journal: Journal) -> ServiceResult:
         )
     except KeyError as e:
         return ServiceResult(
-            success= False,
-            message= f"SOME INPUT VALUES ARE MISSING. CHECK INPUTS: {e}",
-            data= None,
-            error_type= SET.VALIDATION
+            success= False, message= f"SOME INPUT VALUES ARE MISSING. CHECK INPUTS: {e}",
+            data= None, error_type= SET.VALIDATION, error=None
         )
 
     try:
         journal.update_trading_notes(trade_notes= notes)
-    except t.InvalidTradeIDError as e:
+    except t.TradeNotFoundError as e:
         return ServiceResult(
-            success= False,
-            message= f"TRADE NOT FOUND. INVALID TRADE_ID: {e}",
-            data= None,
-            error_type= SET.NOT_FOUND
+            success= False, message= f"TRADE NOT FOUND. INVALID TRADE_ID: {e}",
+            data= None, error_type= SET.NOT_FOUND, error=e
+        )
+    except t.NotesRecordingError as e:
+        return ServiceResult(
+            success=False, message=f"INTERNAL DATABASE ERROR DETECTED: {e}",
+            data=None, error_type=SET.INTERNAL, error=e
         )
 
     return ServiceResult(
-        success= True,
-        message= "TRADE NOTES UPDATED SUCCESSFULLY!",
-        data= None,
-        error_type= None
+        success= True, message= "TRADE NOTES UPDATED SUCCESSFULLY!",
+        data= None, error_type= None, error=None
     )
 
 def view_trade_parameters(trade_id: int, journal: Journal) -> ServiceResult:
 
     try:
         parameters: list[str] = journal.fetch_present_parameters(trade_id)
-    except t.InvalidTradeIDError:
+    except t.TradeNotFoundError as e:
         return ServiceResult(
-            success=False,
-            message=f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}",
-            data=None,
-            error_type=SET.NOT_FOUND
+            success=False, message=f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}",
+            data=None, error_type=SET.NOT_FOUND, error=e
         )
 
     return ServiceResult(
-        success=True,
-        message="TRADE PARAMETERS RETRIEVED SUCCESSFULLY!",
-        data= parameters,
-        error_type=None
+        success=True, message="TRADE PARAMETERS RETRIEVED SUCCESSFULLY!",
+        data= parameters, error_type=None, error=None
     )
 
 def delete_trade_from_db(trade_id: int, journal: Journal) -> ServiceResult:
 
     try:
         journal.delete_trade_entry(trade_id)
-    except t.InvalidTradeIDError:
+    except t.TradeNotFoundError as e:
         return ServiceResult(
-            success=False,
-            message=f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}",
-            data=None,
-            error_type=SET.NOT_FOUND,
+            success=False, message=f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}",
+            data=None, error_type=SET.NOT_FOUND, error=e
         )
 
     return ServiceResult(
-        success=True,
-        message="TRADE DELETED SUCCESSFULLY!",
-        data=None,
-        error_type=None
+        success=True, message="TRADE DELETED SUCCESSFULLY!",
+        data=None, error_type=None, error=None
     )
 
 #STREAMLIT SERVICE FUNCTIONS FOR ACCOUNTS ACTIONS
@@ -384,91 +460,98 @@ def create_trading_account(account_info: dict, journal: Journal) -> ServiceResul
             is_active= account_info["is_active"]
         )
     except KeyError as e:
-        return ServiceResult(success= False, message= f"INVALID KEY REFERENCE: {e}", data= None, error_type=SET.VALIDATION)
+        return ServiceResult(
+            success= False, message= f"INVALID KEY REFERENCE: {e}",
+            data= None, error_type=SET.VALIDATION, error=None
+        )
 
     try:
-        registered_account = journal.register_trading_account(account)
+        registered_account: Account = journal.register_trading_account(account)
     except t.AccountCreationError as e:
-        return ServiceResult(success= False, message= f"ACCOUNT REGISTRATION FAILED: {e}", data= None, error_type=SET.INTERNAL)
+        return ServiceResult(
+            success= False, message= f"ACCOUNT REGISTRATION FAILED: {e}",
+            data= None, error_type=SET.INTERNAL, error=e
+        )
 
-    return ServiceResult(success= True, message= "ACCOUNT REGISTERED SUCCESSFULLY!", data= registered_account, error_type=None)
+    return ServiceResult(
+        success= True, message= "ACCOUNT REGISTERED SUCCESSFULLY!",
+        data= registered_account, error_type=None, error=None
+    )
 
 def view_trading_accounts(journal: Journal) -> ServiceResult:
-    try:
-        available_accounts: list[Account] = journal.fetch_all_trading_accounts()
-    except t.AccountsNotFoundError as e:
-        return ServiceResult(success= False, message= f"NO ACCOUNTS FOUND! {e}", data= None, error_type=SET.NOT_FOUND)
 
-    return ServiceResult(success= True, message= "ACCOUNTS FOUND SUCCESSFULLY!", data= available_accounts, error_type=None) # type: ignore
+    available_accounts: list[Account] = journal.fetch_all_trading_accounts()
+
+    return ServiceResult(
+        success= True, message= "ACCOUNTS FOUND SUCCESSFULLY!",
+        data= available_accounts, error_type=None, error=None
+    )
 
 def delete_account_info(account_id: int, journal: Journal) -> ServiceResult:
 
     try:
         journal.delete_trading_account(account_id= account_id)
-    except t.AccountNotFoundError:
+    except t.InvalidIdentifierError as e:
         return ServiceResult(
-            success=False,
-            message= "ACCOUNT DOESN'T EXIST",
-            data=None,
-            error_type=SET.NOT_FOUND,
+            success=False, message= "ACCOUNT NOT FOUND. ACCOUNT DOESN'T EXIST",
+            data=None, error_type=SET.NOT_FOUND, error=e
+        )
+    except t.ConflictError as e:
+        return ServiceResult(
+            success=False, message="ACCOUNT CAN'T BE DELETED SINCE IT HAS TRADES ATTACHED",
+            data=None, error_type=SET.CONFLICT, error=e
         )
 
     return ServiceResult(
-        success=True,
-        message="ACCOUNT DELETED SUCCESSFULLY!",
-        data=None,
-        error_type=None,
+        success=True, message="ACCOUNT DELETED SUCCESSFULLY!",
+        data=None, error_type=None, error=None
     )
 
 def view_trading_models(journal: Journal) -> ServiceResult:
     trading_models: list[TradingModel] = journal.fetch_models_list()
 
     return ServiceResult(
-        success=True,
-        message="TRADING MODELS RETRIEVED SUCCESSFULLY!",
-        data=trading_models,
-        error_type=None
+        success=True, message="TRADING MODELS RETRIEVED SUCCESSFULLY!",
+        data=trading_models, error_type=None, error=None
     )
 
 def view_entry_execution(journal: Journal) -> ServiceResult:
     archetypes: list[EntryExecution] = journal.fetch_entry_executions_list()
 
     return ServiceResult(
-        success=True,
-        message="ENTRY EXECUTIONS RETRIEVED SUCCESSFULLY!",
-        data=archetypes,
-        error_type=None
+        success=True, message="ENTRY EXECUTIONS RETRIEVED SUCCESSFULLY!",
+        data=archetypes, error_type=None, error=None
     )
 
 def view_trade_management(journal: Journal) -> ServiceResult:
     archetypes: list[TradeManagement] = journal.fetch_trade_management_lists()
 
     return ServiceResult(
-        success=True,
-        message="TRADE MANAGEMENTS RETRIEVED SUCCESSFULLY!",
-        data=archetypes,
-        error_type=None
+        success=True, message="TRADE MANAGEMENTS RETRIEVED SUCCESSFULLY!",
+        data=archetypes, error_type=None, error=None
     )
 
 def view_parameters_list(journal: Journal) -> ServiceResult:
     parameters: list[Parameter] = journal.fetch_parameters_list()
 
     return ServiceResult(
-        success=True,
-        message="PARAMETERS LIST RETRIEVED SUCCESSFULLY!",
-        data=parameters,
-        error_type=None
+        success=True, message="PARAMETERS LIST RETRIEVED SUCCESSFULLY!",
+        data=parameters, error_type=None, error=None
     )
 
 def view_trading_charts(trade_id: int, journal: Journal) -> ServiceResult:
     try:
         charts: list[TradeChart] = journal.fetch_trading_charts(trade_id)
-    except t.InvalidTradeIDError as e:
-        return ServiceResult(success=False, message=f"TRADE DOESN'T EXISTS: {e}", data=None, error_type=SET.VALIDATION)
-    except t.TradeHasNoChartsError as e:
-        return ServiceResult(success=False, message=f"NO CHARTS FOUND: {e}", data=None, error_type=SET.NOT_FOUND)
+    except t.TradeNotFoundError as e:
+        return ServiceResult(
+            success=False, message=f"TRADE DOESN'T EXISTS: {e}",
+            data=None, error_type=SET.NOT_FOUND, error=e
+        )
 
-    return ServiceResult(success=True, message="CHARTS RETRIEVED SUCCESSFULLY!", data=charts, error_type=None)
+    return ServiceResult(
+        success=True, message="CHARTS RETRIEVED SUCCESSFULLY!",
+        data=charts, error_type=None, error=None
+    )
 
 #SERVICE FUNCTIONS FOR STREAMLIT TRADE CALCULATOR FEATURE BUTTONS.
 def run_calculator(setup_values: dict) -> CalculatorResults:

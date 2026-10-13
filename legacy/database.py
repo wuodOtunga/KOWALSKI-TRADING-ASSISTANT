@@ -62,7 +62,9 @@ class Database:
 
         cursor.execute("SELECT COUNT(*) FROM entry_execution")
         if cursor.fetchone()[0] == 0:
-            cursor.executemany("INSERT INTO entry_execution (archetype, description, points, grade) VALUES (?, ?, ?, ?)", entry_execution)
+            cursor.executemany(
+                "INSERT INTO entry_execution (archetype, description, points, grade) VALUES (?, ?, ?, ?)", entry_execution
+            )
 
         cursor.execute("SELECT COUNT(*) FROM trade_management")
         if cursor.fetchone()[0] == 0:
@@ -105,9 +107,9 @@ class Database:
 
     #UPDATE THIS METHOD WITH THE NEW ENUM TYPES FROM MODELS.
         if trade.asset not in ["XAUUSD", "XAGUSD", "NQ", "ES"]:
-            raise t.InvalidAssetError(f"INVALID ASSET DETECTED {trade.asset}")
+            raise t.TradeValidationError(f"INVALID ASSET DETECTED {trade.asset}")
         if trade.direction not in ["long", "short"]:
-            raise t.InvalidDirectionError(f"INVALID DIRECTION DETECTED {trade.direction}")
+            raise t.TradeValidationError(f"INVALID DIRECTION DETECTED {trade.direction}")
         self.check_foreign_keys(trade)
 
         cursor = self.conn.cursor()
@@ -158,7 +160,7 @@ class Database:
         cursor.execute("SELECT * FROM trades")
         rows = cursor.fetchall()
         if not rows:
-            raise t.EmptyTradesTableError("TRADES TABLE IS EMPTY!")
+            raise t.NotFoundError("TRADES TABLE IS EMPTY!")
 
         trades_list = []
         for row in rows:
@@ -171,7 +173,7 @@ class Database:
     def update_trade_grade(self, trade_id: int, overall_trade_grade: TradeGrade) -> None:
         """UPDATES OVERALL_TRADE_GRADE TO DATABASE"""
         if not isinstance(overall_trade_grade, TradeGrade):
-            raise t.InvalidGradeError(f"{overall_trade_grade} IS INVALID.")
+            raise t.GradingError(f"{overall_trade_grade} IS INVALID.")
 
         cursor = self.conn.cursor()
         cursor.execute("UPDATE trades SET overall_trade_grade = ? WHERE trade_id = ?", (overall_trade_grade, trade_id))
@@ -322,13 +324,13 @@ class Database:
         except sqlite3.IntegrityError as e:
             raise t.ConstraintViolationError(f"CHECK FOR COLUMN CONSTRAINT VIOLATION: {e}") from e
 
-        return cursor.lastrowid # type: ignore
+        return cursor.lastrowid # type: ignore  # noqa: PGH003
 
     def delete_account_from_db(self, account_id: int):
         cursor = self.conn.cursor()
         cursor.execute("DELETE FROM accounts WHERE account_id = ?", (account_id,))
         if cursor.rowcount == 0:
-            raise t.InvalidAccountError(f"NO ROW MATCHES THE {account_id}")
+            raise t.InvalidIdentifierError(f"NO ROW MATCHES THE {account_id}")
 
         self.conn.commit()
 
@@ -348,12 +350,17 @@ class Database:
         if not exists:
             raise t.InvalidIdentifierError(f"MODEL WITH {trade.model_id} DOESN'T EXISTS.")
 
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM trade_management WHERE management_id = ?)", (trade.management_id,))
+        cursor.execute(
+            "SELECT EXISTS(SELECT 1 FROM trade_management WHERE management_id = ?)", (trade.management_id,)
+        )
         exists = cursor.fetchone()[0]
         if not exists:
             raise t.InvalidIdentifierError(f"{trade.management_id} DOESN'T MATCH ANY MANAGEMENT ARCHETYPE.")
 
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM entry_execution WHERE entry_execution_id = ?)", (trade.entry_execution_id,))
+        cursor.execute(
+            "SELECT EXISTS(SELECT 1 FROM entry_execution WHERE entry_execution_id = ?)",
+            (trade.entry_execution_id,)
+        )
         exists = cursor.fetchone()[0]
         if not exists:
             raise t.InvalidIdentifierError(f"{trade.entry_execution_id} DOESN'T MATCH ANY ARCHETYPE.")
@@ -379,7 +386,7 @@ class Database:
         cursor.execute("SELECT * FROM accounts")
         rows = cursor.fetchall()
         if not rows:
-            raise t.EmptyAccountsTableError("NO ACCOUNTS FOUND!")
+            raise t.NotFoundError("NO ACCOUNTS FOUND!")
 
         return [Account(**dict(row)) for row in rows]
 
@@ -406,7 +413,7 @@ class Database:
         #i actually don't want to return an empty list for no charts found.
         #this might be ambiguous in the future, like why is the list empty???
         if not rows:
-            raise t.ChartsNotFoundError(f"THE TRADE HAS NO CHARTS ATTACHED YET")
+            raise t.ChartsNotFoundError("THE TRADE HAS NO CHARTS ATTACHED YET")
 
         return [TradeChart(**dict(row)) for row in rows]
 
