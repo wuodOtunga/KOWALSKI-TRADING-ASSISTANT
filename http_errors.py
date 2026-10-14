@@ -54,7 +54,7 @@ def status_for(exc: BaseException | None, overrides: dict | None) -> int | Liter
 #Check and not-null violations are 422.
 #FK violations stay 500 because your _check_foreign_keys pre-check should catch them first.
 #If one reaches the client, thats your bug.
-def to_http_error(exc: t.KowalskiError | None, overrides: dict | None) -> HTTPException:
+def to_http_error(exc: t.KowalskiError | None, overrides: dict | None = None) -> HTTPException:
     if exc is None:
         logger.error(msg="SERVICE FAILED WITHOUT AN EXCEPTION ATTACHED")
         return HTTPException(
