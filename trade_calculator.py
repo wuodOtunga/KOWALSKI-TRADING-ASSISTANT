@@ -79,7 +79,7 @@ def calculate_risk_reward_multiple(setup: TradeSetup) -> dict:
 
     risk_amount = risk_distance * valid_setup.position_size * contract_size
     profit_amount = profit_distance * valid_setup.position_size * contract_size
-    risk_percent = risk_amount / valid_setup.account_balance
+    risk_percent = (risk_amount / valid_setup.account_balance) * 100
 
     rr_multiple = round(profit_distance / risk_distance, 2)
 

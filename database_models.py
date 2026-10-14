@@ -165,7 +165,7 @@ class AccountsModel(Base):
     account_id: Mapped[int] = mapped_column(primary_key=True)
     account_name: Mapped[str] = mapped_column(nullable=False)
     account_type: Mapped[str] = mapped_column(nullable=False)
-    broker: Mapped[str | None]
+    broker: Mapped[str] = mapped_column(nullable=False)
     starting_balance: Mapped[float] = mapped_column(nullable=False)
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
 
