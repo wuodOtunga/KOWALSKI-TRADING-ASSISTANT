@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 
 import services as s
 from dependencies import JournalDep
+from http_errors import to_http_error
 from schemas import ParametersResponse, TradeParameters
 
 router = APIRouter()
@@ -19,27 +20,8 @@ def submit_parameters(parameters: TradeParameters, journal: JournalDep) -> dict:
     )
 
     if not results.success:
-        #THE 422 RAISED HERE IS INTERESTING BECAUSE THE USER DOESN'T PROVIDE GRADES
-        #IF THE GRADE FAILS VALIDATION, THEN THAT IS AN INTERNAL SERVER ERROR. DISCUSS.
-        if results.error_type.value == "VALIDATION": # pyright: ignore[reportOptionalMemberAccess]
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="TRADE GRADE VALIDATION FAILED"
-            )
-        if results.error_type.value == "NOT_FOUND": # pyright: ignore[reportOptionalMemberAccess]
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="PROVIDED TRADE_ID IS INVALID"
-            )
-        if results.error_type.value == "CONFLICT": # pyright: ignore[reportOptionalMemberAccess]
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="TRADE ALREADY GRADED"
-            )
-        if results.error_type.value == "INTERNAL": # pyright: ignore[reportOptionalMemberAccess]
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="PARAMETERS VIOLATE JUNCTION TABLE JOINT PK CONSTRAINT"
-            )
+        raise to_http_error(exc=results.error)
 
-    #IS IT POSSIBLE FOR A FUNCTION TO RETURN NONE AND THE RESPONSE MODEL STILL DOES IT'S JOB?
     return parameters_present
 
 @router.get(path="/{trade_id}", response_model=ParametersResponse)
@@ -50,7 +32,7 @@ def get_parameters(trade_id: int, journal: JournalDep) -> dict:
     #THIS HTTP CODE ISN'T TECHNICALLY ACCURATE. FIX THIS LATER.
     #WE CAN HAVE A VALID TRADE THAT DOESN'T HAVE ANY PARAMETERS TO IT.
     if not results.success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="TRADE WITH THAT ID NOT FOUND")
+        raise to_http_error(exc=results.error)
 
     #CAN'T JUST RETURN RESULTS.DATA BECAUSE TRADE_ID IS ALSO REQUIRED.
     return {"trade_id": trade_id, "parameters_list": results.data}

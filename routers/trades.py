@@ -4,6 +4,7 @@ from fastapi import APIRouter, File, HTTPException, Path, Response, UploadFile, 
 
 import services as s
 from dependencies import JournalDep
+from http_errors import to_http_error
 from models import ChartFile, ChartsBatchResult
 from schemas import (
     ChangesResponse,
@@ -23,9 +24,7 @@ def get_all_trades(journal: JournalDep):
     results = s.view_all_trades(journal=journal)
 
     if not results.success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="NO TRADES FOUND!"
-        )
+        raise to_http_error(exc=results.error)
 
     return results.data
 
@@ -40,16 +39,7 @@ def create_new_trade(new_trade: NewTrade, journal: JournalDep):
     results = s.submit_trade(trade_details=trade_details, journal=journal)
 
     if not results.success:
-        if results.error_type.value == "INTERNAL":  # pyright: ignore[reportOptionalMemberAccess]
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="TRADE NOT SAVED TO JOURNAL",
-            )
-        elif results.error_type.value == "VALIDATION":  # pyright: ignore[reportOptionalMemberAccess]
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="TRADE VALIDATION FAILED. INVALID INPUT VALUES",
-            )
+        raise to_http_error(exc=results.error)
 
     return results.data
 
@@ -60,9 +50,7 @@ def get_trade(trade_id: int, journal: JournalDep):
     results = s.fetch_trade(trade_id=trade_id, journal=journal)
 
     if not results.success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="PROVIDED TRADE_ID IS INVALID"
-        )
+        raise to_http_error(exc=results.error)
 
     return results.data
 
@@ -103,11 +91,9 @@ def upload_chart(
         response: Response,
 ) -> dict:
 
-    if not s.fetch_trade(trade_id=trade_id, journal=journal).success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="PROVIDED TRADE IS INVALID. NO TRADE MATCHES"
-        )
+    results = s.fetch_trade(trade_id=trade_id, journal=journal)
+    if not results.success:
+        raise to_http_error(exc=results.error)
 
     files: list[ChartFile] = []
     for upload in charts:
@@ -149,29 +135,7 @@ def update_trade_field(trade_id: int, changes: NewChanges, journal: JournalDep):
     results = s.submit_amendment(trade_amendment=trade_changes, journal=journal)
 
     if not results.success:
-        if results.error_type.value == "NOT_FOUND": # pyright: ignore[reportOptionalMemberAccess]
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="TRADE WITH THAT ID NOT FOUND!",
-            )
-
-        if results.error_type.value == "INTERNAL":  # pyright: ignore[reportOptionalMemberAccess]
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="DATABASE ERROR WHILE RECORDING TRADE CHANGES",
-            )
-
-        if results.error_type.value == "VALIDATION":  # pyright: ignore[reportOptionalMemberAccess]
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="TRADE VALIDATION FAILED. INVALID INPUT VALUES",
-            )
-
-        if results.error_type.value == "CONFLICT":  # pyright: ignore[reportOptionalMemberAccess]
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="RESTRICTED COLUMN NAME. COLUMN CAN'T BE CHANGED",
-            )
+        raise to_http_error(exc=results.error)
 
     return trade_changes
 
@@ -185,7 +149,4 @@ def delete_trade_row(trade_id: int, journal: JournalDep):
     results = s.delete_trade_from_db(trade_id=trade_id, journal=journal)
 
     if not results.success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="NO TRADE FOUND WITH THAT TRADE_ID",
-        )
+        raise to_http_error(exc=results.error)

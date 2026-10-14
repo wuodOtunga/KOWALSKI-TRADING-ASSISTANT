@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 
 import services as s
 from dependencies import JournalDep
+from http_errors import to_http_error
 from schemas import AccountResponse, NewAccount
 
 router = APIRouter()
@@ -17,10 +18,7 @@ def create_account(account: NewAccount, journal: JournalDep):
     results: s.ServiceResult = s.create_trading_account(account_info= account_details, journal= journal)
 
     if not results.success:
-        raise HTTPException(
-            status_code= status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail= "ACCOUNT CREATION FAILED DUE TO A DATABASE ERROR"
-        )
+        raise to_http_error(exc=results.error)
 
     return results.data
 
@@ -29,10 +27,7 @@ def get_accounts(journal: JournalDep):
 
     results: s.ServiceResult = s.view_trading_accounts(journal= journal)
     if not results.success:
-        raise HTTPException(
-            status_code= status.HTTP_404_NOT_FOUND,
-            detail= "NO ACCOUNTS CREATED YET"
-        )
+        raise to_http_error(exc=results.error)
 
     return results.data
 
@@ -41,4 +36,4 @@ def delete_account(account_id: int, journal: JournalDep):
 
     results: s.ServiceResult = s.delete_account_info(account_id= account_id, journal= journal)
     if not results.success:
-        raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="ACCOUNT WITH THAT ID NOT FOUND!")
+        raise to_http_error(exc=results.error)
