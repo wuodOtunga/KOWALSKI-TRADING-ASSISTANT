@@ -44,11 +44,8 @@ class Journal:
         valid_trade: Trade = validate_trade_data(trade)
 
         #3: PERSIST TO THE DATABASE & #4: TRANSLATE THE ERRORS.
-        try:
-            trade_id: int = self.db.save_trade(trade=valid_trade)
-            trade.trade_id = trade_id
-        except t.ConstraintViolationError as e:
-            raise t.TradeRecordingError(f"TRADE NOT SAVED DUE TO POSSIBLE ERROR: {e}") from e
+        trade_id: int = self.db.save_trade(trade=valid_trade)
+        trade.trade_id = trade_id
 
         #5: RETURN SOMETHING MEANINGFUL.
         return trade
@@ -107,11 +104,8 @@ class Journal:
 
         #TRADE_ID ISN'T BEING VERIFIED ANYWHERE
         #3: PERSIST TO DATABASE AND TRANSLATE FAILURES.
-        try:
-            chart_id = self.db.add_chart(chart)
-            chart.chart_id = chart_id
-        except t.ConstraintViolationError as e:
-            raise t.ChartUploadError(f"CONSTRAINT VIOLATION ERROR DETECTED {e}") from e
+        chart_id = self.db.add_chart(chart)
+        chart.chart_id = chart_id
 
         #4: RETURN SOMETHING MEANINGFUL.
         return chart
@@ -125,7 +119,7 @@ class Journal:
             management_score = self.db.get_trade_management_points(trade.management_id)
             trade_parameters = self.db.get_trade_parameters(trade.trade_id) # pyright: ignore[reportArgumentType]
         except t.InvalidIdentifierError as e:
-            raise t.NotFoundError(f"PROVIDED IDs ARE INVALID: {e}") from e
+            raise t.GradingError(f"STORED IDS FOR TRADE {trade.trade_id} ARE INVALID: {e}") from e
 
         parameters_score = len(trade_parameters)
         #5. RETURN SOMETHING MEANINGFUL.
@@ -172,11 +166,7 @@ class Journal:
     def add_reflection_notes(self, trade_notes: TradeNotes) -> TradeNotes:
 
         #THIN WRAPPER METHOD, ONLY SERVES TO TRANSLATES ERRORS.
-        try:
-            self.db.add_trade_notes(notes=trade_notes)
-        except t.ConstraintViolationError as e:
-            raise t.NotesRecordingError(
-                f"TRADE_ID MUST BE UNIQUE AND ALL INPUTS ARE REQUIRED: {e}") from e
+        self.db.add_trade_notes(notes=trade_notes)
 
         return trade_notes
 
@@ -271,27 +261,25 @@ class Journal:
         except (KeyError, ValueError) as e:
             raise t.TradeValidationError("TRADE VALIDATION FAILED") from e
 
-        try:
-            with self.db.transaction():
-                trade: Trade = self.db.get_by_id(trade_id=amendment.trade_id)
-                amendment.old_value = getattr(trade, amendment.column_name)
-                setattr(trade, amendment.column_name, amendment.new_value)
 
-                recompute_method = recompute_values.get(amendment.column_name)
-                if recompute_method:
-                    recompute_method(trade)
+        with self.db.transaction():
+            trade: Trade = self.db.get_by_id(trade_id=amendment.trade_id)
+            amendment.old_value = getattr(trade, amendment.column_name)
+            setattr(trade, amendment.column_name, amendment.new_value)
 
-                #MAJOR BUG IN THE CODE: NONE OF THE RECOMPUTED VALUES ARE STORED BACK TO THE DATABASE.
-                #ONLY THE AMENDED COLUMN IS STORED IN THE DATABASE. THE RECOMPUTES GO STALE.
-                valid_trade: Trade = validate_trade_data(trade)
-                self.db.update_trade_field(
-                    trade_id=valid_trade.trade_id, # pyright: ignore[reportArgumentType]
-                    new_value=amendment.new_value,
-                    column=amendment.column_name) # type: ignore  # noqa: PGH003
-                amendment.amended_at = datetime.now()
-                amendment.amendment_id = self.db.add_trade_amendments(amendment)
-        except t.ConstraintViolationError as e:
-            raise t.TradeRecordingError(f"COULDN'T RECORD NEW TRADE UPDATE: {e}") from e
+            recompute_method = recompute_values.get(amendment.column_name)
+            if recompute_method:
+                recompute_method(trade)
+
+            #MAJOR BUG IN THE CODE: NONE OF THE RECOMPUTED VALUES ARE STORED BACK TO THE DATABASE.
+            #ONLY THE AMENDED COLUMN IS STORED IN THE DATABASE. THE RECOMPUTES GO STALE.
+            valid_trade: Trade = validate_trade_data(trade)
+            self.db.update_trade_field(
+                trade_id=valid_trade.trade_id, # pyright: ignore[reportArgumentType]
+                new_value=amendment.new_value,
+                column=amendment.column_name) # pyright: ignore[reportArgumentType]
+            amendment.amended_at = datetime.now()
+            amendment.amendment_id = self.db.add_trade_amendments(amendment)
 
         return amendment
 
@@ -302,30 +290,29 @@ class Journal:
         else:
             parameter_ids = []
 
-        #TRADE IS ALREADY GRADED AND CLIENT RESUBMITS SAME PARENTERS. = INTERNAL
-        #TRADE_ID DOESN'T EXIST, FK CONSTRAINT FAILS == INTERNAL
         try:
             with self.db.transaction():
                 trade: Trade = self.db.get_by_id(trade_id)
-                for parameter in parameter_ids: # type: ignore  # noqa: PGH003
-                    self.db.add_trade_parameters(trade_id, parameter_id=parameter)
                 if trade.overall_trade_grade is None:
+                    for parameter in parameter_ids:
+                        self.db.add_trade_parameters(trade_id, parameter_id=parameter)
                     graded_trade: Trade = self.grade_trade(trade)
                 else:
                     raise t.TradeAlreadyGradedError("GRADING ERROR: TRADE HAS ALREADY BEEN GRADED")
-        except t.ConstraintViolationError as e:
+        #if grade hasn't been graded and we add the parameters but still run into
+        #UniqueViolationError, then this isn't a conflict, it's a server error.
+        #research this later.
+        except t.UniqueViolationError as e:
             raise t.ParametersConflictError(
-                f"PARAMETERS VIOLATE JUNCTION TABLE JOINT PK CONSTRAINT: {e}") from e
+                f"DUPLICATE PARAMETERS VIOLATE JUNCTION TABLE JOINT PK CONSTRAINT: {e}") from e
 
         return graded_trade
 
     def register_trading_account(self, account: Account) -> Account:
 
-        try:
-            account_id = self.db.create_trading_account(account)
-            account.account_id = account_id
-        except t.ConstraintViolationError as e:
-            raise t.AccountCreationError(f"ACCOUNT COULDN'T BE CREATED DUE TO DB ERROR: {e}") from e
+
+        account_id = self.db.create_trading_account(account)
+        account.account_id = account_id
 
         return account
 
@@ -344,26 +331,18 @@ class Journal:
         return self.db.get_trade_notes(trade_id)
 
     def fetch_present_parameters(self, trade_id: int) -> list[str]:
-        #CHECK TO SEE IF THE TRADE_ID EXISTS.
-        #TRADE CAN HAVE ZERO PARAMETERS ATTACHED TO IT. FIX THIS
-
 
         parameter_ids: list[int] = self.db.get_trade_parameters(trade_id)
-
         return self.db.get_parameter_names(parameter_ids) if parameter_ids else []
 
     def delete_trade_entry(self, trade_id: int) -> None:
-
         self.db.delete_trade(trade_id)
 
     def update_trading_notes(self, trade_notes: TradeNotes) -> None:
 
         #database method inserts the notes row if the trade_id didn't have notes.
         #this means that this is an INSERT, not an UPDATE if no notes already exist
-        try:
-            self.db.update_trading_notes(new_notes=trade_notes)
-        except t.ConstraintViolationError as e:
-            raise t.NotesRecordingError(f"TRADE NOT FOUND: {e}") from e
+        self.db.update_trading_notes(new_notes=trade_notes)
 
     def fetch_models_list(self) -> list[TradingModel]:
         return self.db.get_models_list()
