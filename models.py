@@ -35,13 +35,6 @@ class TradeResult(StrEnum):
     PROFIT = "PROFIT"
     LOSS = "LOSS"
 
-class ServiceErrorType(StrEnum):
-    """REPRESENTS EXCEPTION TYPE TO RESPONSE SHAPE MAPPING FOR API CLIENTS"""
-    VALIDATION = "VALIDATION"
-    INTERNAL = "INTERNAL"
-    NOT_FOUND = "NOT_FOUND"
-    CONFLICT = "CONFLICT"
-
 AmendableColumns = Literal[
     "entry_price", "exit_price", "take_profit", "stop_loss", "position_size", "asset",
     "direction", "model_id", "account_id", "management_id", "entry_execution_id",
@@ -157,7 +150,6 @@ class ServiceResult:
     success : bool
     message : str
     data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | list[Account] | list[TradeManagement] | list[TradingModel] | list[EntryExecution] | list[Parameter] | list[TradeChart] | None  # noqa: E501
-    error_type: ServiceErrorType | None
     error: KowalskiError | None
 
 @dataclass

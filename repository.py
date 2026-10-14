@@ -169,12 +169,27 @@ def _db_message(error: exc.SQLAlchemyError) -> str:
 
     return str(object=getattr(error, "orig", None) or error)
 
-def _translate_integrity(e: exc.IntegrityError) -> t.ConstraintViolationError:
-    error_name: str | None = _db_message(error=e)
+#When SQLite rejects an insert, three objects are involved:
+#sqlite3.IntegrityError, the drivers original exception.
+#sqlalchemy.exc.IntegrityError (your e), a wrapper SQLAlchemy puts around it.
+# The original is available as e.orig.
+#Your own t.ConstraintViolationError family, the domain exceptions.
+#On Python 3.11+, e.orig carries two attributes you can see with plain sqlite3:
+#sqlite_errorname: SQLITE_CONSTRAINT_UNIQUE, sqlite_errorcode: 2067
+#when you print the error: print(err) ==> UNIQUE constraint failed: x.a
+#The errorname is the machine-readable label you want to dispatch on.
+#The message text is for humans and logs.
+#The function reads the errorname from e.orig,
+#uses it to pick the class, and returns an instance with the message
+def _translate_integrity(e: exc.IntegrityError):
+    """function reads the errorname from e.orig,
+    uses it to pick the class, and returns an instance with the message"""
 
-    exception = _SQLITE_CONSTRAINTS.get(error_name, t.ConstraintViolationError)
+    error_name: str | None = getattr(e.orig, "sqlite_errorname", None)
 
-    return exception
+    cls = _SQLITE_CONSTRAINTS.get(error_name, t.ConstraintViolationError) # pyright: ignore[reportCallIssue, reportArgumentType]
+
+    return cls(f"CONSTRAINT VIOLATION: {_db_message(e)}")
 
 # --------------------------------------------------------------------------
 #   PRIVATE HELPERS FOR COMMON QUERIES SHARED ACROSS DIFFERENT METHODS
@@ -352,7 +367,7 @@ class Repository:
                         _active_session.reset(token)
         #The outer try/except translates SQLAlchemy errors into your domain exceptions, in both branches.
         except exc.IntegrityError as e:
-            raise t.ConstraintViolationError(f"CONSTRAINT VIOLATION: {_db_message(e)}") from e
+            raise _translate_integrity(e) from e
         except exc.SQLAlchemyError as e:
             raise t.KowalskiError(f"DATABASE ERROR: {_db_message(e)}") from e
 
