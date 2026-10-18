@@ -16,7 +16,7 @@ function resetChartsModal() {
     //stop fields from showing red on reopen
     form.classList.remove("was-validated");
     //hide any previous alerts in the modal.
-    hideAlert(notesAlert);
+    hideAlert(chartsAlert);
     //reload the window to refresh data to avoid stale writes.
     window.location.reload();
 }
@@ -53,6 +53,7 @@ async function recordChartsHandler(event) {
                 successMessageElement.textContent = "ALL CHARTS RECORDED SUCCESSFULLY!";
                 bootstrap.Modal.getOrCreateInstance(chartsModal).hide();
                 showSuccessModal("successModal");
+                return;
             }
 
             const lines = failed.map(o => `${o.filename}: ${o.error}`).join("; ");

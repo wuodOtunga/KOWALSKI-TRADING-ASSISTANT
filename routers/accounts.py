@@ -26,8 +26,6 @@ def create_account(account: NewAccount, journal: JournalDep):
 def get_accounts(journal: JournalDep):
 
     results: s.ServiceResult = s.view_trading_accounts(journal= journal)
-    if not results.success:
-        raise to_http_error(exc=results.error)
 
     return results.data
 

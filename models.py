@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from enum import StrEnum
-from typing import Literal
+from typing import Literal, TypeVar
 
 from exceptions import KowalskiError
 
-
+T = TypeVar("T")
 #The column names returned by SQL must match the dataclass field names.
 class TradeDirection(StrEnum):
     """THIS CLASS REPRESENTS DIRECTION AS A TYPE"""
@@ -34,6 +34,7 @@ class TradeResult(StrEnum):
     """THIS CLASS REPRESENTS RESULT AS A TYPE"""
     PROFIT = "PROFIT"
     LOSS = "LOSS"
+    BREAKEVEN = "BREAKEVEN"
 
 AmendableColumns = Literal[
     "entry_price", "exit_price", "take_profit", "stop_loss", "position_size", "asset",
@@ -100,7 +101,7 @@ class JournalEntry:
     """THIS CLASS MANAGES ENTIRE JOURNAL ENTRY DATA"""
     trade : Trade
     charts : list[TradeChart]
-    trade_notes : TradeNotes
+    trade_notes : TradeNotes | None
     parameter_names : list[str]
 
 @dataclass
@@ -149,7 +150,7 @@ class ServiceResult:
     """MANAGES RETURN TYPES OF SERVICE FUNCTIONS"""
     success : bool
     message : str
-    data : Trade | TradeNotes | TradeChart | list[str] | JournalEntry | list[Trade] | Account | Amendments | list[Account] | list[TradeManagement] | list[TradingModel] | list[EntryExecution] | list[Parameter] | list[TradeChart] | None  # noqa: E501
+    data : T | None # pyright: ignore[reportGeneralTypeIssues]
     error: KowalskiError | None
 
 @dataclass

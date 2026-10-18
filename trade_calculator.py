@@ -52,7 +52,13 @@ def calculate_profit_loss(setup: TradeSetup) -> dict:
     dollar_amount = (valid_setup.exit_price - valid_setup.entry_price) * multiplier * valid_setup.position_size * contract_size  # noqa: E501
     dollar_percent = (dollar_amount / valid_setup.account_balance) * 100
 
-    verdict = "PROFIT" if dollar_amount > 0 else "LOSS"
+    #verdict = PROFIT/LOSS/BREAKEVEN
+    if dollar_amount == 0:
+        verdict = "BREAKEVEN"
+    elif dollar_amount > 0:
+        verdict = "PROFIT"
+    else:
+        verdict = "LOSS"
 
     return {
         "RESULT" : verdict,
@@ -71,11 +77,11 @@ def calculate_risk_reward_multiple(setup: TradeSetup) -> dict:
     contract_size = INSTRUMENT_SPECS[valid_setup.asset]["contract_size"]
 
     if valid_setup.take_profit == valid_setup.exit_price:
-        profit_distance = abs(valid_setup.take_profit - valid_setup.entry_price)
+        profit_distance = valid_setup.take_profit - valid_setup.entry_price
     else:
-        profit_distance = abs(valid_setup.exit_price - valid_setup.entry_price)
+        profit_distance = valid_setup.exit_price - valid_setup.entry_price
 
-    risk_distance = abs(valid_setup.stop_loss - valid_setup.entry_price)
+    risk_distance = valid_setup.stop_loss - valid_setup.entry_price
 
     risk_amount = risk_distance * valid_setup.position_size * contract_size
     profit_amount = profit_distance * valid_setup.position_size * contract_size
@@ -85,7 +91,7 @@ def calculate_risk_reward_multiple(setup: TradeSetup) -> dict:
 
     return {
         "RR_MULTIPLE" : rr_multiple,
-        "RISK_PERCENT": round(risk_percent, 2),
+        "RISK_PERCENT": round(risk_percent),
         "RISK_AMOUNT" : round(risk_amount, 2),
         "REWARD_AMOUNT" : round(profit_amount, 2),
     }

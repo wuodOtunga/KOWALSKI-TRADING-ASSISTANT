@@ -4,19 +4,22 @@ from collections.abc import Generator, Iterable, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import fields
+from datetime import date, time
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TypeVar, get_args
 
 from sqlalchemy import (
     Engine,
     Row,
     ScalarResult,
+    and_,
     create_engine,
     delete,
     event,
     exc,
     exists,
     func,
+    or_,
     select,
 )
 from sqlalchemy.engine import URL, make_url
@@ -56,6 +59,10 @@ _DB_PATH: Path = Path(__file__).resolve().parent / "kowalski.db"
 SQLALCHEMY_DATABASE_URL: URL = URL.create(drivername="sqlite", database=str(object=_DB_PATH))
 
 T = TypeVar("T")
+
+_DERIVED_FIELDS = ("dollar_amount", "result", "rr_multiple", "risk_percent", "duration")
+
+_WRITABLE_TRADE_COLUMNS = frozenset(get_args(AmendableColumns)) | set(_DERIVED_FIELDS) | {"overall_trade_grade"}
 
 #ContextVar for context variables.
 #Think of it as a variable whose value depends on who is asking.
@@ -296,12 +303,12 @@ class Repository:
             _seed_if_empty(
                 session=session,
                 db_model=Models,
-                rows=_named(columns=_MODELS_COLUMNS, rows=seed_data.models)
+                rows=_named(columns=_MODELS_COLUMNS, rows=seed_data.models),
             )
             _seed_if_empty(
                 session=session,
                 db_model=AccountsModel,
-                rows=_named(columns=_ACCOUNTS_COLUMNS, rows=seed_data.accounts)
+                rows=_named(columns=_ACCOUNTS_COLUMNS, rows=seed_data.accounts),
             )
             _seed_if_empty(
                 session,
@@ -404,7 +411,9 @@ class Repository:
         """RETRIEVES ALL TRADES FROM THE REPOSITORY"""
 
         with self._transaction() as session:
-            rows: list[TradeModel] = list(session.execute(select(TradeModel)).scalars().all())
+            rows: list[TradeModel] = list(session.scalars(
+                select(TradeModel).order_by(TradeModel.trade_id)
+            ))
             return [_to_domain(Trade, row) for row in rows]
 
     def update_trade_grade(self, trade_id: int, new_grade: TradeGrade) -> None:
@@ -416,16 +425,22 @@ class Repository:
 
         with self._transaction() as session:
             _ensure_trade_exists(trade_id, session)
-            _get_trade_row(trade_id, session).overall_trade_grade = new_grade
+            row: TradeModel = _get_trade_row(trade_id, session)
+            row.overall_trade_grade = new_grade
+            _check_foreign_keys(trade=_to_domain(cls=Trade, row=row), session=session)
             session.flush()
 
-    def update_trade_field(self, trade_id: int, new_value: Any, column: AmendableColumns) -> None:
-        """UPDATES A DYNAMIC TRADE COLUMN BASED ON TRADER PREFERENCE"""
+    def update_trade_fields(self, trade_id: int, changes: Mapping[str, Any]) -> None:
+        """UPDATES SEVERAL TRADE COLUMNS IN ONE FLUSH"""
+        unknown = set(changes) - _WRITABLE_TRADE_COLUMNS
+        if unknown:
+            raise t.TradeValidationError(f"CAN'T WRITE COLUMNS: {sorted(unknown)}")
 
-        # use setattr() to dynamically update the trade column with the new_value
         with self._transaction() as session:
-            _ensure_trade_exists(trade_id, session)
-            setattr(_get_trade_row(trade_id, session), column, new_value)
+            row: TradeModel = _get_trade_row(trade_id, session)
+            for column, value in changes.items():
+                setattr(row, column, value)
+            _check_foreign_keys(trade=_to_domain(cls=Trade, row=row), session=session)
             session.flush()
 
     def delete_trade(self, trade_id: int) -> None:
@@ -525,7 +540,7 @@ class Repository:
         """an empty accounts table returns an empty list"""
 
         with self._transaction() as session:
-            accounts = list(
+            accounts: list[AccountsModel] = list(
                 session.scalars(
                     select(AccountsModel).order_by(AccountsModel.account_id)
                 )
@@ -557,6 +572,40 @@ class Repository:
             )
 
             return float(starting_balance + pnl) # pyright: ignore[reportOperatorIssue]
+
+    def get_account_balance_as_of(
+    self, account_id: int, as_of_date: date, as_of_time: time,
+    exclude_trade_id: int | None = None,
+) -> float:
+
+#PROBLEM: The current get_current_account_balance sums every trade on the account,
+# with no time filter and no exclusion. That causes the two B2 problems:
+#Amending: the sum includes the trades own P&L,
+#so risk_percent is measured against a balance that already contains the result of the trade it describes.
+#Backdating: a trade from three weeks ago is measured against todays balance,
+#which includes three weeks of later results.
+#The fix is to come up with an "as-off balance." What as-off means in this context:
+#The balance the account had at a specific moment in the trades life, not the balance right now.
+#For a trade, that moment is its entry, because risk_percent answers
+#“how much of my equity did I put at risk when I took this?”
+        with self._transaction() as session:
+            starting = session.scalar(
+                select(AccountsModel.starting_balance)
+                .where(AccountsModel.account_id == account_id)
+            )
+            if starting is None:
+                raise t.InvalidIdentifierError("INVALID ACCOUNT ID. NO ACCOUNT FOUND")
+
+            closed_before = or_(TradeModel.date < as_of_date,
+                and_(TradeModel.date == as_of_date, TradeModel.exit_time <= as_of_time),
+            )
+            query = select(func.coalesce(func.sum(TradeModel.dollar_amount), 0)).where(
+                TradeModel.account_id == account_id, closed_before
+            )
+            if exclude_trade_id is not None:
+                query = query.where(TradeModel.trade_id != exclude_trade_id)
+
+            return float(starting + session.scalar(query)) # pyright: ignore[reportOperatorIssue]
 
     def delete_account_from_db(self, account_id: int) -> None:
         """DELETE ACCOUNT DETAILS FROM THE ACCOUNTS TABLE"""

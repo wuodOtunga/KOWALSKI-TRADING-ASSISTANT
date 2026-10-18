@@ -39,7 +39,7 @@ class TradeModel(Base):
     stop_loss: Mapped[float] = mapped_column(nullable=False)
     position_size: Mapped[float] = mapped_column(nullable=False)
     #FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
-    entry_time: Mapped[time] = mapped_column(Time, nullable=False)
+    entry_time: Mapped[time] = mapped_column(Time(timezone=True), nullable=False)
     #FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
     exit_time: Mapped[time] = mapped_column(Time, nullable=False)
     #FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
@@ -222,7 +222,7 @@ class ChartsModel(Base):
     trade_id: Mapped[int] = mapped_column(ForeignKey("trades.trade_id"))
     filepath: Mapped[str] = mapped_column(nullable=False, unique=True)
     filename: Mapped[str] = mapped_column(nullable=False, unique=True)
-    upload_date: Mapped[datetime | None] = mapped_column(DateTime)
+    upload_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     trade: Mapped[TradeModel] = relationship(back_populates="charts")
 

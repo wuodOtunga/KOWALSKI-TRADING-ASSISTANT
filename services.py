@@ -308,7 +308,7 @@ def view_trade_notes(trade_id: int, journal: Journal) -> ServiceResult:
     except t.KowalskiError as e:
         return ServiceResult(
             success= False, message= f"INVALID TRADE_ID. PLEASE CHECK THE ID: {trade_id}. {e}",
-            data= None, error=None
+            data= None, error=e
         )
 
     return ServiceResult(

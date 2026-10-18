@@ -10,6 +10,7 @@ from schemas import (
     ChangesResponse,
     ChartOutcomeResponse,
     ChartsBatchResponse,
+    JournalEntryResponse,
     NewChanges,
     NewTrade,
     TradeResponse,
@@ -22,9 +23,6 @@ MAX_CHART_BYTES = 10 * 1024 * 1024    #max chart size == 10MB
 def get_all_trades(journal: JournalDep):
 
     results = s.view_all_trades(journal=journal)
-
-    if not results.success:
-        raise to_http_error(exc=results.error)
 
     return results.data
 
@@ -150,3 +148,10 @@ def delete_trade_row(trade_id: int, journal: JournalDep):
 
     if not results.success:
         raise to_http_error(exc=results.error)
+
+@router.get("/{trade_id}/journal", response_model=JournalEntryResponse)
+def get_journal_entry(trade_id: int, journal: JournalDep):
+    results = s.fetch_journal_entry(trade_id=trade_id, journal=journal)
+    if not results.success:
+        raise to_http_error(exc=results.error)
+    return results.data

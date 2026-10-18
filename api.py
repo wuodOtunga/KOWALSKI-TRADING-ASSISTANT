@@ -96,19 +96,6 @@ def models_page(request: Request, journal: JournalDep) -> _TemplateResponse:
         }
     )
 
-#@app.get(path="/journal-entry/{trade_id}", include_in_schema=False)
-def journal_entry_page():
-    pass
-    #results = s.fetch_journal_entry(trade_id, journal)
-    #if not results.success:
-        #raise HTTPException(
-        #status_code= status.HTTP_404_NOT_FOUND, detail="INVALID TRADE_ID. JOURNAL ENTRY NOT FOUND")
-
-    #response = JournalEntry.model_validate(obj=results.data, from_attribute=True)
-
-    #return templates.TemplateResponse(
-    #request=request, name="journal_entry_page.html", context={"journal_entry": response})
-
 #PROBLEM:
 #CURRENTLY, A HTTP 404 RESPONSE FOR A TRADE THAT DOESN'T EXIST
 #RETURNS JSON FOR BOTH THE API ENDPOINT AND HTML PAGE ROUTES.
@@ -161,6 +148,10 @@ def general_exception_handler(
 #THEY ARE RequestValidationError CLASS.
 #NOW OUT HTML PAGE ROUTES ARE RETURNING JSON FOR VALIDATION ERRORS,
 #SO WE NEED TO TURN THESE INTO HTML PAGE RESPONSES.
+
+#FUTURE FIX: exc.errors() in validation_exception_handler can contain non-JSON-serializable objects,
+#so wrap it in jsonable_encoder. The handler also drops exception.headers,
+#which will break WWW-Authenticate on 401s.
 
 @app.exception_handler(exc_class_or_status_code=RequestValidationError)
 def validation_exception_handler(

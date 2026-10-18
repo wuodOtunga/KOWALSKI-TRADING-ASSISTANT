@@ -5,7 +5,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from models import AmendableColumns, TradeAsset, TradeDirection, TradeResult
+from models import AmendableColumns, TradeAsset, TradeDirection, TradeGrade, TradeResult
 
 #DEBATE ON WHETHER YOU WANT ACCOUNT_ID OR ACCOUNT_NAME IN THE MODEL.
 #ACCOUNT_ID IS TRIVIAL INFO, ACCOUNT_NAME HOLDS MORE CONTEXT.
@@ -28,10 +28,10 @@ class TradeBase(BaseModel):
 
 class NewTrade(TradeBase):
     """REPRESENTS THE REQUEST SHAPE FOR CREATING NEW TRADES"""
-    model_id: int
-    account_id: int
-    management_id: int
-    entry_execution_id: int
+    model_id: Annotated[int, Field(gt=0)]
+    account_id: Annotated[int, Field(gt=0)]
+    management_id: Annotated[int, Field(gt=0)]
+    entry_execution_id: Annotated[int, Field(gt=0)]
 
 class TradeResponse(TradeBase):
     """REPRESENTS SHAPE OF TRADE RESPONSE CLIENT GETS TO SEE"""
@@ -43,6 +43,7 @@ class TradeResponse(TradeBase):
     result: TradeResult
     rr_multiple: float
     risk_percent: float
+    overall_trade_grade: TradeGrade | None
 
 class NewNotes(BaseModel):
     """REPRESENTS REQUEST SHAPE FOR CREATING NEW NOTES"""
@@ -60,7 +61,7 @@ class AccountBase(BaseModel):
     """REPRESENTS THE ACCOUNT BASE MODEL AS PARENT MODEL CLASS"""
     account_name: str
     account_type: str
-    broker: str | None    #some accounts in database were recorded with no brokers
+    broker: str
     starting_balance: int
     is_active: bool
 
@@ -70,11 +71,11 @@ class NewAccount(AccountBase):
 class AccountResponse(AccountBase):
     """REPRESENTS SHAPE OF ACCOUNT RESPONSE CLIENT GETS TO SEE"""
     model_config = ConfigDict(from_attributes=True)
-    account_id: int
+    account_id: Annotated[int, Field(gt=0)]
 
 class ParametersBase(BaseModel):
     """REPRESENTS THE TRADE PARAMETERS BASE MODEL AS PARENT MODEL CLASS"""
-    trade_id: int
+    trade_id: Annotated[int, Field(gt=0)]
     parameters_list: list[str]
 
 class TradeParameters(ParametersBase):
@@ -83,14 +84,6 @@ class TradeParameters(ParametersBase):
 class ParametersResponse(ParametersBase):
     """REPRESENTS SHAPE OF TRADE PARAMETERS RESPONSE CLIENT GETS TO SEE"""
     model_config = ConfigDict(from_attributes=True)
-
-class JournalEntry(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    trade: TradeResponse
-    charts: ChartsBatchResponse
-    trade_notes: NotesResponse
-    parameters: ParametersResponse
 
 class TradeChanges(BaseModel):
     """REPRESENTS THE TRADE CHANGES BASE MODEL AS PARENT MODEL CLASS"""
@@ -104,37 +97,37 @@ class ChangesResponse(TradeChanges):
     """REPRESENTS SHAPE OF TRADE CHANGES RESPONSE CLIENT GETS TO SEE"""
     model_config = ConfigDict(from_attributes=True)
 
-    trade_id: int
-    change_id: int
+    trade_id: Annotated[int, Field(gt=0)]
+    change_id: Annotated[int, Field(gt=0)]
     old_value: float | str
     amended_at: datetime
 
 class TradeModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    model_id: int
+    model_id: Annotated[int, Field(gt=0)]
     model_name: str
     description: str
 
 class ExecutionArchetypes(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    entry_execution_id: int
+    entry_execution_id: Annotated[int, Field(gt=0)]
     archetype: str
     description: str
-    points: int
+    points: Annotated[int, Field(gt=0)]
     grade: str
 
 class ManagementArchetypes(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    management_id: int
+    management_id: Annotated[int, Field(gt=0)]
     archetype: str
     description: str
-    points: int
+    points: Annotated[int, Field(gt=0)]
     grade: str
 
 class ParameterItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    parameter_id: int
+    parameter_id: Annotated[int, Field(gt=0)]
     parameter_name: str
 
 class ChartOutcomeResponse(BaseModel):
@@ -148,4 +141,21 @@ class ChartsBatchResponse(BaseModel):
     succeeded: int
     failed: int
     outcomes: list[ChartOutcomeResponse]
+
+class ChartResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    chart_id: int
+    trade_id: int
+    filename: str
+    upload_date: datetime
+    # filepath deliberately omitted
+
+class JournalEntryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    trade: TradeResponse
+    trade_notes: NotesResponse | None = None
+    charts: list[ChartResponse] = []
+    parameter_names: list[str] = []
 

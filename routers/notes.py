@@ -23,7 +23,7 @@ def create_trade_notes(notes: NewNotes, journal: JournalDep):
     return results.data
 
 
-@router.get(path="/{trade_id}", response_model=NotesResponse)
+@router.get(path="/{trade_id}", response_model=NotesResponse | None)
 def get_trade_notes(trade_id: int, journal: JournalDep):
 
     results: s.ServiceResult = s.view_trade_notes(trade_id=trade_id, journal=journal)
@@ -35,7 +35,9 @@ def get_trade_notes(trade_id: int, journal: JournalDep):
 
 @router.put(path="/{trade_id}", response_model=NotesResponse)
 def update_trade_notes(trade_id: int, notes: NewNotes, journal: JournalDep) -> dict:
-
+    #FUTURE FIX: PUT /api/notes/{trade_id} ignores the path ID.
+    #The bodys trade_id is used for the update,
+    #but the response echoes the path ID, so the two can disagree.
     new_notes: dict = notes.model_dump()
     results: s.ServiceResult = s.amend_trade_notes(updated_notes=new_notes, journal=journal)
 
