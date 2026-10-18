@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import get_args
+from datetime import UTC, datetime
+from typing import Any, get_args
 
 import exceptions as t
 import trade_calculator as y
@@ -24,6 +24,24 @@ from models import (
 from repository import Repository
 from validation import validate_trade_data
 
+_DERIVED_FIELDS = ("dollar_amount", "result", "rr_multiple", "risk_percent", "duration")
+
+# columns whose change alters P&L, R-multiple, risk or duration
+_RECOMPUTE_DERIVED_ON = frozenset({
+    "entry_price", "exit_price", "take_profit", "stop_loss",
+    "position_size", "asset", "direction", "account_id",
+})
+
+# columns whose change alters the grade (only matters if already graded)
+_REGRADE_ON = frozenset({"management_id", "entry_execution_id"})
+
+_COLUMN_CASTERS = {
+    "entry_price": float, "exit_price": float, "take_profit": float,
+    "stop_loss": float, "position_size": float,
+    "model_id": int, "account_id": int,
+    "management_id": int, "entry_execution_id": int,
+    "asset": TradeAsset, "direction": TradeDirection,
+}
 
 class Journal:
 
@@ -33,7 +51,6 @@ class Journal:
     #A) SINGLE WRITE METHOD
     def record_trade(self, trade: Trade) -> Trade:
         """RECORDS A TRADE IN THE JOURNAL"""
-
         #1: ASSEMBLE/DERIVE TRADE DATA CALLER DOESN'T HAVE.
         trade = self._compute_derived_fields(trade)
         #TRADE ISN'T GRADED AT THIS POINT BECAUSE TRADE PARAMETERS
@@ -61,10 +78,7 @@ class Journal:
         dollar_amount = results["DOLLAR_AMOUNT"]
         trade.dollar_amount = dollar_amount
         result = results["RESULT"]
-        if result == "PROFIT":
-            result = TradeResult.PROFIT
-        elif result == "LOSS":
-            result = TradeResult.LOSS
+        result = TradeResult.PROFIT if result == "PROFIT" else TradeResult.LOSS
 
         trade.result = result
 
@@ -80,7 +94,9 @@ class Journal:
 
     def _convert_to_trade_setup(self, trade: Trade) -> TradeSetup:
 
-        live_account_balance = self.db.get_current_account_balance(trade.account_id) # pyright: ignore[reportArgumentType]
+        balance = self.db.get_account_balance_as_of(
+                        account_id=trade.account_id, as_of_date=trade.date,    # pyright: ignore[reportArgumentType]
+                        as_of_time=trade.entry_time, exclude_trade_id=trade.trade_id)
         setup = TradeSetup(
             entry_price= trade.entry_price,
             exit_price= trade.exit_price,
@@ -89,7 +105,7 @@ class Journal:
             asset= trade.asset,
             direction= trade.direction,
             position_size= trade.position_size,
-            account_balance= live_account_balance,
+            account_balance= balance,
             entry_time= trade.entry_time,
             exit_time= trade.exit_time,
             date= trade.date
@@ -129,39 +145,28 @@ class Journal:
             "parameters_score" : parameters_score,
         }
 
+    def _calculate_grade(self, trade: Trade) -> TradeGrade:
+        """PURE CALCULATION. READS POINTS, WRITES NOTHING."""
+
+        scores = self.evaluate_trade(trade)
+        execution_avg = (scores["entry_score"] + scores["management_score"]) / 2
+        bonus = 1 if execution_avg >= 4 else 0  # noqa: PLR2004
+        trade_points = scores["parameters_score"] + bonus
+
+        for threshold, grade in ((6, TradeGrade.A), (5, TradeGrade.B),
+                                (4, TradeGrade.C), (3, TradeGrade.D)):
+            if trade_points >= threshold:
+                return grade
+        return TradeGrade.F
+
     def grade_trade(self, trade: Trade) -> Trade:
+        """CALCULATE + PERSIST. USED BY finalize_grade."""
 
-        #CALCULATE TRADE_POINTS.
-        #TRADE_POINTS == POINTS SCORED ON MODEL CHECKLIST.
-        cut_off = 4
-        grading_points = self.evaluate_trade(trade)
-        entry_score = grading_points["entry_score"]
-        management_score = grading_points["management_score"]
-        parameters_score = grading_points["parameters_score"]
-
-        trade_execution_average = (entry_score + management_score)/2
-        trade_points = parameters_score + 1 if trade_execution_average >= cut_off else parameters_score
-
-        #GRADING OF TRADE BASED ON TRADE_POINTS.
-        #(POINTS, GRADE) -> (8, A), (6/7, A), (5, B), (4, C), (3, D) (<3, F)
-        grading_system: list[tuple[int, TradeGrade]] = [
-            (8, TradeGrade.A), (7, TradeGrade.A),
-            (6, TradeGrade.A), (5, TradeGrade.B),
-            (4, TradeGrade.C), (3, TradeGrade.D),
-            (2, TradeGrade.F), (1, TradeGrade.F), (0, TradeGrade.F)]
-
-        for points, grade in grading_system:
-            if trade_points == points:
-                trade.overall_trade_grade = grade
-
-        #trade_grade is possibly unbound
-        #UnboundLocalError: cannot access local variable 'trade_grade'
-        #where it is not associated with a value
-        #UPDATE THE GRADE OF THE TRADE FROM NONE TO TRADE_GRADE
+        trade.overall_trade_grade = self._calculate_grade(trade)
         self.db.update_trade_grade(
-            trade_id=trade.trade_id, new_grade=trade.overall_trade_grade) # pyright: ignore[reportArgumentType]
-
+            trade_id=trade.trade_id, new_grade=trade.overall_trade_grade)  # type: ignore[arg-type]
         return trade
+
 
     def add_reflection_notes(self, trade_notes: TradeNotes) -> TradeNotes:
 
@@ -178,38 +183,21 @@ class Journal:
         return self.db.get_all_trades()
 
     def get_journal_entry(self, trade_id: int) -> JournalEntry:
-        """READ AN ENTIRE JOURNAL ENTRY FROM DATABASE AT ONCE."""
+        with self.db.transaction():          # one consistent read
+            trade = self.db.get_by_id(trade_id)   # still raises TradeNotFoundError
 
-        ##DOES THIS NEED TO BE AN ATOMIC TRANSACTION??
-        #SOME TRADES MIGHT HAVE SOME CHILDREN MISSING BUT WE STILL WANT TO
-        #DISPLAY WHATEVER IS AVAILABLE.
-        #THIS COULD ALSO BE A QUICK WAY TO TELL WHICH TRADES LACKS WHAT??
+            try:
+                trade_notes: TradeNotes | None = self.db.get_trade_notes(trade_id)
+            except t.NotesNotFoundError:
+                trade_notes = None
 
-        #throws TradeNotFoundError when id is invalid
-        trade: Trade = self.db.get_by_id(trade_id)
-
-        #throws NotesNotFoundError when notes are missing
-        trade_notes: TradeNotes = self.db.get_trade_notes(trade_id)
-
-        #throws TradeNotFoundError when trade is invalid
-        #trade_id is a FK on the table so chances of trade missing is low.
-        #if trade is deleted, charts also deleted. cascade delete set
-        #return empty list when charts don't exist.
-        trade_charts: list[TradeChart] = self.db.get_trade_charts(trade_id)
-
-        #throws TradeNotFoundError when trade is invalid.
-        #trade_id is a FK & PKon the table so chances of trade missing is low.
-        #return empty list when parameters don't exist in the junction table.
-        parameter_ids: list[int] = self.db.get_trade_parameters(trade_id)
-
-        if parameter_ids:
-            parameter_names: list[str] = self.db.get_parameter_names(parameter_ids)
+            charts = self.db.get_trade_charts(trade_id)            # [] if none
+            parameter_ids = self.db.get_trade_parameters(trade_id)  # [] if none
+            parameter_names = self.db.get_parameter_names(parameter_ids)
 
         return JournalEntry(
-            trade= trade,
-            charts= trade_charts,
-            trade_notes= trade_notes,
-            parameter_names= parameter_names, # pyright: ignore[reportPossiblyUnboundVariable]
+            trade=trade, charts=charts,
+            trade_notes=trade_notes, parameter_names=parameter_names,
         )
 
 #RECORD_JOURNAL_ENTRY METHOD ISN'T BEING CALLED BY STREAMLIT UI
@@ -223,65 +211,39 @@ class Journal:
 #IN THE FUTURE IF NEED ARISES, YOU CAN REWRITE IT.
 
     def amend_trade_entry(self, amendment: Amendments) -> Amendments:
-        if amendment.column_name not in get_args(AmendableColumns):
-            raise t.ConflictError(f"CAN'T AMEND COLUMN: {amendment.column_name}")
 
-        recompute_values = {
-            "entry_price" : self._compute_derived_fields,
-            "exit_price" : self._compute_derived_fields,
-            "take_profit" : self._compute_derived_fields,
-            "stop_loss" : self._compute_derived_fields,
-            "position_size" : self._compute_derived_fields,
-            "management_id" : self.grade_trade,
-            "entry_execution_id" : self.grade_trade,
-            "asset" : self._compute_derived_fields,
-            "direction" : self._compute_derived_fields,
-        }
-
-        #LOOK UP TABLE FOR TYPE CASTING OF NEW_VALUE GIVEN COLUMN_NAME
+        column: str = amendment.column_name
+        if column not in get_args(AmendableColumns):
+            raise t.ConflictError(f"CAN'T AMEND COLUMN: {column}")
 
         try:
-            column_types = {
-                "entry_price": float,
-                "exit_price": float,
-                "take_profit": float,
-                "stop_loss": float,
-                "position_size": float,
-                "model_id": int,
-                "account_id": int,
-                "management_id": int,
-                "entry_execution_id": int,
-                "asset": TradeAsset,
-                "direction": TradeDirection,
-            }
-
-            caster = column_types[amendment.column_name]
-            typed_value = caster(amendment.new_value)
-            amendment.new_value = typed_value
-        except (KeyError, ValueError) as e:
+            amendment.new_value = _COLUMN_CASTERS[column](amendment.new_value)
+        except (KeyError, ValueError, TypeError) as e:
             raise t.TradeValidationError("TRADE VALIDATION FAILED") from e
 
-
         with self.db.transaction():
-            trade: Trade = self.db.get_by_id(trade_id=amendment.trade_id)
-            amendment.old_value = getattr(trade, amendment.column_name)
-            setattr(trade, amendment.column_name, amendment.new_value)
+            trade: Trade = self.db.get_by_id(amendment.trade_id)
+            amendment.old_value = getattr(trade, column)
+            setattr(trade, column, amendment.new_value)
 
-            recompute_method = recompute_values.get(amendment.column_name)
-            if recompute_method:
-                recompute_method(trade)
+            # everything that will be written, keyed by column name
+            changes: dict[str, Any] = {column: amendment.new_value}
 
-            #MAJOR BUG IN THE CODE: NONE OF THE RECOMPUTED VALUES ARE STORED BACK TO THE DATABASE.
-            #ONLY THE AMENDED COLUMN IS STORED IN THE DATABASE. THE RECOMPUTES GO STALE.
-            valid_trade: Trade = validate_trade_data(trade)
-            self.db.update_trade_field(
-                trade_id=valid_trade.trade_id, # pyright: ignore[reportArgumentType]
-                new_value=amendment.new_value,
-                column=amendment.column_name) # pyright: ignore[reportArgumentType]
-            amendment.amended_at = datetime.now()
+            if column in _RECOMPUTE_DERIVED_ON:
+                self._compute_derived_fields(trade)
+                changes.update({f: getattr(trade, f) for f in _DERIVED_FIELDS})
+
+            if column in _REGRADE_ON and trade.overall_trade_grade is not None:
+                trade.overall_trade_grade = self._calculate_grade(trade)
+                changes["overall_trade_grade"] = trade.overall_trade_grade
+
+            validate_trade_data(trade)
+            self.db.update_trade_fields(trade.trade_id, changes)  # type: ignore[arg-type]
+
+            amendment.amended_at = datetime.now(tz=UTC)
             amendment.amendment_id = self.db.add_trade_amendments(amendment)
 
-        return amendment
+            return amendment
 
     def finalize_grade(self, trade_id: int, parameter_names: list) -> Trade:
 
@@ -326,9 +288,11 @@ class Journal:
         except t.ConstraintViolationError as e:
             raise t.ConflictError(f"AN ACCOUNT WITH TRADES CAN'T BE DELETED: {e}") from e
 
-    def fetch_trade_notes(self, trade_id: int) -> TradeNotes:
-
-        return self.db.get_trade_notes(trade_id)
+    def fetch_trade_notes(self, trade_id: int) -> TradeNotes | None:
+        try:
+            return self.db.get_trade_notes(trade_id)
+        except t.NotesNotFoundError:
+            return None
 
     def fetch_present_parameters(self, trade_id: int) -> list[str]:
 
