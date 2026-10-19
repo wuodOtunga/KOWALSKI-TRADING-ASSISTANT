@@ -144,6 +144,7 @@ class PositionSizingInput:
     success: bool
     message: str
     position_size: float | int | None
+    error: KowalskiError | None
 
 @dataclass
 class ServiceResult:
@@ -190,6 +191,7 @@ class CalculatorResults:
     message: str
     profit_loss: dict | None
     risk_reward: dict | None
+    error: KowalskiError | None
 
 @dataclass
 class TradingModel:

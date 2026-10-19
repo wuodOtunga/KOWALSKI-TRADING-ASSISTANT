@@ -1,4 +1,4 @@
-"""MODULE FOR THE PYDANTIC SCHEMA MODELS THAT DEFINE THE REQUESTS AND RESPONSES SHAPE FOR OUR FASTAPI API CONTRACT"""
+"""MODULE FOR THE PYDANTIC SCHEMA MODELS THAT DEFINE THE REQUESTS AND RESPONSES SHAPE FOR OUR FASTAPI API CONTRACT"""  # noqa: E501
 
 from datetime import date, datetime, time, timedelta
 from typing import Annotated
@@ -98,7 +98,7 @@ class ChangesResponse(TradeChanges):
     model_config = ConfigDict(from_attributes=True)
 
     trade_id: Annotated[int, Field(gt=0)]
-    change_id: Annotated[int, Field(gt=0)]
+    amendment_id: Annotated[int, Field(gt=0)]
     old_value: float | str
     amended_at: datetime
 
@@ -158,4 +158,42 @@ class JournalEntryResponse(BaseModel):
     trade_notes: NotesResponse | None = None
     charts: list[ChartResponse] = []
     parameter_names: list[str] = []
+
+class CalculatorInputs(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    entry_price: float
+    exit_price: float
+    take_profit: float
+    stop_loss: float
+    position_size: float
+    account_balance: float
+    asset: TradeAsset
+    direction: TradeDirection
+
+class CalculatorResultsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    result: TradeResult
+    rr_multiple: float
+    risk_percent: float
+    risk_amount: float
+    reward_amount: float
+    dollar_amount: float
+    dollar_percent: float
+
+class LotSizeInputs(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    entry_price: float
+    stop_loss: float
+    asset: TradeAsset
+    account_balance: float
+    risk_percent: float
+
+class LotSizeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    lot_size: float | int
+
 
