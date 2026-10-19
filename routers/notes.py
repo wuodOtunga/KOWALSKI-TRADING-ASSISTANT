@@ -45,3 +45,9 @@ def update_trade_notes(trade_id: int, notes: NewNotes, journal: JournalDep) -> d
         raise to_http_error(exc=results.error)
 
     return new_notes
+
+@router.delete(path="/{trade_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_trade_notes(trade_id: int, journal: JournalDep):
+    results = s.delete_trade_notes(trade_id=trade_id, journal=journal)
+    if not results.success:
+        raise to_http_error(exc=results.error)

@@ -316,6 +316,13 @@ def view_trade_notes(trade_id: int, journal: Journal) -> ServiceResult:
         data= trade_notes, error=None
     )
 
+def delete_trade_notes(trade_id: int, journal: Journal) -> ServiceResult:
+    try:
+        journal.delete_trade_notes(trade_id)
+    except t.KowalskiError as e:
+        return ServiceResult(success=False, message=f"NOTES NOT DELETED: {e}", data=None, error=e)
+    return ServiceResult(success=True, message="NOTES DELETED", data=None, error=None)
+
 def amend_trade_notes(updated_notes: dict, journal: Journal) -> ServiceResult:
 
     try:
@@ -477,6 +484,22 @@ def view_trading_charts(trade_id: int, journal: Journal) -> ServiceResult:
         data=charts, error=None
     )
 
+def fetch_chart(trade_id: int, chart_id: int, journal: Journal) -> ServiceResult:
+    try:
+        chart: TradeChart = journal.get_chart(trade_id, chart_id)
+    except t.KowalskiError as e:
+        return ServiceResult(success=False, message=f"CHART NOT FOUND: {e}", data=None, error=e)
+    return ServiceResult(success=True, message="CHART FETCHED", data=chart, error=None)
+
+def delete_trade_chart(trade_id: int, chart_id: int, journal: Journal) -> ServiceResult:
+    try:
+        chart = journal.delete_chart(trade_id, chart_id)
+    except t.KowalskiError as e:
+        return ServiceResult(success=False, message=f"CHART NOT DELETED: {e}", data=None, error=e)
+    # DB row first, file second: a leaked file is better than a row pointing at nothing
+    Path(chart.filepath).unlink(missing_ok=True)
+    return ServiceResult(success=True, message="CHART DELETED", data=None, error=None)
+
 #SERVICE FUNCTIONS FOR STREAMLIT TRADE CALCULATOR FEATURE BUTTONS.
 def run_calculator(setup_values: dict) -> CalculatorResults:
     #USER WANTS TO CALCULATE PROFIT/LOSS, RISK_REWARD RATIO
@@ -500,6 +523,7 @@ def run_calculator(setup_values: dict) -> CalculatorResults:
             message= f"TYPE VALIDATION FAILED. CHECK INPUT TYPES: {e}",
             profit_loss= None,
             risk_reward= None,
+            error=None
         )
     except KeyError as e:
         return CalculatorResults(
@@ -507,6 +531,7 @@ def run_calculator(setup_values: dict) -> CalculatorResults:
             message= f"SOME INPUT VALUES ARE MISSING. PROVIDE ALL REQUIRED FIELDS: {e}",
             profit_loss= None,
             risk_reward= None,
+            error=None
         )
 
     try:
@@ -518,6 +543,7 @@ def run_calculator(setup_values: dict) -> CalculatorResults:
             message= f"TRADE VALIDATION FAILED: {e}",
             profit_loss= None,
             risk_reward= None,
+            error=e
         )
 
     return CalculatorResults(
@@ -525,6 +551,7 @@ def run_calculator(setup_values: dict) -> CalculatorResults:
         message= "CALCULATIONS DONE SUCCESSFULLY!",
         profit_loss= profit_loss_results,
         risk_reward= risk_reward_results,
+        error=None
     )
 
 def position_sizing(position_sizing_inputs: dict) -> PositionSizingInput:
@@ -541,7 +568,8 @@ def position_sizing(position_sizing_inputs: dict) -> PositionSizingInput:
         return PositionSizingInput(
             success= False,
             message= f"WRONG INPUT VALUES. ENTER VALID VALUES: {e}",
-            position_size= None
+            position_size= None,
+            error=None
         )
 
     try:
@@ -550,11 +578,13 @@ def position_sizing(position_sizing_inputs: dict) -> PositionSizingInput:
         return PositionSizingInput(
             success= False,
             message= f"INPUT VALIDATION FAILED: {e}",
-            position_size= None
+            position_size= None,
+            error=e
         )
 
     return PositionSizingInput(
         success= True,
         message= "POSITION SIZE CALCULATED SUCCESSFULLY!",
-        position_size= lot
+        position_size= lot,
+        error=None
     )

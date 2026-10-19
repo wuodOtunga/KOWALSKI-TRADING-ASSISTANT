@@ -490,6 +490,11 @@ class Repository:
                     setattr(row, name, value)
                 session.flush()
 
+    def delete_trade_notes(self, trade_id: int) -> None:
+        with self._transaction() as session:
+            _ensure_trade_exists(trade_id, session)
+            session.delete(_get_notes_row(trade_id, session))
+
 #------------TRADE PARAMETERS DOMAIN MODEL DATABASE METHODS; JUNCTION TABLE--------------------------------
     def add_trade_parameters(self, trade_id: int, parameter_id: int) -> None:
         """PERSIST THE TRADE PARAMETERS TO THE JUNCTION TABLE"""
@@ -656,6 +661,22 @@ class Repository:
             )
 
             return [_to_domain(TradeChart, row) for row in rows]
+
+    def get_chart(self, trade_id: int, chart_id: int) -> TradeChart:
+        with self._transaction() as session:
+            row = session.get(ChartsModel, chart_id)
+            if row is None or row.trade_id != trade_id:   # 404 for someone else's chart, never 403 (F3)
+                raise t.ChartsNotFoundError("NO SUCH CHART FOR THIS TRADE")
+            return _to_domain(TradeChart, row)
+
+    def delete_chart(self, trade_id: int, chart_id: int) -> TradeChart:
+        with self._transaction() as session:
+            row = session.get(ChartsModel, chart_id)
+            if row is None or row.trade_id != trade_id:
+                raise t.ChartsNotFoundError("NO SUCH CHART FOR THIS TRADE")
+            chart = _to_domain(TradeChart, row)
+            session.delete(row)
+        return chart
 
 #-------TRADING AMENDMENTS DOMAIN MODEL DATABASE METHODS; CRUD------------------
 

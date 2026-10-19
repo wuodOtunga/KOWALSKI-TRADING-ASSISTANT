@@ -322,3 +322,12 @@ class Journal:
 
     def fetch_trading_charts(self, trade_id) -> list[TradeChart]:
         return self.db.get_trade_charts(trade_id)
+
+    def delete_chart(self, trade_id: int, chart_id: int) -> TradeChart:
+        return self.db.delete_chart(trade_id, chart_id)
+
+    def delete_trade_notes(self, trade_id: int) -> None:
+        self.db.delete_trade_notes(trade_id)
+
+    def get_chart(self, trade_id: int, chart_id: int) -> TradeChart:
+        return self.db.get_chart(trade_id, chart_id)
