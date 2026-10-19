@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block title %}KOWALSKI | Trade #{{ trade.trade_id }} journal entry{% endblock title %}
+
+{% block content %}
+
+{% set graded = trade.overall_trade_grade is not none %}
+{% set is_profit = trade.result.value == "PROFIT" %}
+{% set note_labels = [("emotions", "Emotions"), ("mistakes", "Mistakes"), ("lessons", "Lessons"), ("general_notes", "General notes")] %}
+
+<div id="journal-view" data-trade-id="{{ trade.trade_id }}" data-has-notes="{{ 'true' if notes else 'false' }}">
+
+    <!-- ===================== HEADER ===================== -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-2">
+            <li class="breadcrumb-item"><a href="/trades">Trades</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Trade #{{ trade.trade_id }}</li>
+        </ol>
+    </nav>
+
+    <header class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 mb-4">
+        <div>
+            <h2 class="h4 mb-2">Trade #{{ trade.trade_id }}</h2>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="badge text-bg-secondary">{{ trade.asset.value }}</span>
+                <span class="badge {{ 'text-bg-success' if trade.direction.value == 'long' else 'text-bg-danger' }}">{{ trade.direction.value }}</span>
+                <span class="text-secondary">{{ trade.date.strftime("%A %d %B %Y") }}</span>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <!-- data-prefill-trade-input: JS fills that input with this trade's ID when the modal opens -->
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
+                    data-bs-target="#amendTradeModal" data-prefill-trade-input="at-trade-id">
+                Amend trade
+            </button>
+            <button type="button" class="btn btn-outline-danger" data-action="delete-trade">Delete trade</button>
+        </div>
+    </header>
+
+    <!-- ===================== TRADE SUMMARY ===================== -->
+    <section class="mb-5" aria-labelledby="summary-heading">
+        <h3 class="h5 mb-3" id="summary-heading">Trade summary</h3>
+
+        <div class="row row-cols-2 row-cols-md-5 g-3 mb-4 text-center">
+            <div class="col">
+                <div class="border rounded p-3 h-100">
+                    <div class="text-secondary small">Result</div>
+                    <div class="fs-5 fw-semibold font-monospace {{ 'text-success' if is_profit else 'text-danger' }}">{{ "%+.2f"|format(trade.dollar_amount) }}</div>
+                    <div class="small {{ 'text-success' if is_profit else 'text-danger' }}">{{ trade.result.value|lower }}</div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="border rounded p-3 h-100">
+                    <div class="text-secondary small">R multiple</div>
+                    <div class="fs-5 fw-semibold font-monospace">{{ trade.rr_multiple }}R</div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="border rounded p-3 h-100">
+                    <div class="text-secondary small">Risk</div>
+                    <div class="fs-5 fw-semibold font-monospace">{{ trade.risk_percent }}%</div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="border rounded p-3 h-100">
+                    <div class="text-secondary small">Duration</div>
+                    <div class="fs-5 fw-semibold font-monospace">{{ trade.duration|duration }}</div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="border rounded p-3 h-100">
+                    <div class="text-secondary small">Grade</div>
+                    {% if graded %}
+                        <div class="fs-5 fw-semibold font-monospace text-warning">{{ trade.overall_trade_grade.value }}</div>
+                    {% else %}
+                        <div class="fs-6 text-secondary pt-1">Not graded yet</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <dl class="row mb-0">
+                    <dt class="col-5 fw-normal text-secondary">Entry price</dt>
+                    <dd class="col-7 font-monospace">{{ trade.entry_price }}</dd>
+                    <dt class="col-5 fw-normal text-secondary">Exit price</dt>
+                    <dd class="col-7 font-monospace">{{ trade.exit_price }}</dd>
+                    <dt class="col-5 fw-normal text-secondary">Stop loss</dt>
+                    <dd class="col-7 font-monospace">{{ trade.stop_loss }}</dd>
+                    <dt class="col-5 fw-normal text-secondary">Take profit</dt>
+                    <dd class="col-7 font-monospace">{{ trade.take_profit }}</dd>
+                    <dt class="col-5 fw-normal text-secondary">Position size</dt>
+                    <dd class="col-7 font-monospace">{{ trade.position_size }}</dd>
+                </dl>
+            </div>
+            <div class="col-md-6">
+                <dl class="row mb-0">
+                    <dt class="col-5 fw-normal text-secondary">Entered</dt>
+                    <dd class="col-7 font-monospace">{{ trade.entry_time.strftime("%H:%M") }}</dd>
+                    <dt class="col-5 fw-normal text-secondary">Exited</dt>
+                    <dd class="col-7 font-monospace">{{ trade.exit_time.strftime("%H:%M") }}</dd>
+                    <dt class="col-5 fw-normal text-secondary">Account</dt>
+                    <dd class="col-7">{{ names.account }}</dd>
+                    <dt class="col-5 fw-normal text-secondary">Model</dt>
+                    <dd class="col-7">{{ names.model }}</dd>
+                    <dt class="col-5 fw-normal text-secondary">Entry execution</dt>
+                    <dd class="col-7">{{ names.entry_execution }}</dd>
+                    <dt class="col-5 fw-normal text-secondary">Trade management</dt>
+                    <dd class="col-7">{{ names.management }}</dd>
+                </dl>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== NOTES (editable) ===================== -->
+    <section class="card mb-4" aria-labelledby="notes-heading">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="h6 mb-0" id="notes-heading">Notes</h3>
+
+            <!-- only visible in "view" mode; JS owns this -->
+            <div id="notes-toolbar" class="d-flex gap-2 {{ '' if notes else 'd-none' }}">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="edit-notes">Edit notes</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-action="delete-notes">Delete notes</button>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div id="notes-alert" class="alert d-none" role="alert"></div>
+
+            <!-- the three panels below are mutually exclusive: view | empty | edit. JS: setNotesMode() -->
+            <dl id="notes-view" class="mb-0 {{ '' if notes else 'd-none' }}">
+                {% for field, label in note_labels %}
+                <dt class="fw-normal text-secondary small">{{ label }}</dt>
+                <dd class="pre-wrap text-break mb-3" data-note-field="{{ field }}">{{ notes[field] if notes else "" }}</dd>
+                {% endfor %}
+            </dl>
+
+            <div id="notes-empty" class="text-center py-4 {{ 'd-none' if notes else '' }}">
+                <p class="text-secondary mb-3">No notes for this trade yet. Record what you felt, what went wrong and what you learned.</p>
+                <button type="button" class="btn btn-primary" data-action="edit-notes">Add notes</button>
+            </div>
+
+            <form id="notes-form" class="d-none" novalidate>
+                <div class="row g-3">
+                    {% for field, label in note_labels %}
+                    <div class="col-md-6">
+                        <label for="note-{{ field }}" class="form-label">{{ label }}</label>
+                        <textarea class="form-control" id="note-{{ field }}" name="{{ field }}" rows="4" required></textarea>
+                        <div class="invalid-feedback">{{ label }} can’t be empty.</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" class="btn btn-secondary" data-action="cancel-notes">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="notes-save">Save notes</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- ===================== CHARTS (add / delete) ===================== -->
+    <section class="card mb-4" aria-labelledby="charts-heading">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="h6 mb-0" id="charts-heading">Charts <span class="badge text-bg-secondary ms-1" id="charts-count">{{ charts|length }}</span></h3>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
+                    data-bs-target="#recordChartsModal" data-prefill-trade-input="rc-trade-id">Add charts</button>
+        </div>
+
+        <div class="card-body">
+            <div id="charts-alert" class="alert d-none" role="alert"></div>
+
+            <p id="charts-empty" class="text-secondary text-center py-4 mb-0 {{ 'd-none' if charts else '' }}">
+                No charts attached. Use Add charts to upload your entry and exit screenshots.
+            </p>
+
+            <div id="charts-grid" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
+                {% for chart in charts %}
+                {% set src = "/api/trades/" ~ trade.trade_id ~ "/charts/" ~ chart.chart_id ~ "/file" %}
+                {% set display_name = chart.filename.split("_", 1)[-1] %}
+                <div class="col" data-chart-id="{{ chart.chart_id }}">
+                    <div class="card h-100">
+                        <!-- a real link, so it still opens the image in a new tab if JS fails -->
+                        <a href="{{ src }}" target="_blank" rel="noopener" class="d-block ratio ratio-16x9"
+                           data-bs-toggle="modal" data-bs-target="#chartLightbox"
+                           data-chart-src="{{ src }}" data-chart-name="{{ display_name }}"
+                           aria-label="View {{ display_name }} full size">
+                            <img src="{{ src }}" alt="Chart screenshot: {{ display_name }}"
+                                 class="card-img-top object-fit-cover" loading="lazy">
+                        </a>
+                        <div class="card-body py-2 d-flex justify-content-between align-items-center gap-2">
+                            <div class="small text-truncate">
+                                <div class="text-truncate" title="{{ display_name }}">{{ display_name }}</div>
+                                {% if chart.upload_date %}
+                                <div class="text-secondary">{{ chart.upload_date.strftime("%d %b %Y, %H:%M") }}</div>
+                                {% endif %}
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0"
+                                    data-action="delete-chart" data-chart-id="{{ chart.chart_id }}"
+                                    data-chart-name="{{ display_name }}">Delete</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== PARAMETERS (read-only by design) ===================== -->
+    <section class="card mb-5" aria-labelledby="parameters-heading">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="h6 mb-0" id="parameters-heading">Parameters <span class="badge text-bg-secondary ms-1">{{ parameters|length }}</span></h3>
+            {% if graded %}
+            <span class="small text-secondary">Locked: grading is final</span>
+            {% endif %}
+        </div>
+
+        <div class="card-body">
+            {% if graded %}
+                {% if parameters %}
+                <ul class="list-group list-group-flush">
+                    {% for name in parameters %}
+                    <li class="list-group-item d-flex gap-2 px-0">
+                        <span class="text-success" aria-hidden="true">&#10003;</span>
+                        <span>{{ name }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-secondary mb-0">No parameters were present in this trade.</p>
+                {% endif %}
+            {% else %}
+                <!-- the ONLY mutation parameters ever allow: record them once, which also grades the trade -->
+                <div class="alert alert-warning mb-3" role="note">
+                    Parameters havent been recorded, so this trade is still ungraded. Recording them grades the trade, and that cant be undone.
+                </div>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                        data-bs-target="#recordParametersModal" data-prefill-trade-input="pt-trade-id">
+                    Record parameters and grade trade
+                </button>
+            {% endif %}
+        </div>
+    </section>
+</div>
+
+<!-- ===================== SHARED MODALS (page-specific) ===================== -->
+
+<!-- ONE confirm dialog for every destructive action. JS sets the text and the action each time. -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirm-title" aria-hidden="true"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="confirm-title">Are you sure?</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="confirm-alert" class="alert d-none" role="alert"></div>
+                <p id="confirm-message" class="mb-0"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-accept">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- chart lightbox: src is set from the clicked thumbnail's data attributes -->
+<div class="modal fade" id="chartLightbox" tabindex="-1" aria-labelledby="chart-lightbox-caption" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h6 text-truncate" id="chart-lightbox-caption"></h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 text-center">
+                <img id="chart-lightbox-img" class="img-fluid" alt="">
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+<script type="module" src="/static/js/journalEntryPage.js"></script>
+{% endblock scripts %}
