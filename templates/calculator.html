@@ -144,6 +144,7 @@
                             Fill in the setup and press <strong>Calculate</strong>.
                         </div>
 
+                        <!--BELOW DIV IS FOR THE CALCULATOR RESULT PANEL-->
                         <div id="tc-result" class="d-none">
 
                             <!--HEADLINE NUMBER: JS TOGGLES text-success / text-danger-->
@@ -266,6 +267,7 @@
                             Enter your risk parameters and press <strong>Calculate size</strong>.
                         </div>
 
+                        <!--BELOW DIV IS FOR THE CALCULATOR RESULT PANEL-->
                         <div id="ps-result" class="text-center d-none">
                             <div class="text-secondary small text-uppercase">Position size</div>
                             <div class="display-4 fw-semibold font-monospace text-warning" id="ps-result-size">&mdash;</div>
@@ -283,6 +285,6 @@
 {% endblock content %}
 
 {% block scripts %}
-<!--calculator.js: submit handlers for #tradeCalcForm and #positionSizeForm (to be written)-->
+<!--calculator.js: submit handlers for #tradeCalcForm and #positionSizeForm-->
 <script type="module" src="/static/js/calculator.js"></script>
 {% endblock scripts %}
