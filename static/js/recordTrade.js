@@ -6,7 +6,7 @@
 //wait for HTTP response
 //parse JSON response and branch on either success or error
 //on success, update UI,,,on error extract error then show error
-import { showAlert, hideAlert, extractErrorMessage, readJsonBody, showSuccessModal } from "./utils.js";
+import { showAlert, hideAlert, extractErrorMessage, readJsonBody, showSuccessModal, populateSelectDropdowns } from "./utils.js";
 
 const INTEGER_VALUES = ["model_id", "entry_execution_id", "management_id", "account_id"];
 const NUMERIC_VALUES = ["entry_price", "exit_price", "take_profit", "stop_loss", "position_size"];
@@ -28,47 +28,6 @@ successModal.addEventListener("hidden.bs.modal", resetTradeRecordModal);
 
 
 
-async function populateSelectDropdowns(selectEl, url, valueKey, labelKey){
-    //fetch the lists
-    //loop over it and create <option> elements
-    //value = id and text = name
-    //append them to the select
-
-    let response;
-    try {
-        response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`)
-        };
-
-        const items = await response.json();
-
-        selectEl.replaceChildren();
-
-        const placeholder = document.createElement("option");
-        placeholder.value = "";
-        placeholder.textContent = "Choose from...";
-        placeholder.disabled = true;
-        placeholder.selected = true;
-        placeholder.defaultSelected = true;
-        selectEl.append(placeholder);
-
-        for (const item of items) {
-            const option = document.createElement("option");
-            option.value = item[valueKey];
-            option.textContent = item[labelKey];
-            selectEl.append(option);
-        };
-    } catch (error) {
-        selectEl.replaceChildren();
-
-        const fallback = document.createElement("option");
-        fallback.value = "";
-        fallback.textContent = "Failed to load";
-        selectEl.append(fallback);
-    };
-}
 
 function resetTradeRecordModal() {
     //reset form inputs to defaults

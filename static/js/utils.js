@@ -87,3 +87,45 @@ export function showSuccessModal(modalId) {
     modal.show();
     return modal;
 }
+
+export async function populateSelectDropdowns(selectEl, url, valueKey, labelKey){
+    //fetch the lists
+    //loop over it and create <option> elements
+    //value = id and text = name
+    //append them to the select
+
+    let response;
+    try {
+        response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`)
+        };
+
+        const items = await response.json();
+
+        selectEl.replaceChildren();
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Choose from...";
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        placeholder.defaultSelected = true;
+        selectEl.append(placeholder);
+
+        for (const item of items) {
+            const option = document.createElement("option");
+            option.value = item[valueKey];
+            option.textContent = item[labelKey];
+            selectEl.append(option);
+        };
+    } catch (error) {
+        selectEl.replaceChildren();
+
+        const fallback = document.createElement("option");
+        fallback.value = "";
+        fallback.textContent = "Failed to load";
+        selectEl.append(fallback);
+    };
+}
