@@ -80,3 +80,5 @@ main h2 {
     --bs-dropdown-border-color: var(--kw-border);
     --bs-dropdown-link-hover-bg: var(--kw-accent-soft);
 }
+
+.pre-wrap { white-space: pre-wrap; }

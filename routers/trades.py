@@ -1,6 +1,7 @@
 from typing import Annotated, Any
 
 from fastapi import APIRouter, File, HTTPException, Path, Response, UploadFile, status
+from fastapi.responses import FileResponse
 
 import services as s
 from dependencies import JournalDep
@@ -123,6 +124,29 @@ def upload_chart(
 
     return response_body.model_dump()
 
+@router.get(path="/{trade_id}/charts/{chart_id}/file")
+def get_chart_file(
+    trade_id: Annotated[int, Path(gt=0)], chart_id: Annotated[int, Path(gt=0)], journal: JournalDep
+) -> FileResponse:
+    results = s.fetch_chart(trade_id=trade_id, chart_id=chart_id, journal=journal)
+    if not results.success:
+        raise to_http_error(exc=results.error)
+    return FileResponse(
+        results.data.filepath,   # type: ignore[union-attr]
+        headers={
+            "X-Content-Type-Options": "nosniff",
+            # neutralises scripts if someone opens an SVG directly (your C10)
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+        },
+    )
+
+@router.delete(path="/{trade_id}/charts/{chart_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_chart(
+    trade_id: Annotated[int, Path(gt=0)], chart_id: Annotated[int, Path(gt=0)], journal: JournalDep):
+    results = s.delete_trade_chart(trade_id=trade_id, chart_id=chart_id, journal=journal)
+    if not results.success:
+        raise to_http_error(exc=results.error)
+
 
 @router.patch(path="/{trade_id}", response_model=ChangesResponse)
 def update_trade_field(trade_id: int, changes: NewChanges, journal: JournalDep):
@@ -135,7 +159,7 @@ def update_trade_field(trade_id: int, changes: NewChanges, journal: JournalDep):
     if not results.success:
         raise to_http_error(exc=results.error)
 
-    return trade_changes
+    return results.data
 
 
 @router.delete(path="/{trade_id}", status_code=status.HTTP_204_NO_CONTENT)

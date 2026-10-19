@@ -16,7 +16,7 @@ logger: logging.Logger = logging.getLogger(name=__name__)
 _DEFAULT_STATUS: dict[type[t.KowalskiError], int] = {
     t.KowalskiError: status.HTTP_500_INTERNAL_SERVER_ERROR,
     t.InternalDomainError: status.HTTP_500_INTERNAL_SERVER_ERROR,
-    t.GradingError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    t.GradingError: status.HTTP_500_INTERNAL_SERVER_ERROR,
     t.TradeValidationError: status.HTTP_422_UNPROCESSABLE_CONTENT,
     t.ConflictError: status.HTTP_409_CONFLICT,
     t.NotFoundError: status.HTTP_404_NOT_FOUND,

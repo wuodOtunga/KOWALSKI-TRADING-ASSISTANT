@@ -16,8 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from models import TradeAsset, TradeDirection, TradeGrade, TradeResult
-from schemas import AmendableColumns
+from models import AmendableColumns, TradeAsset, TradeDirection, TradeGrade, TradeResult
 
 
 class Base(DeclarativeBase):

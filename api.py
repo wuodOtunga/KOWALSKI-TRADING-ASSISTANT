@@ -8,7 +8,9 @@ from starlette.templating import _TemplateResponse
 
 import services as s
 from dependencies import JournalDep
-from routers import accounts, notes, parameters, trades, trading_models
+from http_errors import to_http_error
+from models import JournalEntry
+from routers import accounts, calculator, notes, parameters, trades, trading_models
 from schemas import TradeResponse
 
 #HTTP REQUEST IN -> API.PY CALLS A SERVICES.PY FUNCTION -> SERVICERESULT OUT -> HTTP RESPONSE OUT!
@@ -30,6 +32,7 @@ app.include_router(router=notes.router, prefix="/api/notes", tags=["notes"])
 app.include_router(router=parameters.router, prefix="/api/parameters", tags=["parameters"])
 app.include_router(router=accounts.router, prefix="/api/accounts", tags=["accounts"])
 app.include_router(router=trading_models.router, prefix="/api/static_models", tags=["static_models"])
+app.include_router(router=calculator.router, prefix="/api/calculator", tags=["calculator"])
 
 
 #HTML PAGE ROUTES FOR RENDERING PROPER HTML FOR BROWSER CONSUMER
@@ -94,6 +97,47 @@ def models_page(request: Request, journal: JournalDep) -> _TemplateResponse:
             "trade_managements": managements.data,
             "parameters": parameters.data,
         }
+    )
+
+def _format_duration(value) -> str:
+    if value is None:
+        return "-"
+    hours, rest = divmod(int(value.total_seconds()), 3600)
+    minutes, seconds = divmod(rest, 60)
+    return f"{hours}h {minutes:02d}m" if hours else f"{minutes}m {seconds:02d}s"
+
+templates.env.filters["duration"] = _format_duration
+
+def _lookup_names(trade, journal: JournalDep) -> dict:
+    """ID -> readable name maps, so the page shows names instead of foreign key numbers."""
+    models = {m.model_id: m.model_name for m in s.view_trading_models(journal).data} # pyright: ignore[reportGeneralTypeIssues, reportOptionalIterable]
+    accounts = {a.account_id: a.account_name for a in s.view_trading_accounts(journal).data} # pyright: ignore[reportGeneralTypeIssues, reportOptionalIterable]
+    executions = {e.entry_execution_id: e.archetype for e in s.view_entry_execution(journal).data} # pyright: ignore[reportGeneralTypeIssues, reportOptionalIterable]
+    managements = {m.management_id: m.archetype for m in s.view_trade_management(journal).data} # pyright: ignore[reportGeneralTypeIssues, reportOptionalIterable]
+    return {
+        "model": models.get(trade.model_id, "Unknown"),
+        "account": accounts.get(trade.account_id, "Unknown"),
+        "entry_execution": executions.get(trade.entry_execution_id, "Unknown"),
+        "management": managements.get(trade.management_id, "Unknown"),
+    }
+
+@app.get(path="/journal/{trade_id}", include_in_schema=False)
+def journal_entry_page(trade_id: int, request: Request, journal: JournalDep) -> _TemplateResponse:
+    results = s.fetch_journal_entry(trade_id=trade_id, journal=journal)
+    if not results.success:
+        raise to_http_error(exc=results.error)   # your handler renders error.html for non-/api paths
+
+    entry: JournalEntry = results.data # pyright: ignore[reportAssignmentType]
+    return templates.TemplateResponse(
+        request=request,
+        name="journal_entry_page.html",
+        context={
+            "trade": entry.trade,
+            "notes": entry.trade_notes,
+            "charts": entry.charts,
+            "parameters": entry.parameter_names,
+            "names": _lookup_names(entry.trade, journal),
+        },
     )
 
 #PROBLEM:
