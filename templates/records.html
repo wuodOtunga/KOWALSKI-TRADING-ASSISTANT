@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}KOWALSKI | Records{% endblock title %}
+
+{% block content %}
+
+<!-- RECORDS PAGE-->
+  <!--Three things on one page:-->
+    <!--1. Summary cards  -> total trades + latest trade     (GET /api/records/summary)-->
+    <!--2. Find a trade   -> jump to /trades/{id}            (GET /api/trades/{id} to check it exists first)-->
+    <!--3. Execution table-> one row per trade               (GET /api/records/trades)-->
+  <!--Nothing is rendered server-side except this shell. records.js fills every #rec-* element.-->
+
+<div class="mb-4">
+    <h2 class="h4 mb-1">Records</h2>
+    <p class="text-secondary mb-0">How your trades turned out, and how well you executed them.</p>
+</div>
+
+<div id="recordsAlert" class="alert d-none" role="alert"></div>
+
+<!--SUMMARY + LOOKUP-->
+<section class="row g-3 mb-4">
+
+    <div class="col-lg-3 col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-secondary small text-uppercase">Total trades</div>
+                <div class="display-5 fw-semibold font-monospace" id="rec-total">&mdash;</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5 col-md-8">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-secondary small text-uppercase">Latest trade</div>
+
+                <!--SHOWN WHEN THERE ARE NO TRADES YET-->
+                <div id="rec-latest-empty" class="text-secondary mt-2 d-none">No trades recorded yet.</div>
+
+                <div id="rec-latest" class="d-none">
+                    <div class="d-flex align-items-baseline gap-3 flex-wrap">
+                        <a id="rec-latest-link" class="fs-3 fw-semibold font-monospace text-decoration-none" href="#">#&mdash;</a>
+                        <span id="rec-latest-result" class="fw-semibold font-monospace"></span>
+                        <span id="rec-latest-amount" class="font-monospace"></span>
+                    </div>
+                    <div class="text-secondary small" id="rec-latest-meta"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <label for="rec-lookup-id" class="text-secondary small text-uppercase d-block mb-2">View a trade</label>
+                <form id="recordsLookupForm" novalidate>
+                    <div class="input-group">
+                        <input type="number" min="1" step="1" class="form-control" id="rec-lookup-id"
+                               name="trade_id" placeholder="Trade ID" required>
+                        <button type="submit" class="btn btn-primary" id="rec-lookup-submit">View</button>
+                        <div class="invalid-feedback">Enter a valid trade ID.</div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<!--EXECUTION TABLE-->
+<section>
+    <h3 class="h5 mb-3">Execution &amp; results</h3>
+
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-bordered align-middle" id="rec-table">
+            <thead>
+                <tr>
+                    <th scope="col">Trade ID</th>
+                    <th scope="col">Trade grade</th>
+                    <th scope="col">Entry execution</th>
+                    <th scope="col">Management execution</th>
+                    <th scope="col">Result</th>
+                    <th scope="col" class="text-end">Dollar amount</th>
+                </tr>
+            </thead>
+            <!--JS REPLACES THIS ROW WITH THE REAL ROWS (OR AN EMPTY/ERROR MESSAGE)-->
+            <tbody id="rec-table-body">
+                <tr>
+                    <td colspan="6" class="text-center text-secondary py-4">
+                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>Loading trades...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endblock content %}
+
+{% block scripts %}
+<script type="module" src="/static/js/records.js"></script>
+{% endblock scripts %}
