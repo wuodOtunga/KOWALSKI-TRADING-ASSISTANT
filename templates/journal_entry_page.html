@@ -3,6 +3,13 @@
 
 {% block content %}
 
+  <!--JOURNAL ENTRY PAGE (read + manage)-->
+  <!--Route:  GET /journal/{trade_id}  (server-rendered from services.fetch_journal_entry)-->
+  <!--JS: journalEntryPage.js only handles mutations: notes save/delete, chart delete, trade delete.-->
+  <!--Rules:  parameters are READ-ONLY here by design. They can be recorded once (while the trade is-->
+          <!--ungraded) through the existing modal, and never edited or deleted afterwards.-->
+  <!--NOTE:   dd data-note-field has white-space: pre-wrap, so keep {{ }} flush against the tags.-->
+
 {% set graded = trade.overall_trade_grade is not none %}
 {% set is_profit = trade.result.value == "PROFIT" %}
 {% set note_labels = [("emotions", "Emotions"), ("mistakes", "Mistakes"), ("lessons", "Lessons"), ("general_notes", "General notes")] %}

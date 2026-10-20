@@ -125,7 +125,7 @@ def _lookup_names(trade, journal: JournalDep) -> dict:
 def journal_entry_page(trade_id: int, request: Request, journal: JournalDep) -> _TemplateResponse:
     results = s.fetch_journal_entry(trade_id=trade_id, journal=journal)
     if not results.success:
-        raise to_http_error(exc=results.error)   # your handler renders error.html for non-/api paths
+        raise to_http_error(exc=results.error)   # the handler renders error.html for non-/api paths
 
     entry: JournalEntry = results.data # pyright: ignore[reportAssignmentType]
     return templates.TemplateResponse(
