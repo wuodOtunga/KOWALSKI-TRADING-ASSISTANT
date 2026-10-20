@@ -46,8 +46,8 @@ def calculate_profit_loss(setup: TradeSetup) -> dict:
     #OUTSIDE THE OPTIONS PROVIDED.
     valid_setup = _input_validation(setup)
 
-    contract_size = INSTRUMENT_SPECS[valid_setup.asset]["contract_size"]
-    multiplier = MULTIPLIER[valid_setup.direction]
+    contract_size: int = INSTRUMENT_SPECS[valid_setup.asset]["contract_size"]
+    multiplier: int = MULTIPLIER[valid_setup.direction]
 
     dollar_amount = (valid_setup.exit_price - valid_setup.entry_price) * multiplier * valid_setup.position_size * contract_size  # noqa: E501
     dollar_percent = (dollar_amount / valid_setup.account_balance) * 100
@@ -74,20 +74,20 @@ def calculate_risk_reward_multiple(setup: TradeSetup) -> dict:
     if valid_setup.entry_price in (valid_setup.take_profit, valid_setup.stop_loss):
         raise t.TradeValidationError("ENTRY PRICE CAN'T BE EQUAL TO TAKE PROFIT OR STOP LOSS")
 
-    contract_size = INSTRUMENT_SPECS[valid_setup.asset]["contract_size"]
+    contract_size: int = INSTRUMENT_SPECS[valid_setup.asset]["contract_size"]
 
-    if valid_setup.take_profit == valid_setup.exit_price:
-        profit_distance = valid_setup.take_profit - valid_setup.entry_price
-    else:
-        profit_distance = valid_setup.exit_price - valid_setup.entry_price
+    if valid_setup.direction == "long":
+        profit_distance: float = valid_setup.exit_price - valid_setup.entry_price
+        risk_distance: float = valid_setup.entry_price - valid_setup.stop_loss
 
+    profit_distance = valid_setup.entry_price - valid_setup.exit_price
     risk_distance = valid_setup.stop_loss - valid_setup.entry_price
 
     risk_amount = risk_distance * valid_setup.position_size * contract_size
     profit_amount = profit_distance * valid_setup.position_size * contract_size
     risk_percent = (risk_amount / valid_setup.account_balance) * 100
 
-    rr_multiple = round(profit_distance / risk_distance, 2)
+    rr_multiple = round(number=profit_amount / risk_amount, ndigits=2)
 
     return {
         "RR_MULTIPLE" : rr_multiple,
