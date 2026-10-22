@@ -17,8 +17,10 @@ from models import (
     TradeGrade,
     TradeManagement,
     TradeNotes,
+    TradeRecordRow,
     TradeResult,
     TradeSetup,
+    TradeSummary,
     TradingModel,
 )
 from repository import Repository
@@ -331,3 +333,9 @@ class Journal:
 
     def get_chart(self, trade_id: int, chart_id: int) -> TradeChart:
         return self.db.get_chart(trade_id, chart_id)
+
+    def fetch_trade_records(self) -> list[TradeRecordRow]:
+        return self.db.get_trade_records()
+
+    def fetch_records_summary(self) -> TradeSummary:
+        return self.db.get_trade_summary()

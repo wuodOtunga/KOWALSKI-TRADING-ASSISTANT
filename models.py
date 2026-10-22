@@ -169,7 +169,7 @@ class ChartsBatchResult:
 
     @property
     def succeeded(self) -> list[TradeChart]:
-        return [o.chart for o in self.outcomes if o.success] # type: ignore  # noqa: PGH003
+        return [o.chart for o in self.outcomes if o.success] # pyright: ignore[reportReturnType]
 
     @property
     def failed(self) -> list[ChartUploadOutcome]:
@@ -219,3 +219,35 @@ class TradeManagement:
 class Parameter:
     parameter_id: int
     parameter_name: str
+
+@dataclass
+class ArchetypeScore:
+    archetype: str
+    grade: TradeGrade
+    points: int
+
+@dataclass
+class TradeRecordRow:
+    trade_id: int
+    overall_trade_grade: TradeGrade | None
+    entry_execution: ArchetypeScore
+    management_execution: ArchetypeScore
+    result: TradeResult
+    dollar_amount: float
+
+@dataclass
+class LatestTrade:
+    trade_id: int
+    date: date
+    asset: TradeAsset
+    direction: TradeDirection
+    result: TradeResult
+    dollar_amount: float
+
+@dataclass
+class TradeSummary:
+    total_trades: int
+    latest_trade: LatestTrade | None
+
+
+

@@ -500,6 +500,22 @@ def delete_trade_chart(trade_id: int, chart_id: int, journal: Journal) -> Servic
     Path(chart.filepath).unlink(missing_ok=True)
     return ServiceResult(success=True, message="CHART DELETED", data=None, error=None)
 
+def view_trade_records(journal: Journal) -> ServiceResult:
+    return ServiceResult(
+        success=True,
+        message="TRADE RECORDS OBTAINED SUCCESSFULLY!",
+        data=journal.fetch_trade_records(),
+        error=None
+    )
+
+def view_records_summary(journal: Journal) -> ServiceResult:
+    return ServiceResult(
+            success=True,
+            message="RECORDS SUMMARY OBTAINED SUCCESSFULLY!",
+            data=journal.fetch_records_summary(),
+            error=None
+        )
+
 #SERVICE FUNCTIONS FOR STREAMLIT TRADE CALCULATOR FEATURE BUTTONS.
 def run_calculator(setup_values: dict) -> CalculatorResults:
     #USER WANTS TO CALCULATE PROFIT/LOSS, RISK_REWARD RATIO

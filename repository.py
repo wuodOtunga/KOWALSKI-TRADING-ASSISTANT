@@ -45,13 +45,17 @@ from models import (
     Account,
     AmendableColumns,
     Amendments,
+    ArchetypeScore,
     EntryExecution,
+    LatestTrade,
     Parameter,
     Trade,
     TradeChart,
     TradeGrade,
     TradeManagement,
     TradeNotes,
+    TradeRecordRow,
+    TradeSummary,
     TradingModel,
 )
 
@@ -77,7 +81,7 @@ _WRITABLE_TRADE_COLUMNS = frozenset(get_args(AmendableColumns)) | set(_DERIVED_F
 #If they need to share data, they go through a file, a socket, or a database.
 #A thread is a separate line of execution inside one process.
 #Threads share the same memory, so they can all see the same variables, objects, and connections.
-#That’s useful, but it’s also the source of the danger.     # noqa: RUF003
+#Thats useful, but its also the source of the danger.
 #Analogy: a process is a separate kitchen with its own pantry.
 #Threads are several cooks in one kitchen sharing the same pantry.
 #Cooks work faster together, but two cooks grabbing the same bowl at once is a problem.
@@ -346,7 +350,7 @@ class Repository:
         #If the body raises, Python re-raises the exception at the yield line.
         #That is why a try/except wrapped around the yield can catch errors from the body.
         #The except clauses in _transaction() work this way:
-        #they catch anything thrown inside the caller’s with block and translate it.  # noqa: RUF003
+        #they catch anything thrown inside the callers with block and translate it.
         #The rule is that the generator must yield exactly once. Every code path through it reaches one yield.
 
         #check whether a transaction is open.
@@ -713,7 +717,7 @@ class Repository:
                     )
                 ).scalar_one_or_none()
 
-                if not parameter_id:
+                if parameter_id is None:
                     raise t.InvalidIdentifierError(
                         "INVALID PARAMETER NAME. CHECK INPUTS"
                     )
@@ -742,7 +746,7 @@ class Repository:
 
                 # We shouldn't be getting None as a value after the query but if
                 # parameter_ids list somehow has an invalid parameter_id, then raise exception.
-                if not parameter_name:
+                if parameter_name is None:
                     raise t.InvalidIdentifierError("INVALID PARAMETER ID. CHECK INPUTS")
 
                 parameter_names.append(parameter_name)
@@ -811,6 +815,102 @@ class Repository:
             return [_to_domain(cls=Parameter, row=row) for row in rows]
 
 #-------REPORTS/STATISTICS/ANALYTICS AGGREGATION DATABASE METHODS FOR REPORTS.PY-------
+    def get_trade_records(self) -> list[TradeRecordRow]:
+        #feature: display a records table with the following rows:
+        #trade_id, grade, entry_execution, management_execution, result, dollar_amount
+        #entry_execution & management_execution shows the archetype, grade, points.
+
+        #The problem being solved
+        #The TradeModel has execution and management relationships. By default SQLAlchemy loads them lazily:
+        #the first SELECT fetches the trades, and then touching trade.execution on each trade,
+        #fires another SELECT for that one row. With 200 trades thats 1 + 200 + 200 = 401 queries.
+        #This is the N+1 problem. The goal isnt literally “one query,” its no per-row queries.
+        #You can see it happening by creating the repository with echo=True,
+        #(Repository.__init__ already accepts it). Every statement is printed, and you can count them.
+
+        #Idea 1: a SQL JOIN
+        #A join is a single statement in which the database glues rows from two tables together,
+        # wherever a foreign key matches a primary key
+        #Idea 2: select(...).join(...) in SQLAlchemy
+        #You select exactly the columns you want, then add .join() to say where the other columns come from.
+        # This is the below version for get_trade_records():
+        #Three things to notice:
+
+        #Labels are required. Both tables have archetype, grade and points columns,
+        # so without .label(...) the names would collide in the result.
+        #.join(TradeModel.execution) passes a relationship attribute,
+        #which tells SQLAlchemy both the target table and the ON clause.
+        #The explicit equivalent is:
+        #.join(EntryExecutionModel, TradeModel.entry_execution_id == EntryExecutionModel.entry_execution_id).
+        #Use that form when theres no relationship to lean on.
+        #You get Row objects, with attribute access by label (row.entry_archetype).
+        #You then build your domain dataclasses by hand:
+        statement = (select(
+            TradeModel.trade_id,
+            TradeModel.overall_trade_grade,
+            TradeModel.dollar_amount,
+            TradeModel.result,
+            EntryExecutionModel.archetype.label("entry_archetype"),
+            EntryExecutionModel.grade.label("execution_grade"),
+            EntryExecutionModel.points.label("execution_points"),
+            TradeManagementModel.archetype.label("mgmt_archetype"),
+            TradeManagementModel.grade.label("mgmt_grade"),
+            TradeManagementModel.points.label("mgmt_points"),
+        )
+        .join(TradeModel.execution)  ## follows the relationship, ON clause inferred
+        .join(TradeModel.management) ## follows the relationship, ON clause inferred
+        .order_by(TradeModel.date.desc(), TradeModel.trade_id.desc()))
+
+        with self._transaction() as session:
+            rows = session.execute(statement).all()
+
+            return [
+                    TradeRecordRow(
+                        trade_id=r.trade_id,
+                        overall_trade_grade=r.overall_trade_grade,
+                        entry_execution=ArchetypeScore(
+                            archetype=r.entry_archetype, grade=r.execution_grade, points=r.execution_points
+                        ),
+                        management_execution=ArchetypeScore(
+                            archetype=r.mgmt_archetype, grade=r.mgmt_grade, points=r.mgmt_points
+                        ),
+                        result=r.result,
+                        dollar_amount=r.dollar_amount,) for r in rows]
+
+    def get_trade_summary(self):
+        #get the latest trade plus total number of trades.
+        with self._transaction() as session:
+            trade_count = session.scalar(
+                statement=select(func.count())
+                .select_from(TradeModel)
+            )
+            row = session.execute(select(
+                TradeModel.trade_id,
+                TradeModel.date,
+                TradeModel.asset,
+                TradeModel.direction,
+                TradeModel.result,
+                TradeModel.dollar_amount,
+            )
+            .order_by(TradeModel.date.desc(), TradeModel.entry_time.desc(), TradeModel.trade_id.desc())
+            .limit(1)).one_or_none()
+
+            if row is None:
+                trade = None
+
+            trade = LatestTrade(
+                trade_id=row.trade_id, # pyright: ignore[reportOptionalMemberAccess]
+                date=row.date, # pyright: ignore[reportOptionalMemberAccess]
+                asset=row.asset, # pyright: ignore[reportOptionalMemberAccess]
+                direction=row.direction, # pyright: ignore[reportOptionalMemberAccess]
+                result=row.result, # pyright: ignore[reportOptionalMemberAccess]
+                dollar_amount=row.dollar_amount, # pyright: ignore[reportOptionalMemberAccess]
+            )
+
+            return TradeSummary(
+                total_trades=trade_count, # pyright: ignore[reportArgumentType]
+                latest_trade=trade
+            )
 
     def get_global_stats_rows(self):
         # NOT BEING IMPLEMENTED RIGHT NOW TILL WE SET UP REPORTS.PY

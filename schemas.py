@@ -196,4 +196,37 @@ class LotSizeResponse(BaseModel):
 
     lot_size: float | int
 
+class ArchetypeScoreResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    archetype: str
+    grade: str
+    points: int
+
+class TradeRecordResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    trade_id: int
+    overall_trade_grade: TradeGrade | None
+    entry_execution: ArchetypeScoreResponse
+    management_execution: ArchetypeScoreResponse
+    result: TradeResult
+    dollar_amount: float
+
+class LatestTradeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    trade_id: int
+    date: date
+    asset: TradeAsset
+    direction: TradeDirection
+    result: TradeResult
+    dollar_amount: float
+
+class RecordsSummaryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    total_trades: int
+    latest_trade: LatestTradeResponse | None
+
 
