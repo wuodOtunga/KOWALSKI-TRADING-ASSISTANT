@@ -47,7 +47,6 @@ class TradeResponse(TradeBase):
 
 class NewNotes(BaseModel):
     """REPRESENTS REQUEST SHAPE FOR CREATING NEW NOTES"""
-    trade_id: Annotated[int, Field(gt=0)]
     emotions: str
     mistakes: str
     lessons: str
@@ -56,6 +55,7 @@ class NewNotes(BaseModel):
 class NotesResponse(NewNotes):
     """REPRESENTS SHAPE OF NOTES RESPONSE CLIENT GETS TO SEE"""
     model_config = ConfigDict(from_attributes=True)
+    trade_id: int
 
 class AccountBase(BaseModel):
     """REPRESENTS THE ACCOUNT BASE MODEL AS PARENT MODEL CLASS"""
@@ -75,7 +75,6 @@ class AccountResponse(AccountBase):
 
 class ParametersBase(BaseModel):
     """REPRESENTS THE TRADE PARAMETERS BASE MODEL AS PARENT MODEL CLASS"""
-    trade_id: Annotated[int, Field(gt=0)]
     parameters_list: list[str]
 
 class TradeParameters(ParametersBase):
@@ -84,6 +83,7 @@ class TradeParameters(ParametersBase):
 class ParametersResponse(ParametersBase):
     """REPRESENTS SHAPE OF TRADE PARAMETERS RESPONSE CLIENT GETS TO SEE"""
     model_config = ConfigDict(from_attributes=True)
+    trade_id: int
 
 class TradeChanges(BaseModel):
     """REPRESENTS THE TRADE CHANGES BASE MODEL AS PARENT MODEL CLASS"""

@@ -12,13 +12,13 @@ def models(journal: JournalDep):
 
     return results.data
 
-@router.get(path="/entry_execution", response_model=list[ExecutionArchetypes])
+@router.get(path="/entry-execution", response_model=list[ExecutionArchetypes])
 def entry_execution(journal: JournalDep):
     results: s.ServiceResult = s.view_entry_execution(journal)
 
     return results.data
 
-@router.get(path="/trade_management", response_model=list[ManagementArchetypes])
+@router.get(path="/trade-management", response_model=list[ManagementArchetypes])
 def trade_management(journal: JournalDep):
     results: s.ServiceResult = s.view_trade_management(journal)
 

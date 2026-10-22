@@ -113,13 +113,13 @@ notesForm.addEventListener("submit", async (event) => {
         return;
     }
 
-    // PUT /api/notes/{id} is an upsert: it creates the notes if none exist, so one
-    // form covers both "add" and "edit". The body also carries trade_id (NewNotes requires it).
-    const body = { trade_id: tradeId, ...Object.fromEntries(new FormData(notesForm)) };
+    // PUT /api/trades/${tradeId}/notes is an upsert: it creates the notes if none exist, so one
+    // form covers both "add" and "edit".
+    const body = Object.fromEntries(new FormData(notesForm));
 
     notesSave.disabled = true;
     try {
-        const saved = await api(`/api/notes/${tradeId}`, {
+        const saved = await api(`/api/trades/${tradeId}/notes`, {
             method: "PUT",
             headers: JSON_HEADERS,
             body: JSON.stringify(body),
@@ -139,7 +139,7 @@ function confirmDeleteNotes() {
         message: "The emotions, mistakes, lessons and general notes for this trade will be removed permanently.",
         acceptLabel: "Delete notes",
         action: async () => {
-            await api(`/api/notes/${tradeId}`, { method: "DELETE" });
+            await api(`/api/trades/${tradeId}/notes`, { method: "DELETE" });
             renderNotes(null);
             hideAlert(notesAlert);
         },

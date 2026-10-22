@@ -46,10 +46,9 @@ export async function recordNotesHandler(event) {
 
     //extract and assemble form data into a JS object
     const formData = new FormData(form);
+    const tradeId = Number(formData.get("trade_id"));
+    formData.delete("trade_id");
     const notesData = Object.fromEntries(formData.entries());
-
-    //convert trade_id from string to number, the other inputs are strings.
-    notesData["trade_id"] = Number(notesData["trade_id"]);
 
     //disable form submit button to prevent accidental re-submissions due to double clicks
     //this is because POST isn't IDEMPOTENT
@@ -58,7 +57,7 @@ export async function recordNotesHandler(event) {
     //build api request payload
     let response = null;
     try {
-        response = await fetch("/api/notes", {
+        response = await fetch(`/api/trades/${tradeId}/notes`, {
             method: "POST",
             headers: {
                 "Content-type": "application/json"

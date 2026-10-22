@@ -71,13 +71,13 @@ async function populateParametersCheckboxes(containerElement, url) {
 
 parametersModal.addEventListener("show.bs.modal", async () => {
     parametersSubmit.disabled = true;
-    const loaded = await populateParametersCheckboxes(parametersContainer, "/api/static_models/parameters");
+    const loaded = await populateParametersCheckboxes(parametersContainer, "/api/static-models/parameters");
     parametersSubmit.disabled = !loaded;
 });
 
 function resetParametersModal() {
     //reset form inputs to defaults
-    form.reset()
+    form.reset();
     //stop fields from showing red on reopen
     form.classList.remove("was-validated");
     //hide any previous alerts in the modal.
@@ -97,16 +97,17 @@ async function recordParametersHandler(event) {
     }
 
     const formData = new FormData(form);
+    const tradeId = Number(formData.get("trade_id"));
+    formData.delete("trade_id");
     let parametersData = Object.fromEntries(formData.entries());
 
     parametersData = {
-        "trade_id": Number(formData.get("trade_id")),
         "parameters_list": formData.getAll("parameters"),
     }
 
     let response = null;
     try {
-        response = await fetch("/api/parameters", {
+        response = await fetch(`/api/trades/${tradeId}/parameters`, {
             method: "POST",
             headers: {
                 "Content-type": "application/json"

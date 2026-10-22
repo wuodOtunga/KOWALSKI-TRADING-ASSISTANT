@@ -8,7 +8,7 @@
 //3) Four small handlers that supply only what differs: the request, and what success means.
 
 //1) Describe the steps as data.
-import { showAlert, hideAlert, extractErrorMessage, readJsonBody, populateSelectDropdowns } from "./utils";
+import { showAlert, hideAlert, extractErrorMessage, readJsonBody, populateSelectDropdowns } from "./utils.js";
 
 const byId = (id) => document.getElementById(id);
 
@@ -177,9 +177,11 @@ STEPS.notes.form.addEventListener("submit", (event) => {
     event.preventDefault();
     runStep("notes",
         () => {
-            const data = Object.fromEntries(new FormData(STEPS.notes.form));
-            data.trade_id = Number(data.trade_id);
-            return jsonRequest("/api/notes", data);
+            const formData = new FormData(STEPS.notes.form);
+            const tradeId = Number(formData.get("trade_id"));
+            formData.delete("trade_id");             // it's in the URL now
+            const data = Object.fromEntries(formData);
+            return jsonRequest(`/api/trades/${tradeId}/notes`, data);
         },
         (response, payload) => {
             if (reportFailure("notes", response, payload)) return;
@@ -204,7 +206,7 @@ STEPS.charts.form.addEventListener("submit", (event) => {
     runStep("charts",
         () => {
             const formData = new FormData(STEPS.charts.form);
-            const tradeId = formData.get("trade_id");
+            const tradeId = Number(formData.get("trade_id"));
             formData.delete("trade_id");             // it's in the URL now
             return { url: `/api/trades/${tradeId}/charts`, options: { method: "POST", body: formData } };
         },
@@ -253,8 +255,9 @@ STEPS.parameters.form.addEventListener("submit", (event) => {
     runStep("parameters",
         () => {
             const formData = new FormData(STEPS.parameters.form);
-            return jsonRequest("/api/parameters", {
-                trade_id: Number(formData.get("trade_id")),
+            const tradeId = Number(formData.get("trade_id"));
+            formData.delete("trade_id");
+            return jsonRequest(`/api/trades/${tradeId}/parameters`, {
                 parameters_list: formData.getAll("parameters_list"),
             });
         },
@@ -285,7 +288,7 @@ STEPS.parameters.form.addEventListener("submit", (event) => {
 async function loadParameterCheckboxes() {
     const container = byId("je-parameters-options");
     try {
-        const response = await fetch("/api/static_models/parameters");
+        const response = await fetch("/api/static-models/parameters");
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         container.replaceChildren();
@@ -335,8 +338,8 @@ resetEntry();   // sets the initial state
 
 Promise.all([
     populateSelectDropdowns(byId("je-account"), "/api/accounts", "account_id", "account_name"),
-    populateSelectDropdowns(byId("je-model-id"), "/api/static_models/models", "model_id", "model_name"),
-    populateSelectDropdowns(byId("je-management-id"), "/api/static_models/trade_management", "management_id", "archetype"),
-    populateSelectDropdowns(byId("je-entry-execution-id"), "/api/static_models/entry_execution", "entry_execution_id", "archetype"),
+    populateSelectDropdowns(byId("je-model-id"), "/api/static-models/models", "model_id", "model_name"),
+    populateSelectDropdowns(byId("je-management-id"), "/api/static-models/trade-management", "management_id", "archetype"),
+    populateSelectDropdowns(byId("je-entry-execution-id"), "/api/static-models/entry-execution", "entry_execution_id", "archetype"),
     loadParameterCheckboxes(),
 ]);

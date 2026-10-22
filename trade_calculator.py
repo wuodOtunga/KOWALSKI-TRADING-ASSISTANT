@@ -84,10 +84,10 @@ def calculate_risk_reward_multiple(setup: TradeSetup) -> dict:
     rr = reward_amount / risk_amount
 
     return {
-        "RR_MULTIPLE": rr,
-        "RISK_PERCENT": risk_percent,
-        "REWARD_AMOUNT": reward_amount,
-        "RISK_AMOUNT": risk_amount,
+        "RR_MULTIPLE": round(number=rr, ndigits=2),
+        "RISK_PERCENT": round(number=risk_percent, ndigits=2),
+        "REWARD_AMOUNT": round(number=reward_amount, ndigits=2),
+        "RISK_AMOUNT": round(number=risk_amount, ndigits=2),
     }
 
 #THERE IS A PROPER DIFFERENCE BETWEEN WHAT I USE FOR LOT SIZE IN LIVE TRADING

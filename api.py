@@ -10,7 +10,7 @@ import services as s
 from dependencies import JournalDep
 from http_errors import to_http_error
 from models import JournalEntry
-from routers import accounts, calculator, notes, parameters, records, trades, trading_models
+from routers import accounts, calculator, records, trades, trading_models
 from schemas import TradeResponse
 
 #HTTP REQUEST IN -> API.PY CALLS A SERVICES.PY FUNCTION -> SERVICERESULT OUT -> HTTP RESPONSE OUT!
@@ -18,7 +18,35 @@ from schemas import TradeResponse
 
 #BASIC DATA FLOW: A REQUEST COMES IN VIA OUR API ENDPOINTS, PYDANTIC VALIDATES THE REQUEST,
 #SQLALCHEMY STORES/RETRIEVES THE DATA, PYDANTIC FORMATS THE RESPONSE AND THE RESPONSE GOES OUT.
-#/api/trades/{trade_id}/notes
+
+#CURRENT ENDPOINT PATHS
+#API ROUTES RETURNING JSON
+#0)RECORDS
+#/GET /api/records/trades, GET /api/records/summary
+#1)TRADES
+#GET /api/trades, POST /api/trades, GET /api/trades/{trade_id}, POST /api/trades/{trade_id}/charts,
+#GET /api/trades/{trade_id}/charts/{chart_id}/file, DELETE /api/trades/{trade_id}/charts/{charts_id},
+#PATCH /api/trades/{trade_id}, DELETE /api/trades/{trade_id}, GET /api/trades/{trade_id}/journal,
+#POST /api/trades/{trade_id}/notes, GET /api/trades/{trade_id}/notes, PUT /api/trades/{trade_id}/notes,
+#DELETE /api/trades/{trade_id}/notes, POST /api/trades/{trade_id}/parameters,
+#GET /api/trades/{trade_id}/parameters
+#2)TRADING MODELS
+#GET /api/static-models/models, GET /api/static-models/entry-execution,
+#GET /api/static-models/trade-management, GET /api/static-models/parameters.
+#3)ACCOUNTS
+#GET /api/accounts, POST /api/accounts, DELETE /api/accounts/{account_id}
+#4)CALCULATOR
+#POST /api/calculator/trade-metrics, POST /api/calculator/position-size
+
+#HTML ROUTES RETURNING HTML PAGES.
+#1) / ==> root/home page.
+#2) /trades ==> List of trades HTML page.
+#3) /journal-entry ==> Record Journal entry HTML page.
+#4) /calculator ==> Calculator HTML page.
+#5) /statics ==> Static trading models HTML page.
+#6) /records ==> Trade records HTML page.
+#7) /trades/{trade_id} ==> Single trade HTML page view.
+#8) /journal/{trade_id} ==> Single Journal entry HTML page view.
 
 
 app = FastAPI()
@@ -28,12 +56,10 @@ app.mount(path="/static", app=StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 app.include_router(router=records.router, prefix="/api/records", tags=["records"])
-app.include_router(router=trades.router, prefix="/api/trades", tags=["trades"])
-app.include_router(router=notes.router, prefix="/api/notes", tags=["notes"])
-app.include_router(router=parameters.router, prefix="/api/parameters", tags=["parameters"])
-app.include_router(router=accounts.router, prefix="/api/accounts", tags=["accounts"])
-app.include_router(router=trading_models.router, prefix="/api/static_models", tags=["static_models"])
+app.include_router(router=trading_models.router, prefix="/api/static-models", tags=["static-models"])
 app.include_router(router=calculator.router, prefix="/api/calculator", tags=["calculator"])
+app.include_router(router=accounts.router, prefix="/api/accounts", tags=["accounts"])
+app.include_router(router=trades.router, prefix="/api/trades", tags=["trades"])
 
 
 #HTML PAGE ROUTES FOR RENDERING PROPER HTML FOR BROWSER CONSUMER
@@ -57,7 +83,7 @@ def trades_page(request: Request, journal: JournalDep) -> _TemplateResponse:
         request= request, name="trades_list.html", context={"trades": trade_responses}
     )
 
-@app.get(path="/journal_entry", include_in_schema=False)
+@app.get(path="/journal-entry", include_in_schema=False)
 def journal_entry_form(request: Request) -> _TemplateResponse:
 
     return templates.TemplateResponse(request= request, name="journal_entry.html")

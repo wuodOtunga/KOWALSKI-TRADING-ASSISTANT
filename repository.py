@@ -66,7 +66,7 @@ T = TypeVar("T")
 
 _DERIVED_FIELDS = ("dollar_amount", "result", "rr_multiple", "risk_percent", "duration")
 
-_WRITABLE_TRADE_COLUMNS = frozenset(get_args(AmendableColumns)) | set(_DERIVED_FIELDS) | {"overall_trade_grade"}
+_WRITABLE_TRADE_COLUMNS = frozenset(get_args(AmendableColumns)) | set(_DERIVED_FIELDS) | {"overall_trade_grade"}  # noqa: E501
 
 #ContextVar for context variables.
 #Think of it as a variable whose value depends on who is asking.

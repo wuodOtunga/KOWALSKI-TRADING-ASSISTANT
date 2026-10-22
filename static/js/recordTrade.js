@@ -42,9 +42,9 @@ function resetTradeRecordModal() {
 async function loadRecordTradeOptions() {
     await Promise.all([
         populateSelectDropdowns(accountSelectEl, "/api/accounts", "account_id", "account_name"),
-        populateSelectDropdowns(modelSelectEl, "/api/static_models/models", "model_id", "model_name"),
-        populateSelectDropdowns(managementSelectEl, "/api/static_models/trade_management", "management_id", "archetype"),
-        populateSelectDropdowns(executionSelectEl, "/api/static_models/entry_execution", "entry_execution_id", "archetype"),
+        populateSelectDropdowns(modelSelectEl, "/api/static-models/models", "model_id", "model_name"),
+        populateSelectDropdowns(managementSelectEl, "/api/static-models/trade-management", "management_id", "archetype"),
+        populateSelectDropdowns(executionSelectEl, "/api/static-models/entry-execution", "entry_execution_id", "archetype"),
     ]);
 }
 
