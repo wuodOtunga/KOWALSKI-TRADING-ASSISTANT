@@ -10,7 +10,7 @@ import services as s
 from dependencies import JournalDep
 from http_errors import to_http_error
 from models import JournalEntry
-from routers import accounts, calculator, notes, parameters, trades, trading_models
+from routers import accounts, calculator, notes, parameters, records, trades, trading_models
 from schemas import TradeResponse
 
 #HTTP REQUEST IN -> API.PY CALLS A SERVICES.PY FUNCTION -> SERVICERESULT OUT -> HTTP RESPONSE OUT!
@@ -27,6 +27,7 @@ app.mount(path="/static", app=StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
 
+app.include_router(router=records.router, prefix="/api/records", tags=["records"])
 app.include_router(router=trades.router, prefix="/api/trades", tags=["trades"])
 app.include_router(router=notes.router, prefix="/api/notes", tags=["notes"])
 app.include_router(router=parameters.router, prefix="/api/parameters", tags=["parameters"])
@@ -54,20 +55,6 @@ def trades_page(request: Request, journal: JournalDep) -> _TemplateResponse:
 
     return templates.TemplateResponse(
         request= request, name="trades_list.html", context={"trades": trade_responses}
-    )
-
-
-@app.get(path="/trades/{trade_id}", include_in_schema=False)
-def trade_page(trade_id: int, request: Request, journal: JournalDep) -> _TemplateResponse:
-    results = s.fetch_trade(trade_id= trade_id, journal= journal)
-
-    if not results.success:
-        raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail= "TRADE NOT FOUND!")
-
-    trade_response: TradeResponse = TradeResponse.model_validate(results.data, from_attributes=True)
-
-    return templates.TemplateResponse(
-        request= request, name="trade_detail.html", context={"trade": trade_response}
     )
 
 @app.get(path="/journal_entry", include_in_schema=False)
@@ -99,6 +86,47 @@ def models_page(request: Request, journal: JournalDep) -> _TemplateResponse:
         }
     )
 
+@app.get(path="/records", include_in_schema=False)
+def trade_records_page(request: Request, journal: JournalDep) -> _TemplateResponse:
+    records = s.view_trade_records(journal=journal)
+    summary= s.view_records_summary(journal=journal)
+    return templates.TemplateResponse(
+        request=request, name="records.html",
+        context={"trades": records.data, "summary": summary.data}
+    )
+
+@app.get(path="/trades/{trade_id}", include_in_schema=False)
+def trade_page(trade_id: int, request: Request, journal: JournalDep) -> _TemplateResponse:
+    results = s.fetch_trade(trade_id= trade_id, journal= journal)
+
+    if not results.success:
+        raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail= "TRADE NOT FOUND!")
+
+    trade_response: TradeResponse = TradeResponse.model_validate(results.data, from_attributes=True)
+
+    return templates.TemplateResponse(
+        request= request, name="trade_detail.html", context={"trade": trade_response}
+    )
+
+@app.get(path="/journal/{trade_id}", include_in_schema=False)
+def journal_entry_page(trade_id: int, request: Request, journal: JournalDep) -> _TemplateResponse:
+    results = s.fetch_journal_entry(trade_id=trade_id, journal=journal)
+    if not results.success:
+        raise to_http_error(exc=results.error)   # the handler renders error.html for non-/api paths
+
+    entry: JournalEntry = results.data # pyright: ignore[reportAssignmentType]
+    return templates.TemplateResponse(
+        request=request,
+        name="journal_entry_page.html",
+        context={
+            "trade": entry.trade,
+            "notes": entry.trade_notes,
+            "charts": entry.charts,
+            "parameters": entry.parameter_names,
+            "names": _lookup_names(entry.trade, journal),
+        },
+    )
+
 def _format_duration(value) -> str:
     if value is None:
         return "-"
@@ -121,24 +149,6 @@ def _lookup_names(trade, journal: JournalDep) -> dict:
         "management": managements.get(trade.management_id, "Unknown"),
     }
 
-@app.get(path="/journal/{trade_id}", include_in_schema=False)
-def journal_entry_page(trade_id: int, request: Request, journal: JournalDep) -> _TemplateResponse:
-    results = s.fetch_journal_entry(trade_id=trade_id, journal=journal)
-    if not results.success:
-        raise to_http_error(exc=results.error)   # the handler renders error.html for non-/api paths
-
-    entry: JournalEntry = results.data # pyright: ignore[reportAssignmentType]
-    return templates.TemplateResponse(
-        request=request,
-        name="journal_entry_page.html",
-        context={
-            "trade": entry.trade,
-            "notes": entry.trade_notes,
-            "charts": entry.charts,
-            "parameters": entry.parameter_names,
-            "names": _lookup_names(entry.trade, journal),
-        },
-    )
 
 #PROBLEM:
 #CURRENTLY, A HTTP 404 RESPONSE FOR A TRADE THAT DOESN'T EXIST
