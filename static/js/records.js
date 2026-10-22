@@ -126,7 +126,7 @@ function renderRows(rows) {
 
     const trs = rows.map(row => {
         const idLink = document.createElement("a");
-        idLink.href = `/trades/${row.trade_id}`;
+        idLink.href = `/journal/${row.trade_id}`;
         idLink.className = "text-decoration-none fw-semibold";
         idLink.textContent = `#${row.trade_id}`;
 
@@ -143,7 +143,7 @@ function renderRows(rows) {
             makeCell(idLink),
             makeCell(gradeBadge(row.overall_trade_grade)),
             scoreCell(row.entry_execution),
-            scoreCell(row.management),
+            scoreCell(row.management_execution),
             makeCell(resultSpan),
             amountTd,
         );
@@ -165,7 +165,7 @@ function renderSummary(summary) {
 
     const result = resultInfo(latest.result, latest.dollar_amount);
 
-    latestLinkEl.href = `/trades/${latest.trade_id}`;
+    latestLinkEl.href = `/journal/${latest.trade_id}`;
     latestLinkEl.textContent = `#${latest.trade_id}`;
     latestResultEl.className = `fw-semibold font-monospace ${result.cls}`;
     latestResultEl.textContent = result.label;
