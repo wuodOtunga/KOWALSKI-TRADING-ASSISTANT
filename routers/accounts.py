@@ -1,5 +1,6 @@
 from fastapi import APIRouter, status
 
+import exceptions as t
 import services as s
 from dependencies import JournalDep
 from http_errors import to_http_error
@@ -34,4 +35,4 @@ def delete_account(account_id: int, journal: JournalDep):
 
     results: s.ServiceResult = s.delete_account_info(account_id= account_id, journal= journal)
     if not results.success:
-        raise to_http_error(exc=results.error)
+        raise to_http_error(exc=results.error, overrides={t.InvalidIdentifierError: 404})
