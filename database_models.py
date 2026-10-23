@@ -11,6 +11,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Interval,
+    String,
     Text,
     Time,
 )
@@ -26,6 +27,17 @@ class Base(DeclarativeBase):
 # THE SIDE WITH THE FK COLUMN IS THE CHILD CLASS (MANY SIDE)
 # THE SIDE THAT IS REFERENCED BY THE FK IS THE PARENT (ONE SIDE)
 # BACK_POPULATES VALUE IS ALWAYS THE NAME OF THE ATTRIBUTE ON THE OTHER CLASS
+
+class User(Base):
+    __tablename__ = "users"
+
+    user_id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
+
+    trades: Mapped[list[TradeModel]] = relationship(back_populates="user")
+    accounts: Mapped[list[AccountsModel]] = relationship(back_populates="user")
 
 
 class TradeModel(Base):
@@ -43,6 +55,7 @@ class TradeModel(Base):
     exit_time: Mapped[time] = mapped_column(Time, nullable=False)
     #FIX: WILL RAISE AN ERROR ON READ DUE TO STORED FORMAT
     date: Mapped[date] = mapped_column(Date, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
     model_id: Mapped[int] = mapped_column(ForeignKey("models.model_id"), nullable=False)
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.account_id"), nullable=False)
     management_id: Mapped[int] = mapped_column(
@@ -94,6 +107,7 @@ class TradeModel(Base):
         )
     )
 
+    user: Mapped[User] = relationship(back_populates="trades")
     model: Mapped[Models] = relationship(back_populates="trades")
     account: Mapped[AccountsModel] = relationship(back_populates="trades")
     management: Mapped[TradeManagementModel] = relationship(back_populates="trades")
@@ -162,12 +176,14 @@ class AccountsModel(Base):
     __tablename__ = "accounts"
 
     account_id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
     account_name: Mapped[str] = mapped_column(nullable=False)
     account_type: Mapped[str] = mapped_column(nullable=False)
     broker: Mapped[str] = mapped_column(nullable=False)
     starting_balance: Mapped[float] = mapped_column(nullable=False)
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
 
+    user: Mapped[User] = relationship(back_populates="accounts")
     trades: Mapped[list[TradeModel]] = relationship(back_populates="account")
 
     __table_args__ = (

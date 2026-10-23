@@ -1,23 +1,16 @@
-# config.py
-from functools import lru_cache
-from pathlib import Path
-
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-BASE_DIR = Path(__file__).resolve().parent
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="KOWALSKI_", env_file=".env")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
 
-    database_url: str = f"sqlite:///{BASE_DIR / 'kowalski.db'}"
-    upload_dir: Path = BASE_DIR / "uploaded_charts"
-    max_chart_bytes: int = 10 * 1024 * 1024
-    max_charts_per_upload: int = 10
-    log_level: str = "INFO"
-    sql_echo: bool = False
+    secret_str: SecretStr
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
 
-
-@lru_cache
-def get_settings() -> Settings:
-    return Settings()
+#secret_str is loaded from .env file and not manually filled in here.
+settings = Settings() # pyright: ignore[reportCallIssue]

@@ -3,14 +3,33 @@
 from datetime import date, datetime, time, timedelta
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from models import AmendableColumns, TradeAsset, TradeDirection, TradeGrade, TradeResult
 
 #DEBATE ON WHETHER YOU WANT ACCOUNT_ID OR ACCOUNT_NAME IN THE MODEL.
 #ACCOUNT_ID IS TRIVIAL INFO, ACCOUNT_NAME HOLDS MORE CONTEXT.
 
-#TRADE, NewTrade, TradeResponse
+class UserBase(BaseModel):
+    username: str = Field(min_length=1, max_length=50)
+    email: EmailStr = Field(max_length=200)
+
+class UserCreate(UserBase):
+    password: str = Field(min_length=8)
+
+class UserPublic(BaseModel):
+    user_id: Annotated[int, Field(gt=0)]
+    username: str = Field(min_length=1, max_length=50)
+
+class UserPrivate(UserPublic):
+    model_config = ConfigDict(from_attributes=True)
+    email: EmailStr = Field(max_length=200)
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
 class TradeBase(BaseModel):
     """REPRESENTS THE TRADE BASE MODEL AS PARENT MODEL CLASS"""
 

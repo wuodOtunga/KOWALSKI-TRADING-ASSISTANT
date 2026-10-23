@@ -5,6 +5,8 @@ from datetime import date, datetime, time, timedelta
 from enum import StrEnum
 from typing import Literal, TypeVar
 
+from pydantic import EmailStr
+
 from exceptions import KowalskiError
 
 T = TypeVar("T")
@@ -40,6 +42,13 @@ AmendableColumns = Literal[
     "entry_price", "exit_price", "take_profit", "stop_loss", "position_size", "asset",
     "direction", "model_id", "account_id", "management_id", "entry_execution_id",
 ]
+
+@dataclass
+class User:
+    user_id: int
+    username: str
+    email: EmailStr
+    password_hash: str
 
 @dataclass
 class Trade:
